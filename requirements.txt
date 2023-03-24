@@ -8,3 +8,4 @@ mysqlclient
 
 flake8
 uwsgi
+bcrypt
