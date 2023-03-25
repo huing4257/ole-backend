@@ -10,3 +10,4 @@ xunit-reports/
 .pytest_cache/
 
 /config/config.py
+.vscode

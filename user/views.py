@@ -1,12 +1,31 @@
-# from django.shortcuts import render
-from django.http import HttpRequest  # , HttpResponse
-from utils.utils_request import BAD_METHOD, request_failed, request_success  # , return_field
-from utils.utils_require import require  # CheckRequire MAX_CHAR_LENGTH,
-from user.models import User
 import json
+from django.http import HttpRequest
+from utils.utils_request import request_failed, request_success, return_field, BAD_METHOD
+from utils.utils_require import require
+from user.models import User
 import bcrypt
 
-# Create your views here.
+
+def register(req: HttpRequest):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+
+        user_name = require(body, "userName", "string", err_msg="username format error", err_code=2)
+        user = User.objects.filter(name=user_name).first()
+
+        if user:
+            return request_failed(1, "existing username")
+        else:
+            password = require(body, "password", "string", err_msg="username format error", err_code=3)
+
+            user_type = require(body, "userType", "string", err_msg="Missing or error type of [userType]")
+            assert user_type in ["admin", "demand", "tag"], "Invalid userType"
+
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            user = User(name=user_name, password=hashed_password, user_type=user_type)
+            user.save()
+
+        return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
 
 def login(req: HttpRequest):
@@ -23,11 +42,11 @@ def login(req: HttpRequest):
         body = json.loads(req.body.decode("utf-8"))
         uname = require(body, "user_name", "string", err_msg="Missing or error type of name")
         upassword = require(body, "password", "string", err_msg="Missing or error type of password")
-        user: User = User.objects.filter(user_name=uname)
+        user: User = User.objects.filter(user_name=uname).first()
         if not user:
             return request_failed(4, "wrong username or password", 400)
         else:
-            if bcrypt.hashpw(upassword, bcrypt.gensalt()) == user.password:
+            if bcrypt.checkpw(upassword.encode('utf-8'), user.password.encode('utf-8')):
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,
@@ -39,13 +58,10 @@ def login(req: HttpRequest):
                 response.set_cookie("userType", user.user_type)
                 return response
             else:
-                return request_failed(4, "wrong username or password", 400)            
+                return request_failed(4, "wrong username or password", 400)
     else:
         return BAD_METHOD
 
 
 def logout(req: HttpRequest):
-    req.delete_cookie('userId')
-    req.delete_cookie('userType')
-    req.delete_cookie('userName')        
-    return request_success()
+    return None
