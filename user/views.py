@@ -42,11 +42,11 @@ def login(req: HttpRequest):
         body = json.loads(req.body.decode("utf-8"))
         uname = require(body, "user_name", "string", err_msg="Missing or error type of name")
         upassword = require(body, "password", "string", err_msg="Missing or error type of password")
-        user: User = User.objects.filter(user_name=uname)
+        user: User = User.objects.filter(user_name=uname).first()
         if not user:
             return request_failed(4, "wrong username or password", 400)
         else:
-            if bcrypt.hashpw(upassword, bcrypt.gensalt()) == user.password:
+            if bcrypt.checkpw(upassword.encode('utf-8'), user.password.encode('utf-8')):
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,
