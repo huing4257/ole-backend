@@ -1,5 +1,4 @@
-import random
-from django.test import TestCase, Client
+from django.test import TestCase
 from user.models import User
 import bcrypt
 
