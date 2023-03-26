@@ -15,7 +15,6 @@ def register(req: HttpRequest):
             return request_failed(1, "existing username")
         else:
             password = require(body, "password", "string", err_msg="username format error", err_code=3)
-
             user_type = require(body, "user_type", "string", err_msg="Missing or error type of [userType]")
             assert user_type in ["admin", "demand", "tag"], "Invalid userType"
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
