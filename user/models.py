@@ -7,8 +7,8 @@ class User(models.Model):
     user_name = models.CharField(max_length=200, unique=True)
     password = models.CharField(max_length=200)
     user_type = models.CharField(max_length=20)
-    score = models.IntegerField(default=1)
-    membership_level = models.IntegerField(default=1)
+    score = models.IntegerField(default=0)
+    membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
 
     class Meta:

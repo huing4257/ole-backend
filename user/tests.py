@@ -9,7 +9,7 @@ class UserTests(TestCase):
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
         User.objects.create(
-            user_id=0,
+            user_id=1,
             user_name="testUser",
             password=hashed_password.decode("utf-8"),  # store hashed password as a string
             user_type="admin",
