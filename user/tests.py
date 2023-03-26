@@ -1,3 +1,4 @@
+import random
 from django.test import TestCase
 from user.models import User
 import bcrypt
@@ -17,21 +18,63 @@ class UserTests(TestCase):
             invite_code="testInviteCode",
         )
 
-    def post_user(self, user_name, password):
+    def post_login(self, user_name, password):
         payload = {
             "user_name": user_name,
             "password": password,
         }
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/login", payload, content_type="application/json")
-
-    def test_login(self):
-        user_name = "testUser"
-        password = "testPassword"
-        self.post_user(user_name, password)
+    
+    def post_register(self, user_name, password, user_type, invite_code):
         payload = {
             "user_name": user_name,
             "password": password,
+            "user_type": user_type,
+            "invite_code": invite_code,
         }
-        response = self.client.post("/user/login", payload)
-        self.assertEqual(response.status_code, 200)
+        payload = {k: v for k, v in payload.items() if v is not None}
+        return self.client.post("/user/register", payload, content_type="application/json")
+
+    def test_login_success(self):
+        user_name = "testUser"
+        password = "testPassword"
+        res = self.post_login(user_name, password)
+        self.assertEqual(res.status_code, 200)
+
+    def test_login_failed1(self):
+        user_name = "wrongUser"
+        password = "testPassword"
+        res = self.post_login(user_name, password)
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(res.content, {"code": 4, "message": "wrong username or password", "data": {}})
+    
+    def test_login_failed2(self):
+        user_name = "testUser"
+        password = "wrongPassword"
+        res = self.post_login(user_name, password)
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(res.content, {"code": 4, "message": "wrong username or password", "data": {}})        
+
+    def test_logout(self):
+        res = self.client.post("/user/logout")
+        self.assertEqual(res.status_code, 200)
+        self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": {}})        
+
+    def test_register_success(self):
+        user_name: str = "newTestUser"
+        password: str = "newPassword"
+        userType: str = random.choice(["admin", "demand", "tag"])
+        inviteCode: str = "testInviteCode"
+        res = self.post_register(user_name, password, userType, inviteCode)
+        self.assertEqual(res.status_code, 200)
+
+    def test_register_failed(self):
+        user_name: str = "testUser"
+        password: str = "newPassword"
+        userType: str = random.choice(["admin", "demand", "tag"])
+        inviteCode: str = "testInviteCode"
+        res = self.post_register(user_name, password, userType, inviteCode)
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(res.content, {"code": 1, "message": "existing username", "data": {}})        
+

@@ -3,12 +3,12 @@ from django.db import models
 
 # Create your models here.
 class User(models.Model):
-    user_id = models.BigIntegerField(primary_key=True)
+    user_id = models.AutoField(primary_key=True)
     user_name = models.CharField(max_length=200, unique=True)
     password = models.CharField(max_length=200)
     user_type = models.CharField(max_length=20)
-    score = models.IntegerField()
-    membership_level = models.IntegerField()
+    score = models.IntegerField(default=0)
+    membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
 
     class Meta:
