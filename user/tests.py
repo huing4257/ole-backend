@@ -11,7 +11,7 @@ class UserTests(TestCase):
         User.objects.create(
             user_id=1,
             user_name="testUser",
-            password=hashed_password.decode("utf-8"),  # store hashed password as a string
+            password=hashed_password,  # store hashed password as a string
             user_type="admin",
             score=0,
             membership_level=0,
