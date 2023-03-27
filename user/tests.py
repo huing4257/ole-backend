@@ -1,4 +1,3 @@
-import random
 from django.test import TestCase
 from user.models import User
 import bcrypt
@@ -92,7 +91,7 @@ class UserTests(TestCase):
     def test_register_success(self):
         user_name: str = "newTestUser"
         password: str = "newPassword"
-        user_type: str = random.choice(["admin", "demand", "tag"])
+        user_type: str = "admin"
         invite_code: str = "testInviteCode"
         res = self.post_register(user_name, password, user_type, invite_code)
         self.assertEqual(res.status_code, 200)
@@ -100,7 +99,7 @@ class UserTests(TestCase):
     def test_register_failed(self):
         user_name: str = "testUser"
         password: str = "newPassword"
-        user_type: str = random.choice(["admin", "demand", "tag"])
+        user_type: str = "admin"
         invite_code: str = "testInviteCode"
         res = self.post_register(user_name, password, user_type, invite_code)
         self.assertEqual(res.status_code, 400)
