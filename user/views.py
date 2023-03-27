@@ -1,6 +1,6 @@
 import json
 from django.http import HttpRequest
-from utils.utils_request import request_failed, request_success, return_field, BAD_METHOD
+from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require
 from user.models import User
 import bcrypt
@@ -36,12 +36,12 @@ def login(req: HttpRequest):
 
         body = json.loads(req.body.decode("utf-8"))
         uname = require(body, "user_name", "string", err_msg="Missing or error type of name")
-        upassword = require(body, "password", "string", err_msg="Missing or error type of password")
+        password = require(body, "password", err_msg="Missing or error type of password")
         user: User = User.objects.filter(user_name=uname).first()
         if not user:
             return request_failed(4, "wrong username or password", 400)
         else:
-            if bcrypt.checkpw(upassword.encode('utf-8'), user.password.encode('utf-8')):
+            if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,
@@ -64,3 +64,36 @@ def logout(req: HttpRequest):
     response.delete_cookie('userType')
     response.delete_cookie('userName')
     return response
+
+
+def user_info(req: HttpRequest):
+    if req.method == "GET":
+        user_id = req.COOKIES["userId"]
+        user: User = User.objects.filter(user_id=user_id).first()
+        if not user:
+            return request_failed(1, "user not found")
+        else:
+            return request_success(
+                {k: v for k, v in user.serialize().items() if k != "password"})
+    else:
+        return BAD_METHOD
+
+
+def modify_password(req: HttpRequest):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        user_id = req.COOKIES["userId"]
+        user: User = User.objects.filter(user_id=user_id).first()
+        if not user:
+            return request_failed(1, "user not found")
+        else:
+            old_password = require(body, "old_password", "string", err_msg="Missing or error type of old_password")
+            new_password = require(body, "new_password", "string", err_msg="Missing or error type of new_password")
+            if bcrypt.checkpw(old_password.encode('utf-8'), user.password.encode('utf-8')):
+                user.password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+                user.save()
+                return request_success()
+            else:
+                return request_failed(1, "wrong old password")
+    else:
+        return BAD_METHOD

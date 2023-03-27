@@ -25,7 +25,7 @@ class UserTests(TestCase):
         }
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/login", payload, content_type="application/json")
-    
+
     def post_register(self, user_name, password, user_type, invite_code):
         payload = {
             "user_name": user_name,
@@ -48,33 +48,32 @@ class UserTests(TestCase):
         res = self.post_login(user_name, password)
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(res.content, {"code": 4, "message": "wrong username or password", "data": {}})
-    
+
     def test_login_failed2(self):
         user_name = "testUser"
         password = "wrongPassword"
         res = self.post_login(user_name, password)
         self.assertEqual(res.status_code, 400)
-        self.assertJSONEqual(res.content, {"code": 4, "message": "wrong username or password", "data": {}})        
+        self.assertJSONEqual(res.content, {"code": 4, "message": "wrong username or password", "data": {}})
 
     def test_logout(self):
         res = self.client.post("/user/logout")
         self.assertEqual(res.status_code, 200)
-        self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": {}})        
+        self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": {}})
 
     def test_register_success(self):
         user_name: str = "newTestUser"
         password: str = "newPassword"
-        userType: str = random.choice(["admin", "demand", "tag"])
-        inviteCode: str = "testInviteCode"
-        res = self.post_register(user_name, password, userType, inviteCode)
+        user_type: str = random.choice(["admin", "demand", "tag"])
+        invite_code: str = "testInviteCode"
+        res = self.post_register(user_name, password, user_type, invite_code)
         self.assertEqual(res.status_code, 200)
 
     def test_register_failed(self):
         user_name: str = "testUser"
         password: str = "newPassword"
-        userType: str = random.choice(["admin", "demand", "tag"])
-        inviteCode: str = "testInviteCode"
-        res = self.post_register(user_name, password, userType, inviteCode)
+        user_type: str = random.choice(["admin", "demand", "tag"])
+        invite_code: str = "testInviteCode"
+        res = self.post_register(user_name, password, user_type, invite_code)
         self.assertEqual(res.status_code, 400)
-        self.assertJSONEqual(res.content, {"code": 1, "message": "existing username", "data": {}})        
-
+        self.assertJSONEqual(res.content, {"code": 1, "message": "existing username", "data": {}})
