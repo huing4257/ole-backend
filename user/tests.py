@@ -2,6 +2,7 @@ import random
 from django.test import TestCase
 from user.models import User
 import bcrypt
+default_content_type = "application/json"
 
 
 class UserTests(TestCase):
@@ -24,7 +25,7 @@ class UserTests(TestCase):
             "password": password,
         }
         payload = {k: v for k, v in payload.items() if v is not None}
-        return self.client.post("/user/login", payload, content_type="application/json")
+        return self.client.post("/user/login", payload, content_type=default_content_type)
 
     def post_register(self, user_name, password, user_type, invite_code):
         payload = {
@@ -34,7 +35,7 @@ class UserTests(TestCase):
             "invite_code": invite_code,
         }
         payload = {k: v for k, v in payload.items() if v is not None}
-        return self.client.post("/user/register", payload, content_type="application/json")
+        return self.client.post("/user/register", payload, content_type=default_content_type)
 
     def post_modify_password(self, old_password, new_password):
         payload = {
@@ -42,7 +43,7 @@ class UserTests(TestCase):
             "new_password": new_password,
         }
         payload = {k: v for k, v in payload.items() if v is not None}
-        return self.client.post("/user/modifypassword", payload, content_type="application/json")
+        return self.client.post("/user/modifypassword", payload, content_type=default_content_type)
 
     def test_login_success(self):
         user_name = "testUser"
@@ -111,24 +112,24 @@ class UserTests(TestCase):
         res = self.post_login(user_name, password)
         self.assertEqual(res.status_code, 200)
 
-        oldPassword = "testPassword"
-        newPassword = "testNewPassword"
-        res2 = self.post_modify_password(oldPassword, newPassword)
+        old_password = "testPassword"
+        new_password = "testNewPassword"
+        res2 = self.post_modify_password(old_password, new_password)
         self.assertJSONEqual(res2.content, {
             "code": 0,
             "message": "Succeed",
             "data": {}
         })
 
-    def test_modify_pswd_wrongPswd(self):
+    def test_modify_pswd_wrong_pswd(self):
         user_name = "testUser"
         password = "testPassword"
         res = self.post_login(user_name, password)
         self.assertEqual(res.status_code, 200)
 
-        oldPassword = "wrongPassword"
-        newPassword = "testNewPassword"
-        res2 = self.post_modify_password(oldPassword, newPassword)
+        old_password = "wrongPassword"
+        new_password = "testNewPassword"
+        res2 = self.post_modify_password(old_password, new_password)
         self.assertJSONEqual(res2.content, 
                              {
                                  "code": 4,
@@ -137,10 +138,10 @@ class UserTests(TestCase):
                              }
                              )
 
-    def test_modify_pswd_notLogIn(self):
-        oldPassword = "wrongPassword"
-        newPassword = "testNewPassword"
-        res2 = self.post_modify_password(oldPassword, newPassword)
+    def test_modify_pswd_not_login(self):
+        old_password = "wrongPassword"
+        new_password = "testNewPassword"
+        res2 = self.post_modify_password(old_password, new_password)
         self.assertEqual(res2.status_code, 401)
         self.assertJSONEqual(res2.content, 
                              {
@@ -173,4 +174,3 @@ class UserTests(TestCase):
     #             "vip_expire_time": 0
     #         }
     #     })
-
