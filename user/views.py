@@ -30,15 +30,9 @@ def login(req: HttpRequest):
         if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
             user = UserToken.objects.get(token=req.COOKIES["token"]).user
             return_data = {
-<<<<<<< HEAD
-                "user_id": user.user_id,
-                "user_name": user.user_name,
-                "user_type": user.user_type,
-=======
                 "user_id": int(req.COOKIES["userId"]),
                 "user_name": req.COOKIES["userName"],
                 "user_type": req.COOKIES["userType"],
->>>>>>> ac2a4f5 ( :bug: :white_check_mark:  fix bug and add test)
             }
             return request_success(return_data)
 
