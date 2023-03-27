@@ -30,9 +30,9 @@ def login(req: HttpRequest):
         if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
             user = UserToken.objects.get(token=req.COOKIES["token"]).user
             return_data = {
-                "user_id": int(req.COOKIES["userId"]),
-                "user_name": req.COOKIES["userName"],
-                "user_type": req.COOKIES["userType"],
+                "user_id": user.user_id,
+                "user_name": user.user_name,
+                "user_type": user.user_type,
             }
             return request_success(return_data)
 
@@ -89,7 +89,10 @@ def user_info(req: HttpRequest):
 def modify_password(req: HttpRequest):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        user = UserToken.objects.get(token=req.COOKIES["token"]).user
+        if "token" in req.COOKIES:
+            user = UserToken.objects.get(token=req.COOKIES["token"]).user
+        else:
+            return request_failed(1001, "not_logged_in", 401)
         if not user:
             return request_failed(1001, "not_logged_in", 401)
         else:
