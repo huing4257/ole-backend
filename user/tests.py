@@ -149,6 +149,7 @@ class UserTests(TestCase):
                              }
                              )        
 
+    # userinfo 路由改好后再写测试
     # def test_user_info_failed(self):
     #     res2 = self.client.get(f"/user/userinfo/{9999}")
     #     print(res2.content)
