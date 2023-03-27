@@ -2,7 +2,8 @@ import json
 from django.http import HttpRequest
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require
-from user.models import User
+from utils.utils_time import get_timestamp
+from user.models import User, UserToken
 import bcrypt
 
 
@@ -26,11 +27,12 @@ def register(req: HttpRequest):
 def login(req: HttpRequest):
     if req.method == "POST":
         # 通过cookie判断是否已经登录
-        if "userId" in req.COOKIES and "userName" in req.COOKIES and "userType" in req.COOKIES:
+        if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
+            user = UserToken.objects.get(token=req.COOKIES["token"]).user
             return_data = {
-                "user_id": req.COOKIES["userId"],
-                "user_name": req.COOKIES["userName"],
-                "user_type": req.COOKIES["userType"],
+                "user_id": user.user_id,
+                "user_name": user.user_name,
+                "user_type": user.user_type,
             }
             return request_success(return_data)
 
@@ -48,9 +50,12 @@ def login(req: HttpRequest):
                     "user_type": user.user_type,
                 }
                 response = request_success(return_data)
-                response.set_cookie("userId", user.user_id)
-                response.set_cookie("userName", user.user_name)
-                response.set_cookie("userType", user.user_type)
+                token = bcrypt.hashpw((str(user.user_id) + str(get_timestamp())).encode('utf-8'), bcrypt.gensalt())
+                while UserToken.objects.filter(token=token).exists():
+                    token = bcrypt.hashpw(((str(user.user_id) + str(get_timestamp())).encode('utf-8')), bcrypt.gensalt())
+                usertoken = UserToken(user=user, token=token)
+                usertoken.save()
+                response.set_cookie("token", token)
                 return response
             else:
                 return request_failed(4, "wrong username or password", 400)
@@ -59,17 +64,19 @@ def login(req: HttpRequest):
 
 
 def logout(req: HttpRequest):
-    response = request_success()
-    response.delete_cookie('userId')
-    response.delete_cookie('userType')
-    response.delete_cookie('userName')
-    return response
+    if "token" in req.COOKIES:
+        response = request_success()
+        usertoken = UserToken.objects.get(token=req.COOKIES["token"])
+        usertoken.delete()
+        response.delete_cookie('token')
+        return response
+    else:
+        return request_success()
 
 
 def user_info(req: HttpRequest):
     if req.method == "GET":
-        user_id = req.COOKIES["userId"]
-        user: User = User.objects.filter(user_id=user_id).first()
+        user = UserToken.objects.get(token=req.COOKIES["token"]).user
         if not user:
             return request_failed(1, "user not found")
         else:
@@ -82,8 +89,7 @@ def user_info(req: HttpRequest):
 def modify_password(req: HttpRequest):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        user_id = req.COOKIES["userId"]
-        user: User = User.objects.filter(user_id=user_id).first()
+        user = UserToken.objects.get(token=req.COOKIES["token"]).user
         if not user:
             return request_failed(1, "user not found")
         else:

@@ -31,3 +31,11 @@ class User(models.Model):
 
     def __str__(self) -> str:
         return self.user_name
+
+
+class UserToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        db_table = 'user_token'
