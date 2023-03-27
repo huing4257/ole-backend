@@ -43,7 +43,7 @@ def login(req: HttpRequest):
         if not user:
             return request_failed(4, "wrong username or password", 400)
         else:
-            if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+            if bcrypt.checkpw(password.encode('utf-8'), user.password):
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,
@@ -103,7 +103,7 @@ def modify_password(req: HttpRequest):
         else:
             old_password = require(body, "old_password", "string", err_msg="Missing or error type of old_password")
             new_password = require(body, "new_password", "string", err_msg="Missing or error type of new_password")
-            if bcrypt.checkpw(old_password.encode('utf-8'), user.password.encode('utf-8')):
+            if bcrypt.checkpw(old_password.encode('utf-8'), user.password):
                 user.password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
                 user.save()
                 return request_success()
