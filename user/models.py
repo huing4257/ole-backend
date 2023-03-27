@@ -26,7 +26,13 @@ class User(models.Model):
             "user_type": self.user_type,
             "score": self.score,
             "membership_level": self.membership_level,
-            "invite_code": self.invite_code
+            "invite_code": self.invite_code,
+            "credit_score": self.credit_score,
+            "bank_account": self.bank_account,
+            "account_balance": self.account_balance,
+            "grow_value": self.grow_value,
+            "vip_expire_time": self.vip_expire_time,
+
         }
 
     def __str__(self) -> str:

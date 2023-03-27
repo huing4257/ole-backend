@@ -83,10 +83,10 @@ def user_info(req: HttpRequest, user_id: any):
     if req.method == "GET":
         if "token" not in req.COOKIES:
             return request_failed(1001, "not_logged_in", 401)
-
         user = User.objects.filter(user_id=user_id).first()
         if not user:
             return request_failed(8, "user does not exist", 404)
+        return request_success({k: v for k, v in user.serialize().items() if k != "password"})
     else:
         return BAD_METHOD
 

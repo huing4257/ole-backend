@@ -129,7 +129,7 @@ class UserTests(TestCase):
         old_password = "wrongPassword"
         new_password = "testNewPassword"
         res2 = self.post_modify_password(old_password, new_password)
-        self.assertJSONEqual(res2.content, 
+        self.assertJSONEqual(res2.content,
                              {
                                  "code": 4,
                                  "message": "wrong password",
@@ -142,7 +142,7 @@ class UserTests(TestCase):
         new_password = "testNewPassword"
         res2 = self.post_modify_password(old_password, new_password)
         self.assertEqual(res2.status_code, 401)
-        self.assertJSONEqual(res2.content, 
+        self.assertJSONEqual(res2.content,
                              {
 
                                  "code": 1001,
@@ -150,26 +150,29 @@ class UserTests(TestCase):
                                  "data": {}
 
                              }
-                             )        
+                             )
 
     # userinfo 路由改好后再写测试
-    # def test_user_info_failed(self):
-    #     res2 = self.client.get(f"/user/userinfo/{9999}")
-    #     print(res2.content)
-    #     self.assertJSONEqual(res2.content, {
-    #         "code": 0,
-    #         "message": "succeed",
-    #         "data": {
-    #             "user_id": 1,
-    #             "user_name": "testUser",
-    #             "user_type": "admin",
-    #             "score": 0,
-    #             "membership_level": 0,
-    #             "invite_code": "testInviteCode",
-    #             "credit_score": 0,
-    #             "bank_account": "",
-    #             "account_balance": 0,
-    #             "grow_value": 0,
-    #             "vip_expire_time": 0
-    #         }
-    #     })
+    def test_user_info_failed(self):
+        user_name = "testUser"
+        password = "testPassword"
+        self.post_login(user_name, password)
+        res2 = self.client.get(f"/user/userinfo/{1}")
+        print(res2.content)
+        self.assertJSONEqual(res2.content, {
+            "code": 0,
+            "message": "Succeed",
+            "data": {
+                "user_id": 1,
+                "user_name": "testUser",
+                "user_type": "admin",
+                "score": 0,
+                "membership_level": 0,
+                "invite_code": "testInviteCode",
+                "credit_score": 0,
+                "bank_account": "",
+                "account_balance": 0,
+                "grow_value": 0,
+                "vip_expire_time": None
+            }
+        })
