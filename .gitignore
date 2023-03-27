@@ -9,4 +9,4 @@ coverage-reports/
 xunit-reports/
 .pytest_cache/
 
-/config/config.py
+config/config.py
