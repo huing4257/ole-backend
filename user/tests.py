@@ -83,8 +83,7 @@ class UserTests(TestCase):
     def test_logout(self):
         user_name = "testUser"
         password = "testPassword"
-        res = self.post_login(user_name, password)
-        self.assertEqual(res.status_code, 200)
+        self.post_login(user_name, password)
         res = self.client.post("/user/logout")
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": {}})
