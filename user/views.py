@@ -1,12 +1,13 @@
 import json
 from django.http import HttpRequest
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
-from utils.utils_require import require
+from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from user.models import User, UserToken
 import bcrypt
 
 
+@CheckRequire
 def register(req: HttpRequest):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
@@ -24,6 +25,7 @@ def register(req: HttpRequest):
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
 
+@CheckRequire
 def login(req: HttpRequest):
     if req.method == "POST":
         # 通过cookie判断是否已经登录
@@ -56,7 +58,8 @@ def login(req: HttpRequest):
                                           bcrypt.gensalt())
                 user_token = UserToken(user=user, token=token)
                 user_token.save()
-                response.set_cookie("token", token)
+                response.set_cookie("token", token, max_age=604800)
+                response.set_cookie("userId", user.user_id, max_age=604800)
                 return response
             else:
                 return request_failed(4, "wrong username or password", 400)
@@ -64,6 +67,7 @@ def login(req: HttpRequest):
         return BAD_METHOD
 
 
+@CheckRequire
 def logout(req: HttpRequest):
     if "token" in req.COOKIES:
         if UserToken.objects.filter(token=req.COOKIES["token"]).exists():
@@ -71,6 +75,7 @@ def logout(req: HttpRequest):
             user_token = UserToken.objects.get(token=req.COOKIES["token"])
             user_token.delete()
             response.delete_cookie('token')
+            response.delete_cookie('userId')
             return response
         else:
             return request_failed(1001, "not_logged_in", 401)
@@ -78,6 +83,7 @@ def logout(req: HttpRequest):
         return request_failed(1001, "not_logged_in", 401)
 
 
+@CheckRequire
 def user_info(req: HttpRequest, user_id: any):
     user_id = require({"user_id": user_id}, "user_id", "int", err_msg="invalid request", err_code=1005)
     if req.method == "GET":
@@ -91,6 +97,7 @@ def user_info(req: HttpRequest, user_id: any):
         return BAD_METHOD
 
 
+@CheckRequire
 def modify_password(req: HttpRequest):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
