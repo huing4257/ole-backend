@@ -11,17 +11,17 @@ default_content_type = "application/json"
 class TaskTests(TestCase):
     def setUp(self) -> None:
 
-        testData = Data.objects.create(
+        test_data = Data.objects.create(
             data={}
         )
 
-        testResult = Result.objects.create(
+        test_result = Result.objects.create(
             user_id=1,
             result={}
         )
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        testPublisher = User.objects.create(
+        test_publisher = User.objects.create(
             user_id=1,
             user_name="testPublisher",
             password=hashed_password,  # store hashed password as a string
@@ -33,7 +33,7 @@ class TaskTests(TestCase):
         )
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        testReceiver = User.objects.create(
+        test_receiver = User.objects.create(
             user_id=2,
             user_name="testReceiver",
             password=hashed_password,  # store hashed password as a string
@@ -52,14 +52,14 @@ class TaskTests(TestCase):
             total_time_limit=1,
             auto_ac=False,
             manual_ac=True,
-            publisher=testPublisher,
+            publisher=test_publisher,
             task_id=1,
             distribute_user_num=1,
         )
 
-        task.data.set(testData)
-        task.distribute_users.set(testReceiver)
-        task.result.set(testResult)
+        task.data.set(test_data)
+        task.distribute_users.set(test_receiver)
+        task.result.set(test_result)
 
     def test(self):
         pass
