@@ -1,4 +1,5 @@
 from django.db import models
+from utils import utils_time
 
 
 # Create your models here.
@@ -14,7 +15,7 @@ class User(models.Model):
     bank_account = models.CharField(max_length=20, default="")
     account_balance = models.IntegerField(default=0)
     grow_value = models.IntegerField(default=0)
-    vip_expire_time = models.DateTimeField(null=True)
+    vip_expire_time = models.FloatField(default=utils_time.get_timestamp())
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
@@ -32,7 +33,6 @@ class User(models.Model):
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
-
         }
 
     def __str__(self) -> str:

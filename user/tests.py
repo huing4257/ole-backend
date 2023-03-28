@@ -1,6 +1,8 @@
 from django.test import TestCase
 from user.models import User
 import bcrypt
+import datetime
+
 default_content_type = "application/json"
 
 
@@ -16,6 +18,7 @@ class UserTests(TestCase):
             score=0,
             membership_level=0,
             invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
         )
 
     def post_login(self, user_name, password):
@@ -173,6 +176,6 @@ class UserTests(TestCase):
                 "bank_account": "",
                 "account_balance": 0,
                 "grow_value": 0,
-                "vip_expire_time": None
+                "vip_expire_time": datetime.datetime.max.timestamp()
             }
         })
