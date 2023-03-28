@@ -104,11 +104,12 @@ class TaskTests(TestCase):
             "time_limit_per_q": 0,
             "total_time_limit": 0,
             "auto_ac": True,
-            "manual_ac": True
+            "manual_ac": True,
+            "distribute_user_num": 1
         }
         res = self.post_task(para)
-        self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
 
     def test_create_task_not_logged_in(self):
         para = {

@@ -14,29 +14,32 @@ def require_tasks(req):
     body = json.loads(req.body.decode("utf-8"))
     task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
     task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
-    reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
-                           err_code=9)
+    reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error", err_code=9)
     time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
                                err_code=9)
     total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
                                err_code=9)
     auto_ac = require(body, "auto_accept", "bool", err_msg="auto accept format error")
     manual_ac = require(body, "manual_accept", "bool", err_msg="manual accept format error")
+    distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
     return {"task_type": task_type, "task_style": task_style, "reward_per_q": reward_per_q,
             "time_limit_per_q": time_limit_per_q, "total_time_limit": total_time_limit,
-            "auto_ac": auto_ac, "manual_ac": manual_ac}
+            "auto_ac": auto_ac, "manual_ac": manual_ac, "distribute_user_num": distribute_user_num}
 
 
 @CheckLogin
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
-        para = require_tasks(req)
+        body = json.loads(req.body.decode("utf-8"))
+        # para = require_tasks(req)
         task = Task.objects.create()
-        for key in para:
-            setattr(task, key, para[key])
-        if user.score < para["reward_per_q"] * para["distributed_user_num"]:
-            return request_failed(10, "score not enough", status_code=400)
-        para.update({"publisher": user})
+        task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error")
+        # task.reward_per_q = para["reward_per_q"]
+        # for key in para:
+        #     setattr(task, key, para[key])
+        # if user.score < para["reward_per_q"] * para["distribute_user_num"]:
+        #     return request_failed(10, "score not enough", status_code=400)
+        task.publisher = user
         task.save()
         return request_success({"task_id": task.task_id})
     else:
@@ -57,7 +60,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         else:
             para = require_tasks(req)
 
-            if user.score < para["reward_per_q"] * para["distributed_user_num"]:
+            if user.score < para["reward_per_q"] * para["distribute_user_num"]:
                 return request_failed(10, "score not enough", status_code=400)
 
             for key in para:
@@ -159,4 +162,4 @@ def upload_res(req: HttpRequest, id: int):
             else:
                 return request_failed(1001, "not_logged_in")
     else:
-        return BAD_METHOD   
+        return BAD_METHOD

@@ -37,7 +37,6 @@ class Task(models.Model):
     distribute_user_num = models.IntegerField(default=0)
     result = models.ManyToManyField('task.Result')
 
-
     def serialize(self):
         return {
             "task_type": self.task_type,
