@@ -1,12 +1,12 @@
 from functools import wraps
-
+from django.http import HttpRequest
 from user.models import UserToken
 from utils.utils_request import request_failed
 
 
 def CheckLogin(check_fn):
     @wraps(check_fn)
-    def wrap(req, *args, **kwargs):
+    def wrap(req: HttpRequest, *args, **kwargs):
         if 'token' not in req.COOKIES or not UserToken.objects.filter(token=req.COOKIES['token']).exists():
             return request_failed(1001, "not_logged_in", 401)
         else:

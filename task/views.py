@@ -96,7 +96,6 @@ def get_all_tasks(req: HttpRequest, _user: User):
 @CheckLogin
 def get_my_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
-        # 通过cookie判断是否已经登录
         if user.user_type == "demand":
             published = user.published_task.all()
             published_list: list = list()
@@ -115,6 +114,7 @@ def get_my_tasks(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
+@CheckLogin
 def upload_data(req: HttpRequest, id: int):
     if req.method == "POST":
         # 通过cookie判断是否已经登录
@@ -139,6 +139,7 @@ def upload_data(req: HttpRequest, id: int):
         return BAD_METHOD
 
 
+@CheckLogin
 def upload_res(req: HttpRequest, id: int):
     if req.method == "POST":
         # 通过cookie判断是否已经登录
