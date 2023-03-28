@@ -4,8 +4,8 @@ from django.http import HttpRequest
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
-from user.models import User
-from task.models import Task
+from user.models import User, UserToken
+from task.models import Task, Result, Data
 
 
 # Create your views here.
@@ -110,9 +110,51 @@ def get_my_tasks(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
-def upload_data():
-    pass
+def upload_data(req: HttpRequest, id: int):
+    if req.method == "POST":
+        # 通过cookie判断是否已经登录
+        body = json.loads(req.body.decode("utf-8"))
+        # data is a json list
+        data_offered = require(body, "data", "list", err_msg="invalid request", err_code=2)
+        if not data_offered:
+            return request_failed(1005, "invalid request")
+        else:
+            # 判断是否登录
+            if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
+                task = Task.objects.filter(task_id=id).first()
+                data = Data.objects.create(
+                    data=data_offered
+                )
+                task.data.set(data)
+                task.save()
+                return request_success()
+            else:
+                return request_failed(1001, "not_logged_in")
+    else:
+        return BAD_METHOD
 
 
-def upload_res():
-    pass
+def upload_res(req: HttpRequest, id: int):
+    if req.method == "POST":
+        # 通过cookie判断是否已经登录
+        body = json.loads(req.body.decode("utf-8"))
+        # RL is a json list
+        result_list = require(body, "result", "list", err_msg="invalid request", err_code=2)
+        if not result_list:
+            return request_failed(1005, "invalid request")
+        else:
+            # 判断是否登录
+            if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
+                user = UserToken.objects.get(token=req.COOKIES["token"]).user
+                task = Task.objects.filter(task_id=id).first()
+                result = Result.objects.create(
+                    user_id=user.user_id,
+                    result=result_list,
+                )
+                task.result.set(result)
+                task.save()
+                return request_success()
+            else:
+                return request_failed(1001, "not_logged_in")
+    else:
+        return BAD_METHOD   
