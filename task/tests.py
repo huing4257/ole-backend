@@ -57,9 +57,9 @@ class TaskTests(TestCase):
             distribute_user_num=1,
         )
 
-        task.data.set(test_data)
-        task.distribute_users.set(test_receiver)
-        task.result.set(test_result)
+        task.data.add(test_data)
+        task.distribute_users.add(test_receiver)
+        task.result.add(test_result)
 
     def test(self):
         pass
