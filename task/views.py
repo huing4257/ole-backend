@@ -115,17 +115,17 @@ def upload_data(req: HttpRequest, id: int):
         # 通过cookie判断是否已经登录
         body = json.loads(req.body.decode("utf-8"))
         # data is a json list
-        data_offered = require(body, "data", "list", err_msg="invalid request", err_code=2)
-        if not data_offered:
+        data_list = require(body, "data", "list", err_msg="invalid request", err_code=2)
+        if not data_list:
             return request_failed(1005, "invalid request")
         else:
             # 判断是否登录
             if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
                 task = Task.objects.filter(task_id=id).first()
                 data = Data.objects.create(
-                    data=data_offered
+                    data=data_list
                 )
-                task.data.set(data)
+                task.data.add(data)
                 task.save()
                 return request_success()
             else:
@@ -151,7 +151,7 @@ def upload_res(req: HttpRequest, id: int):
                     user_id=user.user_id,
                     result=result_list,
                 )
-                task.result.set(result)
+                task.result.add(result)
                 task.save()
                 return request_success()
             else:
