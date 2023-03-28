@@ -16,9 +16,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.urls.conf import include
+import task.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/', include('user.urls')),
-    path('task/', include('task.urls'))
+    path('task/', include('task.urls')),
+    path('task', task.views.create_task)
 ]
