@@ -33,7 +33,7 @@ build:
 unit-test:
   extends: .test
   script:
-    - python3 manage.py makemigrations user
+    - python3 manage.py makemigrations user task
     - python3 manage.py migrate
     - bash test.sh
   after_script:
