@@ -3,6 +3,7 @@ from django.http import HttpRequest
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
+from utils.utils_check import CheckLogin
 from user.models import User, UserToken
 import bcrypt
 
@@ -67,28 +68,22 @@ def login(req: HttpRequest):
         return BAD_METHOD
 
 
+@CheckLogin
 @CheckRequire
-def logout(req: HttpRequest):
-    if "token" in req.COOKIES:
-        if UserToken.objects.filter(token=req.COOKIES["token"]).exists():
-            response = request_success()
-            user_token = UserToken.objects.get(token=req.COOKIES["token"])
-            user_token.delete()
-            response.delete_cookie('token')
-            response.delete_cookie('userId')
-            return response
-        else:
-            return request_failed(1001, "not_logged_in", 401)
-    else:
-        return request_failed(1001, "not_logged_in", 401)
+def logout(req: HttpRequest, _user: User):
+    response = request_success()
+    user_token = UserToken.objects.get(token=req.COOKIES["token"])
+    user_token.delete()
+    response.delete_cookie('token')
+    response.delete_cookie('userId')
+    return response
 
 
+@CheckLogin
 @CheckRequire
-def user_info(req: HttpRequest, user_id: any):
+def user_info(req: HttpRequest, _user: User, user_id: any):
     user_id = require({"user_id": user_id}, "user_id", "int", err_msg="invalid request", err_code=1005)
     if req.method == "GET":
-        if "token" not in req.COOKIES:
-            return request_failed(1001, "not_logged_in", 401)
         user = User.objects.filter(user_id=user_id).first()
         if not user:
             return request_failed(8, "user does not exist", 404)
@@ -97,24 +92,18 @@ def user_info(req: HttpRequest, user_id: any):
         return BAD_METHOD
 
 
+@CheckLogin
 @CheckRequire
-def modify_password(req: HttpRequest):
+def modify_password(req: HttpRequest, user: User):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        if "token" in req.COOKIES:
-            user = UserToken.objects.get(token=req.COOKIES["token"]).user
+        old_password = require(body, "old_password", "string", err_msg="Missing or error type of old_password")
+        new_password = require(body, "new_password", "string", err_msg="Missing or error type of new_password")
+        if bcrypt.checkpw(old_password.encode('utf-8'), user.password):
+            user.password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+            user.save()
+            return request_success()
         else:
-            return request_failed(1001, "not_logged_in", 401)
-        if not user:
-            return request_failed(1001, "not_logged_in", 401)
-        else:
-            old_password = require(body, "old_password", "string", err_msg="Missing or error type of old_password")
-            new_password = require(body, "new_password", "string", err_msg="Missing or error type of new_password")
-            if bcrypt.checkpw(old_password.encode('utf-8'), user.password):
-                user.password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
-                user.save()
-                return request_success()
-            else:
-                return request_failed(4, "wrong password")
+            return request_failed(4, "wrong password")
     else:
         return BAD_METHOD
