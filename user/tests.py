@@ -161,7 +161,6 @@ class UserTests(TestCase):
         password = "testPassword"
         self.post_login(user_name, password)
         res2 = self.client.get(f"/user/userinfo/{1}")
-        print(res2.content)
         self.assertJSONEqual(res2.content, {
             "code": 0,
             "message": "Succeed",

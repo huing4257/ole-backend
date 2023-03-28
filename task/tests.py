@@ -10,14 +10,31 @@ default_content_type = "application/json"
 
 class TaskTests(TestCase):
     def setUp(self) -> None:
-
         test_data = Data.objects.create(
-            data={}
+            data=[
+                {
+                    "q_id": 0,
+                    "data": "string"
+                },
+                {
+                    "q_id": 1,
+                    "data": "string"
+                },
+            ]
         )
 
         test_result = Result.objects.create(
             user_id=1,
-            result={}
+            result=[
+                {
+                    "q_id": 0,
+                    "data": "string"
+                },
+                {
+                    "q_id": 1,
+                    "data": "string"
+                },
+            ]
         )
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
@@ -33,9 +50,19 @@ class TaskTests(TestCase):
         )
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        test_receiver = User.objects.create(
+        test_receiver1 = User.objects.create(
             user_id=2,
-            user_name="testReceiver",
+            user_name="testReceiver1",
+            password=hashed_password,  # store hashed password as a string
+            user_type="tag",
+            score=0,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )
+        test_receiver2 = User.objects.create(
+            user_id=3,
+            user_name="testReceiver2",
             password=hashed_password,  # store hashed password as a string
             user_type="tag",
             score=0,
@@ -58,7 +85,8 @@ class TaskTests(TestCase):
         )
 
         task.data.add(test_data)
-        task.distribute_users.add(test_receiver)
+        task.distribute_users.add(test_receiver1)
+        task.distribute_users.add(test_receiver2)
         task.result.add(test_result)
 
     def test(self):
