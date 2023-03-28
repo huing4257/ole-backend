@@ -31,10 +31,12 @@ def require_tasks(req):
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
         para = require_tasks(req)
+        task = Task.objects.create()
+        for key in para:
+            setattr(task, key, para[key])
         if user.score < para["reward_per_q"] * para["distributed_user_num"]:
             return request_failed(10, "score not enough", status_code=400)
         para.update({"publisher": user})
-        task = Task.objects.create(**para)
         task.save()
         return request_success({"task_id": task.task_id})
     else:

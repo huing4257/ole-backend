@@ -25,17 +25,18 @@ class Result(models.Model):
 class Task(models.Model):
     task_type = models.CharField(max_length=20)
     task_style = models.CharField(max_length=200)
-    reward_per_q = models.IntegerField()
-    time_limit_per_q = models.IntegerField()
-    total_time_limit = models.IntegerField()
-    auto_ac = models.BooleanField()
-    manual_ac = models.BooleanField()
-    publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task")
-    data = models.ManyToManyField('task.Data')
-    distribute_users = models.ManyToManyField('user.User', related_name="distributed_tasks")
+    reward_per_q = models.IntegerField(default=0)
+    time_limit_per_q = models.IntegerField(default=0)
+    total_time_limit = models.IntegerField(default=0)
+    auto_ac = models.BooleanField(default=True)
+    manual_ac = models.BooleanField(default=False)
+    publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task", null=True)
+    data = models.ManyToManyField('task.Data', related_name="task", blank=True)
+    distribute_users = models.ManyToManyField('user.User', related_name="distributed_tasks", null=True)
     task_id = models.AutoField(primary_key=True)
-    distribute_user_num = models.IntegerField()
+    distribute_user_num = models.IntegerField(default=0)
     result = models.ManyToManyField('task.Result')
+
 
     def serialize(self):
         return {

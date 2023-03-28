@@ -89,5 +89,43 @@ class TaskTests(TestCase):
         task.distribute_users.add(test_receiver2)
         task.result.add(test_result)
 
+    def post_task(self, para: dict):
+        return self.client.post("/task", para, content_type=default_content_type)
+
+    def test_create_task_success(self):
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        para = {
+            "task_type": "picture",
+            "task_style": "string",
+            "reward_per_q": 10,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "auto_ac": True,
+            "manual_ac": True
+        }
+        res = self.post_task(para)
+        self.assertEqual(res.json()["message"], "Succeed")
+        self.assertEqual(res.status_code, 200)
+
+    def test_create_task_not_logged_in(self):
+        para = {
+            "task_type": "picture",
+            "task_style": "string",
+            "reward_per_q": 0,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "auto_ac": True,
+            "manual_ac": True
+        }
+        res = self.post_task(para)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["message"], "not_logged_in")
+
+    def test_create_task_score_not_enough(self):
+        pass
+
     def test(self):
         pass
