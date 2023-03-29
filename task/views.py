@@ -99,7 +99,7 @@ def get_my_tasks(req: HttpRequest, user: User):
             distributed = user.distributed_tasks.all()
             distributed_list: list = list()
             for element in distributed:
-                user.published_list.append(element.serialize())
+                distributed_list.append(element.serialize())
             return request_success(distributed_list)
         else:
             return request_failed(12, "no task of admin")
