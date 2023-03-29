@@ -108,7 +108,7 @@ def get_my_tasks(req: HttpRequest, user: User):
 
 
 @CheckLogin
-def upload_data(req: HttpRequest, user: User, id: int):
+def upload_data(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         # 通过cookie判断是否已经登录
         body = json.loads(req.body.decode("utf-8"))
@@ -119,7 +119,7 @@ def upload_data(req: HttpRequest, user: User, id: int):
         else:
             # 判断是否登录
             if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
-                task = Task.objects.filter(task_id=id).first()
+                task = Task.objects.filter(task_id=task_id).first()
                 data = Data.objects.create(
                     data=data_list
                 )
@@ -133,7 +133,7 @@ def upload_data(req: HttpRequest, user: User, id: int):
 
 
 @CheckLogin
-def upload_res(req: HttpRequest, user: User, id: int):
+def upload_res(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         # 通过cookie判断是否已经登录
         body = json.loads(req.body.decode("utf-8"))
@@ -144,7 +144,7 @@ def upload_res(req: HttpRequest, user: User, id: int):
         else:
             # 判断是否登录
             if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
-                task = Task.objects.filter(task_id=id).first()
+                task = Task.objects.filter(task_id=task_id).first()
                 result = Result.objects.create(
                     user_id=user.user_id,
                     result=result_list,
