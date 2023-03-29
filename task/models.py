@@ -36,6 +36,7 @@ class Task(models.Model):
     task_id = models.AutoField(primary_key=True)
     distribute_user_num = models.IntegerField(default=0)
     result = models.ManyToManyField('task.Result')
+    task_name = models.CharField(max_length=24)
 
     def serialize(self):
         return {
@@ -51,6 +52,7 @@ class Task(models.Model):
             "distribute_users": [user.serialize() for user in self.distribute_users.all()],
             "task_id": self.task_id,
             "distribute_user_num": self.distribute_user_num,
-            "result": [result.serialize() for result in self.result.all()]
+            "result": [result.serialize() for result in self.result.all()],
+            "task_name": self.task_name,
         }
 
