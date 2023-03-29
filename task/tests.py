@@ -95,6 +95,21 @@ class TaskTests(TestCase):
     def post_task(self, para: dict):
         return self.client.post("/task", para, content_type=default_content_type)
 
+    def test_create_task_not_logged_in(self):
+        para = {
+            "task_type": "picture",
+            "task_style": "string",
+            "reward_per_q": 0,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "auto_ac": True,
+            "manual_ac": True,
+            "distribute_user_num": 1
+        }
+        res = self.post_task(para)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["message"], "not_logged_in")
+
     def test_create_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
@@ -114,23 +129,34 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
-    def test_create_task_not_logged_in(self):
+    def test_create_task_score_not_enough(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
         para = {
             "task_type": "picture",
             "task_style": "string",
-            "reward_per_q": 0,
+            "reward_per_q": 10,
             "time_limit_per_q": 0,
             "total_time_limit": 0,
             "auto_ac": True,
             "manual_ac": True,
-            "distribute_user_num": 1
+            "distribute_user_num": 100,
         }
         res = self.post_task(para)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 10)
+
+    def test_modify_task_not_logged_in(self):
+        res = self.client.put("/task/1", {}, content_type=default_content_type)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["message"], "not_logged_in")
 
-    def test_create_task_score_not_enough(self):
-        pass
+    def test_modify_task_not_publisher(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.put("/task/1", {}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 11)
 
     # def test_get_my_tasks(self):
     #     # 以需求方的身份登录
@@ -167,7 +193,7 @@ class TaskTests(TestCase):
 
     def test_upload_data_not_login(self):
         res = self.client.post(f"/task/upload_data/{1}")
-        self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })        
+        self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })
 
     def test_res_data(self):
         # 以需求方的身份登录
@@ -185,8 +211,8 @@ class TaskTests(TestCase):
         }
         res2 = self.client.post(f"/task/upload_res/{1}", result_offered, content_type=default_content_type)
         self.assertEqual(res2.status_code, 200)
-        self.assertEqual(res2.json()["message"], "Succeed")        
+        self.assertEqual(res2.json()["message"], "Succeed")
 
     def test_upload_res_not_login(self):
         res = self.client.post(f"/task/upload_res/{1}")
-        self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })          
+        self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })
