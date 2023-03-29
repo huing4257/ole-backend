@@ -156,7 +156,7 @@ class TaskTests(TestCase):
                          content_type=default_content_type)
         res = self.client.put("/task/1", {}, content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json()["code"], 11)
+        self.assertEqual(res.json()["code"], 12)
 
     # def test_get_my_tasks(self):
     #     # 以需求方的身份登录
