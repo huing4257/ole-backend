@@ -43,7 +43,7 @@ class TaskTests(TestCase):
             user_name="testPublisher",
             password=hashed_password,  # store hashed password as a string
             user_type="demand",
-            score=0,
+            score=100,
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
@@ -119,7 +119,8 @@ class TaskTests(TestCase):
             "time_limit_per_q": 0,
             "total_time_limit": 0,
             "auto_ac": True,
-            "manual_ac": True
+            "manual_ac": True,
+            "distribute_user_num": 1
         }
         res = self.post_task(para)
         self.assertEqual(res.status_code, 401)

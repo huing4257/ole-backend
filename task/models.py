@@ -32,11 +32,11 @@ class Task(models.Model):
     manual_ac = models.BooleanField(default=False)
     publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task", null=True)
     data = models.ManyToManyField('task.Data', related_name="task", blank=True)
-    distribute_users = models.ManyToManyField('user.User', related_name="distributed_tasks", null=True)
+    distribute_users = models.ManyToManyField('user.User', related_name="distributed_tasks")
     task_id = models.AutoField(primary_key=True)
     distribute_user_num = models.IntegerField(default=0)
     result = models.ManyToManyField('task.Result')
-    task_name = models.CharField(max_length=24)
+    task_name = models.CharField(max_length=24, default="task")
 
     def serialize(self):
         return {
@@ -55,4 +55,3 @@ class Task(models.Model):
             "result": [result.serialize() for result in self.result.all()],
             "task_name": self.task_name,
         }
-

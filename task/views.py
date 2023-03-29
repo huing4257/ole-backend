@@ -9,36 +9,29 @@ from task.models import Task, Result, Data
 
 
 # Create your views here.
-@CheckRequire
 def require_tasks(req):
+    task = Task.objects.create()
     body = json.loads(req.body.decode("utf-8"))
-    task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
-    task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
-    reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error", err_code=9)
-    time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
-                               err_code=9)
-    total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
-                               err_code=9)
-    auto_ac = require(body, "auto_accept", "bool", err_msg="auto accept format error")
-    manual_ac = require(body, "manual_accept", "bool", err_msg="manual accept format error")
-    distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
-    return {"task_type": task_type, "task_style": task_style, "reward_per_q": reward_per_q,
-            "time_limit_per_q": time_limit_per_q, "total_time_limit": total_time_limit,
-            "auto_ac": auto_ac, "manual_ac": manual_ac, "distribute_user_num": distribute_user_num}
+    task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
+    task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
+    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
+                                err_code=9)
+    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
+                                    err_code=9)
+    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
+                                    err_code=9)
+    task.auto_ac = require(body, "auto_ac", "bool", err_msg="auto accept format error")
+    task.manual_ac = require(body, "manual_ac", "bool", err_msg="manual accept format error")
+    task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
+    return task
 
 
 @CheckLogin
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
-        body = json.loads(req.body.decode("utf-8"))
-        # para = require_tasks(req)
-        task = Task.objects.create()
-        task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error")
-        # task.reward_per_q = para["reward_per_q"]
-        # for key in para:
-        #     setattr(task, key, para[key])
-        # if user.score < para["reward_per_q"] * para["distribute_user_num"]:
-        #     return request_failed(10, "score not enough", status_code=400)
+        task = require_tasks(req)
+        if user.score < task.reward_per_q * task.distribute_user_num:
+            return request_failed(10, "score not enough", status_code=400)
         task.publisher = user
         task.save()
         return request_success({"task_id": task.task_id})
