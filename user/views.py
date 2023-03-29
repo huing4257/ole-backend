@@ -87,7 +87,15 @@ def user_info(req: HttpRequest, _user: User, user_id: any):
         user = User.objects.filter(user_id=user_id).first()
         if not user:
             return request_failed(8, "user does not exist", 404)
-        return request_success({k: v for k, v in user.serialize().items() if k != "password"})
+        if user == _user:
+            return request_success({k: v for k, v in user.serialize().items() if k != "password"})
+        else:
+            return request_success({k: v for k, v in user.serialize().items()
+                                    if k not in ["password",
+                                                 "invite_code",
+                                                 "bank_account",
+                                                 "account_balance",
+                                                 "vip_expire_time"]})
     else:
         return BAD_METHOD
 
