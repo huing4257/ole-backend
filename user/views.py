@@ -87,12 +87,24 @@ def logout(req: HttpRequest):
 def user_info(req: HttpRequest, user_id: any):
     user_id = require({"user_id": user_id}, "user_id", "int", err_msg="invalid request", err_code=1005)
     if req.method == "GET":
-        if "token" not in req.COOKIES:
+        if "token" in req.COOKIES:
+            user_me = UserToken.objects.get(token=req.COOKIES["token"]).user
+        else:
+            return request_failed(1001, "not_logged_in", 401)
+        if not user_me:
             return request_failed(1001, "not_logged_in", 401)
         user = User.objects.filter(user_id=user_id).first()
         if not user:
             return request_failed(8, "user does not exist", 404)
-        return request_success({k: v for k, v in user.serialize().items() if k != "password"})
+        if user == user_me:
+            return request_success({k: v for k, v in user.serialize().items() if k != "password"})
+        else:
+            return request_success({k: v for k, v in user.serialize().items()
+                                    if k not in ["password",
+                                                 "invite_code",
+                                                 "bank_account",
+                                                 "account_balance",
+                                                 "vip_expire_time"]})
     else:
         return BAD_METHOD
 
