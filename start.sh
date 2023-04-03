@@ -1,5 +1,4 @@
 #!/bin/sh
-python3 manage.py makemigrations user task
 python3 manage.py migrate
 
 
