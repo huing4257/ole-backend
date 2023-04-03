@@ -14,7 +14,7 @@ class Data(models.Model):
 
 class Result(models.Model):
     tag_user = models.ManyToManyField(User)
-    tag_res = models.CharField()
+    tag_res = models.CharField(max_length=255)
 
     def serialize(self):
         return {
@@ -24,10 +24,10 @@ class Result(models.Model):
 
 
 class Question(models.Model):
-    data = models.CharField()
+    data = models.CharField(max_length=255)
     result = models.ManyToManyField(Result)
     # 文字/图片/视频
-    data_type = models.CharField()
+    data_type = models.CharField(max_length=255)
 
 
 class Current_tag_user(models.Model):
@@ -57,7 +57,7 @@ class Task(models.Model):
     current_tag_user_list = models.ManyToManyField(Current_tag_user)
     past_tag_user_list = models.ManyToManyField(User)
     progress = models.ManyToManyField(Progress)
-    result_type = models.CharField()
+    result_type = models.CharField(max_length=255)
 
     def serialize(self):
         return {
