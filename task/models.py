@@ -55,3 +55,29 @@ class Task(models.Model):
             "result": [result.serialize() for result in self.result.all()],
             "task_name": self.task_name,
         }
+
+
+class Question(models.Model):
+    # 1-index
+    q_id = models.AutoField()
+    q_description = models.CharField()
+    data = models.ManyToManyField()
+    result = models.CharField()
+    # 文字/图片/视频
+    data_type = models.CharField()
+
+
+class SubTask(models.Model):
+    subtask_id = models.IntegerField(primary_key=True, unique=True)
+    # 问题信息列表
+    questions = models.ManyToManyField()
+    # 问题数目 子任务中包含的问题数目
+    q_num = models.IntegerField()
+    # 子任务是否已被分发
+    distributed = models.BooleanField()
+    # 被分发者的user_id
+    tag_user = models.IntegerField()
+    # 任务被标注方接受时间 默认值为0，重新分发时需要设置为0
+    accepted_at = models.IntegerField(default=0)
+    # 被分发用户id列表 用于确保重新分发时不重复分发给同一个用户
+    tag_user_list = models.ManyToManyField()
