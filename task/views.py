@@ -156,3 +156,33 @@ def upload_res(req: HttpRequest, user: User, task_id: int):
                 return request_failed(1001, "not_logged_in")
     else:
         return BAD_METHOD
+
+
+@CheckLogin
+def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
+    pass
+
+
+@CheckLogin
+def distribute_task(req: HttpRequest, user: User, task_id: int):
+    pass
+
+
+@CheckLogin
+def get_task(req: HttpRequest, user: User, task_id: int):
+    pass
+
+
+@CheckLogin
+def refuse_task(req: HttpRequest, user: User, task_id: int):
+    pass
+
+
+@CheckLogin
+def accept_task(req: HttpRequest, user: User, task_id: int):
+    pass
+
+
+@CheckLogin
+def get_progress(req: HttpRequest, user: User, task_id: int):
+    pass
