@@ -2,6 +2,7 @@ from django.urls import path
 import task.views as views
 
 urlpatterns = [
+    path('', views.create_task),
     path('<task_id>', views.task_ops),
     path('all', views.get_all_tasks),
     path('get_my_tasks', views.get_my_tasks),
