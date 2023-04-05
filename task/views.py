@@ -98,16 +98,18 @@ def get_all_tasks(req: HttpRequest, _user: User):
 def get_my_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
         if user.user_type == "demand":
-            published = user.published_task.all()
-            published_list: list = list()
-            for element in published:
-                published_list.append(element.serialize())
+            published_list = Task.objects.filter(publisher=user).all()
+            # published = user.published_task.all()
+            # published_list: list = list()
+            # for element in published:
+            #     published_list.append(element.serialize())
             return request_success(published_list)
         elif user.user_type == "tag":
-            distributed = user.distributed_tasks.all()
+            all_tasks: list = Task.objects.all()
             distributed_list: list = list()
-            for element in distributed:
-                distributed_list.append(element.serialize())
+            for element in all_tasks:
+                if user in element.current_tag_user_list():
+                    distributed_list.append(element.serialize())
             return request_success(distributed_list)
         else:
             return request_failed(12, "no task of admin")
