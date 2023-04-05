@@ -109,6 +109,7 @@ def get_my_tasks(req: HttpRequest, user: User):
 
 @CheckLogin
 def upload_data(req: HttpRequest, user: User, task_id: int):
+    # 上传一个压缩包，根目录下有 x.txt/x.jpg x为连续自然数字
     if req.method == "POST":
         # 通过cookie判断是否已经登录
         body = json.loads(req.body.decode("utf-8"))
@@ -133,9 +134,8 @@ def upload_data(req: HttpRequest, user: User, task_id: int):
 
 
 @CheckLogin
-def upload_res(req: HttpRequest, user: User, task_id: int):
+def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "POST":
-        # 通过cookie判断是否已经登录
         body = json.loads(req.body.decode("utf-8"))
         # RL is a json list
         result_list = require(body, "result", "list", err_msg="invalid request", err_code=2)
@@ -160,7 +160,36 @@ def upload_res(req: HttpRequest, user: User, task_id: int):
 
 @CheckLogin
 def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
-    pass
+    if req.method == "GET":
+        # 找到task 和 question
+        task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(11, "task does not exist")
+        question = task.questions.filter(q_id=q_id).first()
+        if not question:
+            return request_failed(13, "question does not exist")
+        release_user_id = task.publisher.user_id
+        type: str = user.user_type
+        if type == "demand":
+            if release_user_id == user.user_id:
+                return_data = question.serialize()
+                return request_success(return_data)
+            else:
+                return request_failed(16, "no access permission")
+        elif type == "tag":
+            if task.current_tag_user_list.filter(tag_user=user):
+                return_data = question.serialize()
+                return request_success(return_data)
+            else:    
+                return request_failed(16, "no access permission")
+        elif type == "admin":
+            return_data = question.serialize()
+            return request_success(return_data)
+        else:
+            return request_failed(16, "no access permission")
+
+    else:
+        return BAD_METHOD
 
 
 @CheckLogin
