@@ -5,7 +5,7 @@ from utils.utils_require import MAX_CHAR_LENGTH
 
 
 class Data(models.Model):
-    data = models.CharField(max_length=MAX_CHAR_LENGTH)
+    data = models.TextField(max_length=2000)
     id = models.AutoField(primary_key=True)
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
 
@@ -18,7 +18,7 @@ class Data(models.Model):
 
 
 class Result(models.Model):
-    tag_user = models.ManyToManyField(User)
+    tag_user = models.ForeignKey('user.User', on_delete=models.CASCADE)
     tag_res = models.CharField(max_length=MAX_CHAR_LENGTH)
 
     def serialize(self):
@@ -82,7 +82,7 @@ class Task(models.Model):
             "distribute_user_num": self.distribute_user_num,
             "q_num": self.q_num,
             "task_name": self.task_name,
-            "question": self.questions.serialize(),
+            "questions": self.questions.serialize(),
             "current_tag_user_list": self.current_tag_user_list.serialize(),
             "past_tag_user_list": self.past_tag_user_list.serialize(),
             "progress": self.progress.serialize(),
