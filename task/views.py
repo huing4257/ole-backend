@@ -20,9 +20,9 @@ def require_tasks(req):
                                     err_code=9)
     task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
                                     err_code=9)
-    task.auto_ac = require(body, "auto_ac", "bool", err_msg="auto accept format error")
-    task.manual_ac = require(body, "manual_ac", "bool", err_msg="manual accept format error")
     task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
+    task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
+    task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
     return task
 
 
@@ -187,7 +187,6 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
             return request_success(return_data)
         else:
             return request_failed(16, "no access permission")
-
     else:
         return BAD_METHOD
 
