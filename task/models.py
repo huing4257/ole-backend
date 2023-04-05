@@ -5,11 +5,15 @@ from utils.utils_require import MAX_CHAR_LENGTH
 
 
 class Data(models.Model):
-    data = models.JSONField()
+    data = models.CharField(max_length=MAX_CHAR_LENGTH)
+    id = models.AutoField(primary_key=True)
+    data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
 
     def serialize(self):
         return {
-            "data": self.data
+            "data": self.data,
+            "id": self.id,
+            "data_type": self.data_type,
         }
 
 
@@ -25,7 +29,7 @@ class Result(models.Model):
 
 
 class Question(models.Model):
-    data = models.CharField(max_length=MAX_CHAR_LENGTH)
+    data = models.ManyToManyField(Data)
     result = models.ManyToManyField(Result)
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)

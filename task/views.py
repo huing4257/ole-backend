@@ -5,7 +5,7 @@ from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from user.models import User, UserToken
-from task.models import Task, Result, Data
+from task.models import Task, Result, Data, Question
 
 
 # Create your views here.
@@ -33,6 +33,14 @@ def create_task(req: HttpRequest, user: User):
         if user.score < task.reward_per_q * task.distribute_user_num:
             return request_failed(10, "score not enough", status_code=400)
         task.publisher = user
+        body = json.loads(req.body.decode("utf-8"))
+        file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+        for f_id in file_list:
+            # 构建这个task的quesions，把数据绑定到每个上
+            quesion: Question = Question()
+            quesion.data = Data.objects.filter(id=f_id).first()
+            quesion.data_type = Data.objects.filter(id=f_id).first()
+            task.questions.add(quesion)            
         task.save()
         return request_success({"task_id": task.task_id})
     else:
