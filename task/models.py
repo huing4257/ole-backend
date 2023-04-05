@@ -1,24 +1,26 @@
 from django.db import models
 from user.models import User
 from utils.utils_require import MAX_CHAR_LENGTH
+
+
 # Create your models here.
 
 
-class Data(models.Model):
+class TextData(models.Model):
     data = models.TextField(max_length=2000)
     id = models.AutoField(primary_key=True)
-    data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
+    filename = models.CharField(max_length=MAX_CHAR_LENGTH)
 
     def serialize(self):
         return {
             "data": self.data,
             "id": self.id,
-            "data_type": self.data_type,
+            "filename": self.filename,
         }
 
 
 class Result(models.Model):
-    tag_user = models.ForeignKey('user.User', on_delete=models.CASCADE)
+    tag_user = models.ForeignKey('user.User', on_delete=models.CASCADE, default=None)
     tag_res = models.CharField(max_length=MAX_CHAR_LENGTH)
 
     def serialize(self):
@@ -29,7 +31,7 @@ class Result(models.Model):
 
 
 class Question(models.Model):
-    data = models.ManyToManyField(Data)
+    data = models.CharField(max_length=MAX_CHAR_LENGTH)
     result = models.ManyToManyField(Result)
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
@@ -68,7 +70,7 @@ class Task(models.Model):
     past_tag_user_list = models.ManyToManyField(User)
     progress = models.ManyToManyField(Progress)
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
-    accept_method = models.CharField(max_length=MAX_CHAR_LENGTH)
+    accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
 
     def serialize(self):
         return {
@@ -89,4 +91,3 @@ class Task(models.Model):
             "result_type": self.result_type,
             "accept_method": self.accept_method,
         }
-

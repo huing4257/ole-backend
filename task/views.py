@@ -1,11 +1,11 @@
 import json
 from django.http import HttpRequest
-
+import zipfile
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from user.models import User, UserToken
-from task.models import Task, Result, Data, Question
+from task.models import Task, Result, TextData, Question
 
 
 # Create your views here.
@@ -38,9 +38,9 @@ def create_task(req: HttpRequest, user: User):
         for f_id in file_list:
             # 构建这个task的quesions，把数据绑定到每个上
             quesion: Question = Question()
-            quesion.data = Data.objects.filter(id=f_id).first()
-            quesion.data_type = Data.objects.filter(id=f_id).first()
-            task.questions.add(quesion)            
+            quesion.data = f_id
+            quesion.data_type = task.task_type
+            task.questions.add(quesion)
         task.save()
         return request_success({"task_id": task.task_id})
     else:
@@ -118,27 +118,30 @@ def get_my_tasks(req: HttpRequest, user: User):
 
 
 @CheckLogin
-def upload_data(req: HttpRequest, user: User, task_id: int):
+@CheckRequire
+def upload_data(req: HttpRequest, user: User):
     # 上传一个压缩包，根目录下有 x.txt/x.jpg x为连续自然数字
     if req.method == "POST":
-        # 通过cookie判断是否已经登录
-        body = json.loads(req.body.decode("utf-8"))
-        # data is a json list
-        data_list = require(body, "data", "list", err_msg="invalid request", err_code=2)
-        if not data_list:
-            return request_failed(1005, "invalid request")
-        else:
-            # 判断是否登录
-            if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
-                task = Task.objects.filter(task_id=task_id).first()
-                data = Data.objects.create(
-                    data=data_list
-                )
-                task.data.add(data)
-                task.save()
-                return request_success()
-            else:
-                return request_failed(1001, "not_logged_in")
+        data_type = require(req.GET, "data_type")
+        if data_type == 'text':
+            zfile = require(req.FILES, 'file', 'file')
+            zfile = zipfile.ZipFile(zfile)
+            text_datas = []
+            for i in range(1, 1 + len(zfile.namelist())):
+                filename = f"{i}.txt"
+                if filename not in zfile.namelist():
+                    break
+                data = zfile.read(f"{i}.txt").decode('utf-8')
+                text_data = TextData(data=data, filename=filename)
+                text_data.save()
+                text_datas.append({
+                    "filename": filename,
+                    "tag": str(text_data.id),
+                })
+            return request_success(text_datas)
+        elif data_type == 'image':
+            pass
+        return request_success()
     else:
         return BAD_METHOD
 
@@ -190,7 +193,7 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
             if task.current_tag_user_list.filter(tag_user=user):
                 return_data = question.serialize()
                 return request_success(return_data)
-            else:    
+            else:
                 return request_failed(16, "no access permission")
         elif type == "admin":
             return_data = question.serialize()
