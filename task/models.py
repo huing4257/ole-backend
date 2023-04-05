@@ -39,7 +39,7 @@ class Question(models.Model):
     def serialize(self):
         return {
             "data": self.data,
-            "result": [self.result.serialize()],
+            "result": [user.serialize() for user in self.result.all()],
             "data_type": self.data_type,
         }
 
@@ -48,10 +48,22 @@ class Current_tag_user(models.Model):
     tag_user = models.ManyToManyField(User)
     accepted_at = models.IntegerField()
 
+    def serialize(self):
+        return {
+            "tag_user": [user.serialize() for user in self.tag_user.all()],
+            "accepted_at": self.accepted_at,
+        }
+
 
 class Progress(models.Model):
     tag_user = models.ManyToManyField(User)
     q_id = models.IntegerField()
+
+    def serialize(self):
+        return {
+            "tag_user": [user.serialize() for user in self.tag_user.all()],
+            "q_id": self.q_id
+        }
 
 
 class Task(models.Model):
@@ -84,10 +96,10 @@ class Task(models.Model):
             "distribute_user_num": self.distribute_user_num,
             "q_num": self.q_num,
             "task_name": self.task_name,
-            "questions": self.questions.serialize(),
-            "current_tag_user_list": self.current_tag_user_list.serialize(),
-            "past_tag_user_list": self.past_tag_user_list.serialize(),
-            "progress": self.progress.serialize(),
+            "questions": [user.serialize() for user in self.questions.all()],
+            "current_tag_user_list": [user.serialize() for user in self.current_tag_user_list.all()],
+            "past_tag_user_list": [user.serialize() for user in self.past_tag_user_list.all()],
+            "progress": [user.serialize() for user in self.progress.all()],
             "result_type": self.result_type,
             "accept_method": self.accept_method,
         }

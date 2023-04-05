@@ -36,11 +36,10 @@ def create_task(req: HttpRequest, user: User):
         body = json.loads(req.body.decode("utf-8"))
         file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
         for f_id in file_list:
-            # 构建这个task的quesions，把数据绑定到每个上
-            quesion: Question = Question()
-            quesion.data = f_id
-            quesion.data_type = task.task_type
-            task.questions.add(quesion)
+            # 构建这个task的questions，把数据绑定到每个上
+            question = Question(data=f_id, data_type=task.task_type)
+            question.save()
+            task.questions.add(question)
         task.save()
         return request_success({"task_id": task.task_id})
     else:
@@ -48,7 +47,7 @@ def create_task(req: HttpRequest, user: User):
 
 
 @CheckLogin
-@CheckRequire
+# @CheckRequire
 def task_ops(req: HttpRequest, user: User, task_id: any):
     task_id = require({"task_id": task_id}, "task_id", "int", err_msg="Bad param [task_id]", err_code=-1)
 
@@ -78,6 +77,11 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         else:
             task.delete()
             return request_success()
+    elif req.method == 'GET':
+        task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(11, "task does not exist", 404)
+        return request_success(task.serialize())
     else:
         return BAD_METHOD
 
