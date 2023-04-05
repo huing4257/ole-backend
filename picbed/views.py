@@ -2,10 +2,11 @@ import filetype
 from django.http import HttpRequest, HttpResponse
 from picbed.models import Image
 from utils.utils_request import request_success, BAD_METHOD, request_failed
+from utils.utils_check import CheckLogin
 
 
 # Create your views here.
-
+@CheckLogin
 def upload(req: HttpRequest):
     img = Image(img_file=req.FILES['img'])
     img.save()
@@ -31,6 +32,7 @@ def delete_img(req, img_url):
     return request_success()
 
 
+@CheckLogin
 def img_handler(req: HttpRequest, img_url):
     img_url = "picbed/" + img_url
     if req.method == "GET":
