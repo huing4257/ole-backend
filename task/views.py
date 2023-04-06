@@ -243,8 +243,12 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         task: Task = Task.objects.filter(task_id=task_id)
         if not task:
             return request_failed(1000, "can not found the page", 404)
-        if task.current_tag_user_list.filter(tag_user=user):
+        # 没有分发
+        if not task.current_tag_user_list:
+            return request_failed(1000, "can not found the page", 404)
+        elif task.current_tag_user_list.filter(tag_user=user):
             return request_success({"is_accepted": "true"})
+        return request_failed(1000, "can not found the page", 404)
     else:
         return BAD_METHOD
     pass
