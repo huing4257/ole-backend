@@ -1,3 +1,4 @@
+import django.core.files.uploadedfile
 import filetype
 from django.http import HttpRequest, HttpResponse
 from picbed.models import Image
@@ -6,11 +7,21 @@ from utils.utils_check import CheckLogin
 
 
 # Create your views here.
+
+def upload_handler(image):
+    """
+    用于处理图片上传
+    返回值为 该图片在数据库中的唯一标识符
+    前端使用时需要 api/{url}
+    """
+    img = Image(img_file=image)
+    img.save()
+    return {"url": img.img_file.name}
+
+
 @CheckLogin
 def upload(req: HttpRequest):
-    img = Image(img_file=req.FILES['img'])
-    img.save()
-    return request_success({"url": img.img_file.name})
+    return request_success(upload_handler(req.FILES['img']))
 
 
 def get_img(req: HttpRequest, img_url):
@@ -34,6 +45,9 @@ def delete_img(req, img_url):
 
 @CheckLogin
 def img_handler(req: HttpRequest, img_url):
+    """
+    处理图片的获取和删除
+    """
     img_url = "picbed/" + img_url
     if req.method == "GET":
         return get_img(req, img_url)
