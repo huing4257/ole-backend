@@ -33,7 +33,7 @@ class Result(models.Model):
 class Question(models.Model):
     q_id = models.BigIntegerField(null=False, default=1)
     data = models.CharField(max_length=MAX_CHAR_LENGTH)
-    result = models.ManyToManyField(Result)
+    result = models.ManyToManyField(Result, null=True)
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
 
@@ -53,8 +53,9 @@ class Question(models.Model):
 
 
 class Current_tag_user(models.Model):
-    tag_user = models.ManyToManyField(User)
-    accepted_at = models.IntegerField()
+    tag_user = models.ManyToManyField(User, null=True)
+    # todo 
+    accepted_at = models.FloatField()
 
     def serialize(self):
         return {
@@ -64,7 +65,7 @@ class Current_tag_user(models.Model):
 
 
 class Progress(models.Model):
-    tag_user = models.ManyToManyField(User)
+    tag_user = models.ManyToManyField(User, null=True)
     q_id = models.IntegerField()
 
     def serialize(self):
@@ -85,10 +86,10 @@ class Task(models.Model):
     distribute_user_num = models.IntegerField(default=0)
     q_num = models.IntegerField(default=0)
     task_name = models.CharField(max_length=24, default="task")
-    questions = models.ManyToManyField(Question)
-    current_tag_user_list = models.ManyToManyField(Current_tag_user)
-    past_tag_user_list = models.ManyToManyField(User)
-    progress = models.ManyToManyField(Progress)
+    questions = models.ManyToManyField(Question, null=True)
+    current_tag_user_list = models.ManyToManyField(Current_tag_user, null=True)
+    past_tag_user_list = models.ManyToManyField(User, null=True)
+    progress = models.ManyToManyField(Progress, null=True)
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
 

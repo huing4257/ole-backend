@@ -248,3 +248,4 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
     else:
         return BAD_METHOD
     pass
+ 
