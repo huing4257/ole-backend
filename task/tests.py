@@ -1,7 +1,6 @@
 # Create your tests here.
 from django.test import TestCase
 from user.models import User
-from task.models import Task, Result, TextData
 import bcrypt
 import datetime
 
