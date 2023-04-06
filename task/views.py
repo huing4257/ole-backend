@@ -234,3 +234,17 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
 @CheckLogin
 def get_progress(req: HttpRequest, user: User, task_id: int):
     pass
+
+
+# 后端判断当前用户是否已经接受任务task_id。
+@CheckLogin
+def is_accepted(req: HttpRequest, user: User, task_id: int):
+    if req.method == "GET":
+        task: Task = Task.objects.filter(task_id=task_id)
+        if not task:
+            return request_failed(1000, "can not found the page", 404)
+        if task.current_tag_user_list.filter(tag_user=user):
+            return request_success({"is_accepted": "true"})
+    else:
+        return BAD_METHOD
+    pass

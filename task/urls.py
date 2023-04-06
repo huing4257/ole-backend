@@ -13,4 +13,5 @@ urlpatterns = [
     path('refuse/<int:task_id>', views.refuse_task),
     path('accept/<int:task_id>', views.accept_task),
     path('progress/<int:task_id>', views.get_progress),
+    path('is_accepted/<task_id>', views.is_accepted),
 ]
