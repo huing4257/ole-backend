@@ -40,7 +40,9 @@ class Question(models.Model):
     def serialize(self, detail=False):
         if detail:
             if self.data_type == "text":
-                data = TextData.objects.filter(id=int(self.data)).first().data
+                data = TextData.objects.filter(id=int(self.data)).first().data.split('\n')
+            else:
+                data = self.data
         else:
             data = self.data
         return {
