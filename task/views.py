@@ -81,7 +81,9 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(11, "task does not exist", 404)
-        return request_success(task.serialize())
+        response = request_success(task.serialize())
+        response.set_cookie("user_type", user.user_type)
+        return response
     else:
         return BAD_METHOD
 
@@ -103,10 +105,10 @@ def get_my_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
         if user.user_type == "demand":
             published_list = Task.objects.filter(publisher=user).all()
-            # published = user.published_task.all()
-            # published_list: list = list()
-            # for element in published:
-            #     published_list.append(element.serialize())
+            published = user.published_task.all()
+            published_list: list = list()
+            for element in published:
+                published_list.append(element.serialize())
             return request_success(published_list)
         elif user.user_type == "tag":
             all_tasks: list = Task.objects.all()
