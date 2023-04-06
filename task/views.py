@@ -35,6 +35,7 @@ def create_task(req: HttpRequest, user: User):
         task.publisher = user
         body = json.loads(req.body.decode("utf-8"))
         file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+        task.q_num = len(file_list)
         for f_id in file_list:
             # 构建这个task的questions，把数据绑定到每个上
             question = Question(data=f_id, data_type=task.task_type)
