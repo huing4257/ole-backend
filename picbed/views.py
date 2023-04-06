@@ -1,4 +1,4 @@
-import django.core.files.uploadedfile
+import os.path
 import filetype
 from django.http import HttpRequest, HttpResponse
 from picbed.models import Image
@@ -26,7 +26,7 @@ def upload(req: HttpRequest):
 
 def get_img(req: HttpRequest, img_url):
     img = Image.objects.filter(img_file=img_url).first()
-    if not img:
+    if (not img) or (not os.path.exists(img.img_file.path)):
         return request_failed(18, "picture not found", 404)
     img_content = img.img_file.open(mode='rb').read()
     img.img_file.close()
@@ -38,12 +38,13 @@ def delete_img(req, img_url):
     img = Image.objects.filter(img_file=img_url).first()
     if not img:
         return request_failed(18, "picture not found", 404)
-    img.img_file.delete()
+    if os.path.exists(img.img_file.path):
+        img.img_file.delete()
     img.delete()
     return request_success()
 
 
-@CheckLogin
+# @CheckLogin
 def img_handler(req: HttpRequest, img_url):
     """
     处理图片的获取和删除
