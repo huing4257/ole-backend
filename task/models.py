@@ -31,14 +31,20 @@ class Result(models.Model):
 
 
 class Question(models.Model):
+    q_id = models.BigIntegerField(null=False, default=1)
     data = models.CharField(max_length=MAX_CHAR_LENGTH)
     result = models.ManyToManyField(Result)
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
 
-    def serialize(self):
+    def serialize(self, detail=False):
+        if detail:
+            if self.data_type == "text":
+                data = TextData.objects.filter(id=int(self.data)).first().data
+        else:
+            data = self.data
         return {
-            "data": self.data,
+            "data": data,
             "result": [user.serialize() for user in self.result.all()],
             "data_type": self.data_type,
         }
