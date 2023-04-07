@@ -7,7 +7,7 @@ class User(models.Model):
     user_name = models.CharField(max_length=200, unique=True)
     password = models.BinaryField()
     user_type = models.CharField(max_length=20)
-    score = models.IntegerField(default=0)
+    score = models.IntegerField(default=100)
     membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
     credit_score = models.IntegerField(default=0)
