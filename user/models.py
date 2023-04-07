@@ -44,3 +44,14 @@ class UserToken(models.Model):
 
     class Meta:
         db_table = 'user_token'
+
+
+class BanUser(models.Model):
+    ban_user = models.ForeignKey(User, on_delete=models.CASCADE)
+    release_time = models.FloatField(default=0)
+
+    def serialize(self):
+        return {
+            "ban_user": self.ban_user,
+            "release_time": self.release_time
+        }
