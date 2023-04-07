@@ -233,8 +233,8 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         if not task.current_tag_user_list:
             task.current_tag_user_list = []
             task.save()
-        # 顺序分发
-        tag_users = User.objects.filter(user_type="tag")
+        # 顺序分发(根据标注方的信用分从高到低分发)
+        tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
         if task.distribute_user_num > tag_users.count():
             return request_failed(21, "tag user not enough")
         current_tag_user_num = 0 
@@ -246,6 +246,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
             current_tag_user_num += 1
             if current_tag_user_num >= task.distribute_user_num:
                 break
+        task.save()
         return request_success()
 
 
