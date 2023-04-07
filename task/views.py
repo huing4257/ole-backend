@@ -4,8 +4,8 @@ import zipfile
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
-from user.models import User, UserToken
-from task.models import Task, Result, TextData, Question
+from user.models import User, UserToken, BanUser
+from task.models import Task, Result, TextData, Question, Current_tag_user
 
 
 # Create your views here.
@@ -221,9 +221,32 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         return BAD_METHOD
 
 
+# 分发任务
 @CheckLogin
 def distribute_task(req: HttpRequest, user: User, task_id: int):
-    pass
+    if req.method == "POST":
+        task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(14, "task not created")
+        if task.publisher != user:
+            return request_failed(15, "no distribute permission")
+        if not task.current_tag_user_list:
+            task.current_tag_user_list = []
+            task.save()
+        # 顺序分发
+        tag_users = User.objects.filter(user_type="tag")
+        if task.distribute_user_num > tag_users.count():
+            return request_failed(21, "tag user not enough")
+        current_tag_user_num = 0 
+        for tag_user in tag_users:
+            if BanUser.objects.filter(ban_user=tag_user):
+                continue
+            current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+            task.current_tag_user_list.append(current_tag_user)
+            current_tag_user_num += 1
+            if current_tag_user_num >= task.distribute_user_num:
+                break
+        return request_success()
 
 
 @CheckLogin
