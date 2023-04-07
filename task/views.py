@@ -134,9 +134,12 @@ def upload_data(req: HttpRequest, user: User):
             zfile = require(req.FILES, 'file', 'file')
             zfile = zipfile.ZipFile(zfile)
             text_datas = []
+            flag = True
+            i = 1
             for i in range(1, 1 + len(zfile.namelist())):
                 filename = f"{i}.txt"
                 if filename not in zfile.namelist():
+                    flag = False
                     break
                 data = zfile.read(f"{i}.txt").decode('utf-8')
                 text_data = TextData(data=data, filename=filename)
@@ -145,6 +148,13 @@ def upload_data(req: HttpRequest, user: User):
                     "filename": filename,
                     "tag": str(text_data.id),
                 })
+            if not flag:
+                return_data = {
+                    "files": text_datas,
+                    "upload_num": len(zfile.namelist()),
+                    "legal_num": i - 1,
+                }
+                return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(text_datas)
         elif data_type == 'image':
             pass
@@ -253,6 +263,8 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         return BAD_METHOD
     pass
 
+
+# 判断请求的任务是否已经被分发
 @CheckLogin
 def is_distributed(req: HttpRequest, task_id: int):
     if req.method == "GET":

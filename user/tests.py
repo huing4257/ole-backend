@@ -171,9 +171,9 @@ class UserTests(TestCase):
                 "score": 0,
                 "membership_level": 0,
                 "invite_code": "testInviteCode",
-                "credit_score": 0,
+                "credit_score": 100,
                 "bank_account": "",
-                "account_balance": 0,
+                "account_balance": 100,
                 "grow_value": 0,
                 "vip_expire_time": datetime.datetime.max.timestamp()
             }
