@@ -242,7 +242,7 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task: Task = Task.objects.filter(task_id=task_id)
         if not task:
-            return request_failed(1000, "can not found the page", 404)
+            return request_failed(14, "task not created", 400)
         # 没有分发
         if not task.current_tag_user_list:
             return request_failed(1000, "can not found the page", 404)
@@ -252,4 +252,17 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
     else:
         return BAD_METHOD
     pass
+
+@CheckLogin
+def is_distributed(req: HttpRequest, task_id: int):
+    if req.method == "GET":
+        task: Task = Task.objects.filter(task_id=task_id)
+        if not task:
+            return request_failed(1000, "task not created", 400)
+        if not task.current_tag_user_list:
+            return request_success({"is_distributed": "false"})
+        else:
+            return request_success({"is_distributed": "true"})
+    else:
+        return BAD_METHOD
  

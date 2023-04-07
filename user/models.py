@@ -10,9 +10,9 @@ class User(models.Model):
     score = models.IntegerField(default=100)
     membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
-    credit_score = models.IntegerField(default=0)
+    credit_score = models.IntegerField(default=100)
     bank_account = models.CharField(max_length=20, default="")
-    account_balance = models.IntegerField(default=0)
+    account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)
 
