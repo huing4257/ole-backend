@@ -274,13 +274,13 @@ def get_progress(req: HttpRequest, user: User, task_id: int):
 @CheckLogin
 def is_accepted(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
-        task: Task = Task.objects.filter(task_id=task_id)
+        task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 400)
         # 没有分发
-        if not task.current_tag_user_list:
-            return request_failed(1000, "can not found the page", 404)
-        elif task.current_tag_user_list.filter(tag_user=user):
+        if task.current_tag_user_list.count() == 0:
+            return request_failed(22, "task not distributed", 400)
+        elif task.current_tag_user_list.filter(tag_user=user).exists():
             return request_success({"is_accepted": "true"})
         return request_failed(1000, "can not found the page", 404)
     else:
@@ -290,12 +290,12 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
 
 # 判断请求的任务是否已经被分发
 @CheckLogin
-def is_distributed(req: HttpRequest, task_id: int):
+def is_distributed(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
-        task: Task = Task.objects.filter(task_id=task_id)
+        task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(1000, "task not created", 400)
-        if not task.current_tag_user_list:
+            return request_failed(14, "task not created", 400)
+        if task.current_tag_user_list.count() == 0:
             return request_success({"is_distributed": "false"})
         else:
             return request_success({"is_distributed": "true"})

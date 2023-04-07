@@ -53,7 +53,7 @@ class Question(models.Model):
 
 
 class Current_tag_user(models.Model):
-    tag_user = models.ManyToManyField(User, null=True, default=None)
+    tag_user = models.ManyToManyField(User, default=None)
     # todo 
     accepted_at = models.FloatField()
 
