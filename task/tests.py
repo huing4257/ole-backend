@@ -1,6 +1,7 @@
 # Create your tests here.
 from django.test import TestCase
 from user.models import User
+from task.models import Question, Current_tag_user, Task
 import bcrypt
 import datetime
 
@@ -11,7 +12,7 @@ class TaskTests(TestCase):
     def setUp(self) -> None:
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        User.objects.create(
+        test_publisher = User.objects.create(
             user_id=1,
             user_name="testPublisher",
             password=hashed_password,  # store hashed password as a string
@@ -21,6 +22,47 @@ class TaskTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
+        test_receiver1 = User.objects.create(
+            user_id=2,
+            user_name="testReceiver1",
+            password=hashed_password,  # store hashed password as a string
+            user_type="tag",
+            score=0,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )
+        test_receiver2 = User.objects.create(
+            user_id=3,
+            user_name="testReceiver2",
+            password=hashed_password,  # store hashed password as a string
+            user_type="tag",
+            score=0,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )
+
+        task = Task.objects.create(
+            task_type="",
+            task_style="",
+            reward_per_q=0,
+            time_limit_per_q=1,
+            total_time_limit=1,
+            publisher=test_publisher,
+            task_id=1,
+            distribute_user_num=0,
+            task_name="testTask"
+        )
+        question1 = Question.objects.create(
+            q_id=0,
+            data="string",
+            task=task,
+            data_type="text",
+        )
+        #
         # test_data = TextData.objects.create(
         #     data=[
         #         {
@@ -33,75 +75,21 @@ class TaskTests(TestCase):
         #         },
         #     ]
         # )
-
+        #
         # test_result = Result.objects.create(
-        #     user_id=3,
-        #     result=[
-        #         {
-        #             "user_id": 2,
-        #             "data": {}
-        #         },
-        #         {
-        #             "user_id": 3,
-        #             "data": {}
-        #         },
-        #     ]
-        # )
-        # salt = bcrypt.gensalt()
-        # hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        # test_publisher = User.objects.create(
-        #     user_id=1,
-        #     user_name="testPublisher",
-        #     password=hashed_password,  # store hashed password as a string
-        #     user_type="demand",
-        #     score=100,
-        #     membership_level=0,
-        #     invite_code="testInviteCode",
-        #     vip_expire_time=datetime.datetime.max.timestamp(),
-        # )
-        # salt = bcrypt.gensalt()
-        # hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        # test_receiver1 = User.objects.create(
-        #     user_id=2,
-        #     user_name="testReceiver1",
-        #     password=hashed_password,  # store hashed password as a string
-        #     user_type="tag",
-        #     score=0,
-        #     membership_level=0,
-        #     invite_code="testInviteCode",
-        #     vip_expire_time=datetime.datetime.max.timestamp(),
-        # )
-        # test_receiver2 = User.objects.create(
-        #     user_id=3,
-        #     user_name="testReceiver2",
-        #     password=hashed_password,  # store hashed password as a string
-        #     user_type="tag",
-        #     score=0,
-        #     membership_level=0,
-        #     invite_code="testInviteCode",
-        #     vip_expire_time=datetime.datetime.max.timestamp(),
+        #     tag_user=test_receiver1,
+        #     tag_res="string",
         # )
 
-        # task = Task.objects.create(
-        #     task_type="",
-        #     task_style="",
-        #     reward_per_q=0,
-        #     time_limit_per_q=1,
-        #     total_time_limit=1,
-        #     auto_ac=False,
-        #     manual_ac=True,
-        #     publisher=test_publisher,
-        #     task_id=1,
-        #     distribute_user_num=0,
-        #     task_name="testTask"
-        # )
-
-        # task.data.add(test_data)
-        # task.distribute_users.add(test_receiver1)
-        # task.distribute_user_num += 1
-        # task.distribute_users.add(test_receiver2)
-        # task.distribute_user_num += 1
-        # task.result.add(test_result)
+        current_tag_user = Current_tag_user.objects.create(
+            tag_user=test_receiver1,
+            accepted_at=datetime.datetime.now().timestamp(),
+        )
+        task.current_tag_user_list.add(current_tag_user)
+        task.past_tag_user_list.add(test_receiver2)
+        task.questions.add(question1)
+        task.publisher = test_publisher
+        task.save()
 
     def post_task(self, para: dict):
         return self.client.post("/task/", para, content_type=default_content_type)
@@ -206,20 +194,34 @@ class TaskTests(TestCase):
         res2 = self.client.put('/task/1', para2, content_type=default_content_type)
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(res2.json()["data"], {"task_id": 1})
-    # # def test_get_my_tasks(self):
-    # #     # 以需求方的身份登录
-    # #     res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-    # #                            content_type=default_content_type)
-    # #     self.assertEqual(res.status_code, 200)
-    # #     self.assertEqual(res.json()["message"], "Succeed")
-    # #     res2 = self.client.get("/task/get_my_tasks")
-    # #     task: Task = Task.objects.filter(task_id=1).first()
-    # #     self.assertJSONEqual(res2.content, {
-    # #         "code": 0,
-    # #         "message": "Succeed",
-    # #         "data": [task.serialize()]
-    # #     })
-    # #     self.assertEqual(res2.status_code, 200)
+
+    def test_get_all_tasks(self):
+        res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.get("/task/get_all_tasks")
+        task: Task = Task.objects.all()
+        self.assertEqual(res.status_code, 200)
+        self.assertJSONEqual(res.content, {
+            "code": 0,
+            "message": "Succeed",
+            "data": [task.serialize() for task in task]
+        })
+
+    def test_get_my_tasks(self):
+        # 以需求方的身份登录
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        res2 = self.client.get("/task/get_my_tasks")
+        task: Task = Task.objects.filter(task_id=1).first()
+        self.assertJSONEqual(res2.content, {
+            "code": 0,
+            "message": "Succeed",
+            "data": [task.serialize()]
+        })
+        self.assertEqual(res2.status_code, 200)
 
     # def test_upload_data(self):
     #     # 以需求方的身份登录
