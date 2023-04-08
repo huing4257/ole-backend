@@ -25,7 +25,7 @@ class Result(models.Model):
 
     def serialize(self):
         return {
-            "tag_user": self.tag_user,
+            "tag_user_id": self.tag_user.id,
             "tag_res": self.tag_res
         }
 
@@ -46,8 +46,9 @@ class Question(models.Model):
         else:
             data = self.data
         return {
+            "q_id": self.q_id,
             "data": data,
-            "result": [user.serialize() for user in self.result.all()],
+            "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
         }
 

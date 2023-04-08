@@ -303,3 +303,23 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
     else:
         return BAD_METHOD
  
+
+# 需求方人工审核
+@CheckLogin
+def manual_check(req: HttpRequest, user: User, task_id: int):
+    if req.method == "POST":
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(14, "task not created", 400)
+        if user != task.publisher:
+            return request_failed(16, "no permissions")
+        if task.current_tag_user_list.count() == 0:
+            return request_failed(24, "task not distributed")
+        q_list = task.questions.all().order_by("q_id")
+        return_data = []
+        for q in q_list:
+            q_dict = q.serialize(True)
+            return_data.append(q_dict)
+    else:
+        return BAD_METHOD
+
