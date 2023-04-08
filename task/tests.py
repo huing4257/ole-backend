@@ -108,7 +108,7 @@ class TaskTests(TestCase):
 
     def test_create_task_not_logged_in(self):
         para = {
-            "task_type": "picture",
+            "task_type": "image",
             "task_style": "string",
             "reward_per_q": 0,
             "time_limit_per_q": 0,
@@ -127,7 +127,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         para = {
-            "task_type": "picture",
+            "task_type": "image",
             "task_style": "string",
             "reward_per_q": 0,
             "time_limit_per_q": 0,
@@ -145,7 +145,7 @@ class TaskTests(TestCase):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
         para = {
-            "task_type": "picture",
+            "task_type": "image",
             "task_style": "string",
             "reward_per_q": 100,
             "time_limit_per_q": 0,
@@ -171,6 +171,41 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 11)
 
+    def test_modify_task_success(self):
+        # 首先创建一个
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        para = {
+            "task_type": "image",
+            "task_style": "string",
+            "reward_per_q": 0,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "distribute_user_num": 1,
+            "task_name": "testTask",
+            "accept_method": "auto",
+            "files": [1, 2, 3, 4]
+        }
+        res = self.post_task(para)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+
+        para2 = {
+            "task_type": "image",
+            "task_style": "string",
+            "reward_per_q": 2,
+            "time_limit_per_q": 3,
+            "total_time_limit": 4,
+            "distribute_user_num": 5,
+            "task_name": "NewTestTask",
+            "accept_method": "auto",
+            "files": [1, 2, 3, 4]
+        }
+        res2 = self.client.put('/task/1', para2, content_type=default_content_type)
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.json()["data"], {"task_id": 1})
     # # def test_get_my_tasks(self):
     # #     # 以需求方的身份登录
     # #     res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},

@@ -47,6 +47,29 @@ def create_task(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
+def change_tasks(req: HttpRequest, task: Task):
+    body = json.loads(req.body.decode("utf-8"))
+    task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
+    task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
+    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
+                                err_code=9)
+    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
+                                    err_code=9)
+    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
+                                    err_code=9)
+    task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
+    task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
+    task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
+    # 构建这个task的questions，把数据绑定到每个上
+    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    task.q_num = len(file_list)
+    for q_id, f_id in enumerate(file_list):
+        question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+        question.save()
+        task.questions.add(question)
+    return task
+
+
 @CheckLogin
 # @CheckRequire
 def task_ops(req: HttpRequest, user: User, task_id: any):
@@ -60,12 +83,11 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             return request_failed(12, "no permission to modify", status_code=400)
         else:
             # 可以修改
-            para = require_tasks(req)
-            if user.score < para["reward_per_q"] * para["distribute_user_num"]:
+            change_tasks(req, task)
+            if user.score < task.reward_per_q * task.distribute_user_num:
                 return request_failed(10, "score not enough", status_code=400)
-
-            for key in para:
-                setattr(task, key, para[key])
+            # for key in para:
+            #     setattr(task, key, para[key])
             task.save()
             return request_success({"task_id": task.task_id})
 
