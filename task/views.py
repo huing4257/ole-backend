@@ -1,4 +1,5 @@
 import json
+import random
 from django.http import HttpRequest
 import zipfile
 from utils.utils_check import CheckLogin
@@ -315,11 +316,45 @@ def manual_check(req: HttpRequest, user: User, task_id: int):
             return request_failed(16, "no permissions")
         if task.current_tag_user_list.count() == 0:
             return request_failed(24, "task not distributed")
-        q_list = task.questions.all().order_by("q_id")
-        return_data = []
+        q_list = []
+        body = json.loads(req.body.decode("utf-8"))
+        check_method = require(body, "check_method", err_msg="Missing or error type of [check_method]")
+        if check_method == "select":  # 随机抽取任务总题数的1/10
+            q_all_list = task.questions.all()
+            q_num = len(q_all_list)  # 总题数
+            # 如果总数过高，则不按比例抽取，固定抽取100道题
+            check_num = q_num // 10 if q_num <= 1000 else 100
+            q_list = random.sample(q_all_list, check_num)
+        else:  # 全量审核
+            q_list = task.questions.all().order_by("q_id")
+        return_data = {}
+        q_info = []
+        tag_user_list = []
         for q in q_list:
             q_dict = q.serialize(True)
-            return_data.append(q_dict)
+            q_info.append(q_dict)
+        return_data["q_info"] = q_info
+        for current_tag_user in task.current_tag_user_list.all():
+            status = "tagging"
+            accepted_at = 0
+            if not hasattr(current_tag_user, "accepted_at"):
+                status = "not accept"
+            else:
+                accepted_at = current_tag_user.accepted_at
+            tag_user = current_tag_user.tag_user
+            progress = task.progress.filter(tag_user=tag_user).first()
+            q_id = progress.q_id
+            if q_id == len(q_list):
+                status = "tagged"
+            tag_user_list.append({
+                "tag_user_id": tag_user.id,
+                "status": status,
+                "q_id": q_id,
+                "accepted_at": accepted_at
+            })
+        return_data["tag_user_list"] = tag_user_list
+        return request_success(return_data)
     else:
         return BAD_METHOD
+
 
