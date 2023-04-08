@@ -234,10 +234,12 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
-        if task.distribute_user_num > tag_users.count():
+        # 设定的分发用户数比可分发的用户数多
+        if task.distribute_user_num > tag_users.count() - BanUser.objects.count():
             return request_failed(21, "tag user not enough")
-        current_tag_user_num = 0 
+        current_tag_user_num = 0  # 当前被分发到的用户数
         for tag_user in tag_users:
+            # 检测是否在被封禁用户列表中
             if BanUser.objects.filter(ban_user=tag_user).exists():
                 continue
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
@@ -279,12 +281,12 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         # 没有分发
         if task.current_tag_user_list.count() == 0:
             return request_failed(22, "task not distributed", 400)
-        elif task.current_tag_user_list.filter(tag_user=user).exists():
+        if task.current_tag_user_list.filter(tag_user=user).exists():
             return request_success({"is_accepted": "true"})
-        return request_failed(1000, "can not found the page", 404)
+        else:
+            return request_success({"is_accepted": "false"})
     else:
         return BAD_METHOD
-    pass
 
 
 # 判断请求的任务是否已经被分发
