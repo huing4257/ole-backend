@@ -159,17 +159,17 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 10)
 
-    # def test_modify_task_not_logged_in(self):
-    #     res = self.client.put("/task/1", {}, content_type=default_content_type)
-    #     self.assertEqual(res.status_code, 401)
-    #     self.assertEqual(res.json()["message"], "not_logged_in")
+    def test_modify_task_not_logged_in(self):
+        res = self.client.put("/task/1", {}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["message"], "not_logged_in")
 
-    # def test_modify_task_not_publisher(self):
-    #     self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
-    #                      content_type=default_content_type)
-    #     res = self.client.put("/task/1", {}, content_type=default_content_type)
-    #     self.assertEqual(res.status_code, 400)
-    #     self.assertEqual(res.json()["code"], 12)
+    def test_modify_task_not_existed(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.put("/task/10000000003924924", {}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 11)
 
     # # def test_get_my_tasks(self):
     # #     # 以需求方的身份登录

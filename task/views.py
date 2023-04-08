@@ -10,7 +10,7 @@ from task.models import Task, Result, TextData, Question, Current_tag_user
 
 
 # Create your views here.
-def require_tasks(req):
+def require_tasks(req: HttpRequest):
     task = Task.objects.create()
     body = json.loads(req.body.decode("utf-8"))
     task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
@@ -24,24 +24,23 @@ def require_tasks(req):
     task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
     task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
+    # 构建这个task的questions，把数据绑定到每个上
+    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    task.q_num = len(file_list)
+    for q_id, f_id in enumerate(file_list):
+        question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+        question.save()
+        task.questions.add(question)
     return task
 
 
 @CheckLogin
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
-        task = require_tasks(req)
+        task: Task = require_tasks(req)
         if user.score < task.reward_per_q * task.distribute_user_num:
             return request_failed(10, "score not enough", status_code=400)
         task.publisher = user
-        body = json.loads(req.body.decode("utf-8"))
-        file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
-        task.q_num = len(file_list)
-        for q_id, f_id in enumerate(file_list):
-            # 构建这个task的questions，把数据绑定到每个上
-            question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
-            question.save()
-            task.questions.add(question)
         task.save()
         return request_success({"task_id": task.task_id})
     else:
@@ -60,8 +59,8 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         elif task.publisher != user:
             return request_failed(12, "no permission to modify", status_code=400)
         else:
+            # 可以修改
             para = require_tasks(req)
-
             if user.score < para["reward_per_q"] * para["distribute_user_num"]:
                 return request_failed(10, "score not enough", status_code=400)
 
@@ -303,7 +302,7 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
             return request_success({"is_distributed": "true"})
     else:
         return BAD_METHOD
- 
+
 
 # 需求方人工审核
 @CheckLogin
