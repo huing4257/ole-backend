@@ -230,19 +230,18 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
             return request_failed(14, "task not created")
         if task.publisher != user:
             return request_failed(15, "no distribute permission")
-        if not task.current_tag_user_list:
-            task.current_tag_user_list = []
-            task.save()
+        if task.current_tag_user_list.count() != 0:
+            return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
         if task.distribute_user_num > tag_users.count():
             return request_failed(21, "tag user not enough")
         current_tag_user_num = 0 
         for tag_user in tag_users:
-            if BanUser.objects.filter(ban_user=tag_user):
+            if BanUser.objects.filter(ban_user=tag_user).exists():
                 continue
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
-            task.current_tag_user_list.append(current_tag_user)
+            task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
             if current_tag_user_num >= task.distribute_user_num:
                 break
