@@ -60,7 +60,7 @@ class Current_tag_user(models.Model):
 
     def serialize(self):
         return {
-            "tag_user": [user.serialize() for user in self.tag_user.all()],
+            "tag_user": self.tag_user.serialize(),
             "accepted_at": self.accepted_at,
         }
 
@@ -71,7 +71,7 @@ class Progress(models.Model):
 
     def serialize(self):
         return {
-            "tag_user": [user.serialize() for user in self.tag_user.all()],
+            "tag_user": self.tag_user.serialize(),
             "q_id": self.q_id
         }
 
