@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.create_task),
     path('<int:task_id>', views.task_ops),
     path('all', views.get_all_tasks),
+    path('get_all_tasks', views.get_all_tasks),
     path('get_my_tasks', views.get_my_tasks),
     path('upload_data', views.upload_data),
     path('upload_res/<int:task_id>/<int:q_id>', views.upload_res),
