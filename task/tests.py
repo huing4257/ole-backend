@@ -195,31 +195,100 @@ class TaskTests(TestCase):
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(res2.json()["data"], {"task_id": 1})
 
+    def test_delete_task_not_logged_in(self):
+        res = self.client.delete("/task/1")
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["message"], "not_logged_in")
+
+    def test_delete_task_not_existed(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.delete("/task/10000000003924924")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 11)
+
+    def test_delete_task_success(self):
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        para = {
+            "task_type": "image",
+            "task_style": "string",
+            "reward_per_q": 0,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "distribute_user_num": 1,
+            "task_name": "testTask",
+            "accept_method": "auto",
+            "files": [1, 2, 3, 4]
+        }
+        res = self.post_task(para)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+
+        res = self.client.delete("/task/1")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(Task.objects.filter(task_id=1).count(), 0)
+
+    def test_get_task_not_logged_in(self):
+        res = self.client.get("/task/1")
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(res.json()["message"], "not_logged_in")
+
+    def test_get_task_not_existed(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get("/task/10000000003924924")
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 11)
+
+    def test_get_task_success(self):
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        para = {
+            "task_type": "image",
+            "task_style": "string",
+            "reward_per_q": 0,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "distribute_user_num": 1,
+            "task_name": "testTask",
+            "accept_method": "auto",
+            "files": [1, 2, 3, 4]
+        }
+        res = self.post_task(para)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+
+        res = self.client.get("/task/1")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["data"], Task.objects.get(task_id=1).serialize())
+
     def test_get_all_tasks(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
                                content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         res = self.client.get("/task/get_all_tasks")
-        task: Task = Task.objects.all()
+        tasks = Task.objects.all()
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content, {
             "code": 0,
             "message": "Succeed",
-            "data": [task.serialize() for task in task]
+            "data": [task.serialize() for task in tasks]
         })
 
     def test_get_my_tasks(self):
-        # 以需求方的身份登录
-        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["message"], "Succeed")
         res2 = self.client.get("/task/get_my_tasks")
-        task: Task = Task.objects.filter(task_id=1).first()
+        task= Task.objects.filter(publisher=User.objects.get(user_name="testPublisher"))
         self.assertJSONEqual(res2.content, {
             "code": 0,
             "message": "Succeed",
-            "data": [task.serialize()]
+            "data": [task.serialize() for task in task]
         })
         self.assertEqual(res2.status_code, 200)
 
