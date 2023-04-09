@@ -62,6 +62,12 @@ class TaskTests(TestCase):
             task=task,
             data_type="text",
         )
+        question2 = Question.objects.create(
+            q_id=2,
+            data="1",
+            task=task,
+            data_type="text",
+        )
 
         TextData.objects.create(
             data="string"
@@ -79,6 +85,7 @@ class TaskTests(TestCase):
         task.current_tag_user_list.add(current_tag_user)
         task.past_tag_user_list.add(test_receiver2)
         task.questions.add(question1)
+        task.questions.add(question2)
         task.publisher = test_publisher
         task.save()
 
@@ -328,3 +335,18 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.json()["data"], Question.objects.get(q_id=1).serialize(detail=True))
+
+    def test_get_task_question_receiver(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get(f"/task/{1}/{2}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        self.assertEqual(res.json()["data"], Question.objects.get(q_id=2).serialize(detail=True))
+
+    def test_get_task_question_not_receiver(self):
+        self.client.post("/user/login", {"user_name": "testReceiver2", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get(f"/task/{1}/{1}")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["message"], "no access permission")
