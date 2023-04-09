@@ -9,3 +9,5 @@ mysqlclient
 
 flake8
 uwsgi
+filetype~=1.2.0
+Pillow
