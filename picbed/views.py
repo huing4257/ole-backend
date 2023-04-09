@@ -21,7 +21,7 @@ def upload_handler(image):
 
 
 @CheckLogin
-def upload(req: HttpRequest,user:User):
+def upload(req: HttpRequest, user: User):
     return request_success(upload_handler(req.FILES['img']))
 
 
@@ -46,7 +46,7 @@ def delete_img(req, img_url):
 
 
 @CheckLogin
-def img_handler(req: HttpRequest,user:User, img_url):
+def img_handler(req: HttpRequest, user: User, img_url):
     """
     处理图片的获取和删除
     """
