@@ -71,7 +71,7 @@ def change_tasks(req: HttpRequest, task: Task):
 
 
 @CheckLogin
-# @CheckRequire
+@CheckRequire
 def task_ops(req: HttpRequest, user: User, task_id: any):
     task_id = require({"task_id": task_id}, "task_id", "int", err_msg="Bad param [task_id]", err_code=-1)
 
@@ -377,5 +377,3 @@ def manual_check(req: HttpRequest, user: User, task_id: int):
         return request_success(return_data)
     else:
         return BAD_METHOD
-
-
