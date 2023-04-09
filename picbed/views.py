@@ -2,6 +2,7 @@ import os.path
 import filetype
 from django.http import HttpRequest, HttpResponse
 from picbed.models import Image
+from user.models import User
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_check import CheckLogin
 
@@ -20,7 +21,7 @@ def upload_handler(image):
 
 
 @CheckLogin
-def upload(req: HttpRequest):
+def upload(req: HttpRequest,user:User):
     return request_success(upload_handler(req.FILES['img']))
 
 
@@ -44,8 +45,8 @@ def delete_img(req, img_url):
     return request_success()
 
 
-# @CheckLogin
-def img_handler(req: HttpRequest, img_url):
+@CheckLogin
+def img_handler(req: HttpRequest,user:User, img_url):
     """
     处理图片的获取和删除
     """
