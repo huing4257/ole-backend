@@ -68,5 +68,8 @@ def require(body, key, type="string", err_msg=None, err_code=2):
         except Exception:
             raise KeyError(err_msg, err_code)
 
+    elif type == "file":
+        return val
+
     else:
         raise NotImplementedError(f"Type `{type}` not implemented.", err_code)
