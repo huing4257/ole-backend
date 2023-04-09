@@ -1,7 +1,7 @@
 # Create your tests here.
 from django.test import TestCase
 from user.models import User
-from task.models import Question, Current_tag_user, Task
+from task.models import Question, Current_tag_user, Task, TextData
 import bcrypt
 import datetime
 
@@ -57,24 +57,15 @@ class TaskTests(TestCase):
             task_name="testTask"
         )
         question1 = Question.objects.create(
-            q_id=0,
-            data="string",
+            q_id=1,
+            data="1",
             task=task,
             data_type="text",
         )
-        #
-        # test_data = TextData.objects.create(
-        #     data=[
-        #         {
-        #             "q_id": 0,
-        #             "data": "string"
-        #         },
-        #         {
-        #             "q_id": 1,
-        #             "data": "string"
-        #         },
-        #     ]
-        # )
+
+        TextData.objects.create(
+            data="string"
+        )
         #
         # test_result = Result.objects.create(
         #     tag_user=test_receiver1,
@@ -329,3 +320,11 @@ class TaskTests(TestCase):
     # def test_upload_res_not_login(self):
     #     res = self.client.post(f"/task/upload_res/{1}")
     #     self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })
+
+    def test_get_task_question_publisher(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get(f"/task/{1}/{1}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        self.assertEqual(res.json()["data"], Question.objects.get(q_id=1).serialize(detail=True))
