@@ -30,6 +30,7 @@ class TaskTests(TestCase):
             password=hashed_password,  # store hashed password as a string
             user_type="tag",
             score=0,
+            credit_score=80,
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
@@ -40,7 +41,20 @@ class TaskTests(TestCase):
             password=hashed_password,  # store hashed password as a string
             user_type="tag",
             score=0,
+            credit_score=90,
             membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )
+
+        User.objects.create(
+            user_id=4,
+            user_name="testReceiver3",
+            password=hashed_password,  # store hashed password as a string
+            user_type="tag",
+            score=0,
+            membership_level=0,
+            credit_score=100,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
@@ -108,10 +122,8 @@ class TaskTests(TestCase):
         self.assertEqual(res.json()["message"], "not_logged_in")
 
     def test_create_task_success(self):
-        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-                               content_type=default_content_type)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["message"], "Succeed")
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
         para = {
             "task_type": "image",
             "task_style": "string",
@@ -306,27 +318,18 @@ class TaskTests(TestCase):
             # self.assertEqual(res2.json()["message"], "Succeed")
             # self.assertEqual(res2.status_code, 200)
 
-    # def test_res_data(self):
+    # def test_upload_result(self):
     #     # 以需求方的身份登录
-    #     res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-    #                            content_type=default_content_type)
-    #     self.assertEqual(res.status_code, 200)
-    #     self.assertEqual(res.json()["message"], "Succeed")
-    #     result_offered = {
+    #     self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+    #                      content_type=default_content_type)
+    #     data = {
     #         "result": [
-    #             {
-    #                 "q_id": 0,
-    #                 "res": "string"
-    #             }
+    #             "string",
     #         ]
     #     }
-    #     res2 = self.client.post(f"/task/upload_res/{1}", result_offered, content_type=default_content_type)
-    #     self.assertEqual(res2.status_code, 200)
-    #     self.assertEqual(res2.json()["message"], "Succeed")
-
-    # def test_upload_res_not_login(self):
-    #     res = self.client.post(f"/task/upload_res/{1}")
-    #     self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })
+    #     res = self.client.post("/task/upload_res/1/1", data, content_type=default_content_type)
+    #     self.assertEqual(res.status_code, 200)
+    #     self.assertEqual(res.json()["message"], "Succeed")
 
     def test_get_task_question_publisher(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -350,3 +353,28 @@ class TaskTests(TestCase):
         res = self.client.get(f"/task/{1}/{1}")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["message"], "no access permission")
+
+    def test_distribute_success(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        para = {
+            "task_id": 2,
+            "task_type": "image",
+            "task_style": "string",
+            "reward_per_q": 0,
+            "time_limit_per_q": 0,
+            "total_time_limit": 0,
+            "distribute_user_num": 2,
+            "task_name": "testTask",
+            "accept_method": "auto",
+            "files": [1, 2, 3, 4]
+        }
+        self.post_task(para)
+        res = self.client.post("/task/distribute/2")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task2 = Task.objects.get(task_id=2)
+        # receiver2 and receiver3 with higher credit should be in the tag_user list
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task2.current_tag_user_list.all())
+        self.assertSetEqual(distribute_user_list, {3, 4})
