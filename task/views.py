@@ -1,7 +1,9 @@
 import json
 import random
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 import zipfile
+from picbed.models import Image
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
@@ -179,7 +181,32 @@ def upload_data(req: HttpRequest, user: User):
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(text_datas)
         elif data_type == 'image':
-            pass
+            zfile = require(req.FILES, 'file', 'file')
+            zfile = zipfile.ZipFile(zfile)
+            img_datas = []
+            flag = True
+            i = 1
+            for i in range(1, 1 + len(zfile.namelist())):
+                filename = f"{i}.jpg"
+                if filename not in zfile.namelist():
+                    flag = False
+                    break
+                data = zfile.read(f"{i}.jpg")
+                data_file = SimpleUploadedFile(f"{i}.jpg", data, content_type='image/jpeg')
+                img_data = Image(img_file=data_file)
+                img_data.save()
+                img_datas.append({
+                    "filename": filename,
+                    "tag": str(img_data.img_file.name),
+                })
+            if not flag:
+                return_data = {
+                    "files": img_datas,
+                    "upload_num": len(zfile.namelist()),
+                    "legal_num": i - 1,
+                }
+                return request_failed(20, "file sequence interrupt", 200, data=return_data)
+            return request_success(img_datas)
         return request_success()
     else:
         return BAD_METHOD
@@ -345,7 +372,7 @@ def manual_check(req: HttpRequest, user: User, task_id: int):
             q_num = len(q_all_list)  # 总题数
             # 如果总数过高，则不按比例抽取，固定抽取100道题
             check_num = q_num // 10 if q_num <= 1000 else 100
-            q_list = random.sample(q_all_list, check_num)
+            q_list = random.sample(q_all_list, check_num)   # nosec
         else:  # 全量审核
             q_list = task.questions.all().order_by("q_id")
         return_data = {}
