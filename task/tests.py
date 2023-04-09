@@ -314,9 +314,10 @@ class TaskTests(TestCase):
                 "file": fp
             }
             res2 = self.client.post("/task/upload_data?data_type=text", data)
-            self.assertEqual(res2.json()["data"]["legal_num"], 0)
-            # self.assertEqual(res2.json()["message"], "Succeed")
-            # self.assertEqual(res2.status_code, 200)
+            self.assertEqual(res2.status_code, 200)
+
+            self.assertEqual(res2.json()["message"], "Succeed")
+            self.assertEqual(len(res2.json()["data"]), 3)
 
     # def test_upload_result(self):
     #     # 以需求方的身份登录
