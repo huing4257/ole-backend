@@ -1,5 +1,5 @@
 import json
-import random
+import secrets
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 import zipfile
@@ -130,17 +130,17 @@ def get_my_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
         if user.user_type == "demand":
             published_list = Task.objects.filter(publisher=user).all()
-            published = user.published_task.all()
-            published_list: list = list()
-            for element in published:
-                published_list.append(element.serialize())
-            return request_success(published_list)
+            task_list = []
+            for element in published_list:
+                task_list.append(element.serialize())
+            return request_success(task_list)
         elif user.user_type == "tag":
             all_tasks: list = Task.objects.all()
             distributed_list: list = list()
             for element in all_tasks:
-                if user in element.current_tag_user_list():
-                    distributed_list.append(element.serialize())
+                for current_tag_user in element.current_tag_user_list.all():
+                    if user == current_tag_user.tag_user:
+                        distributed_list.append(element.serialize())
             return request_success(distributed_list)
         else:
             return request_failed(12, "no task of admin")
@@ -331,9 +331,9 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         if task.current_tag_user_list.count() == 0:
             return request_failed(22, "task not distributed", 400)
         if task.current_tag_user_list.filter(tag_user=user).exists():
-            return request_success({"is_accepted": "true"})
+            return request_success({"is_accepted": True})
         else:
-            return request_success({"is_accepted": "false"})
+            return request_success({"is_accepted": False})
     else:
         return BAD_METHOD
 
@@ -346,9 +346,9 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
         if not task:
             return request_failed(14, "task not created", 400)
         if task.current_tag_user_list.count() == 0:
-            return request_success({"is_distributed": "false"})
+            return request_success({"is_distributed": False})
         else:
-            return request_success({"is_distributed": "true"})
+            return request_success({"is_distributed": True})
     else:
         return BAD_METHOD
 
@@ -372,7 +372,7 @@ def manual_check(req: HttpRequest, user: User, task_id: int):
             q_num = len(q_all_list)  # 总题数
             # 如果总数过高，则不按比例抽取，固定抽取100道题
             check_num = q_num // 10 if q_num <= 1000 else 100
-            q_list = random.sample(q_all_list, check_num)   # nosec
+            q_list = secrets.sample(q_all_list, check_num)
         else:  # 全量审核
             q_list = task.questions.all().order_by("q_id")
         return_data = {}
