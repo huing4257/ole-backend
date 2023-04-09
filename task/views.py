@@ -256,7 +256,7 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
             else:
                 return request_failed(16, "no access permission")
         elif type == "tag":
-            if task.current_tag_user_list.filter(tag_user=user):
+            if task.current_tag_user_list.filter(tag_user=user).first():
                 return_data = question.serialize(detail=True)
                 return request_success(return_data)
             else:
