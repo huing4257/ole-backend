@@ -280,11 +280,11 @@ class TaskTests(TestCase):
             "data": [task.serialize() for task in tasks]
         })
 
-    def test_get_my_tasks(self):
+    def test_get_my_tasks_publisher(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-                               content_type=default_content_type)
+                         content_type=default_content_type)
         res2 = self.client.get("/task/get_my_tasks")
-        task= Task.objects.filter(publisher=User.objects.get(user_name="testPublisher"))
+        task = Task.objects.filter(publisher=User.objects.get(user_name="testPublisher"))
         self.assertJSONEqual(res2.content, {
             "code": 0,
             "message": "Succeed",
@@ -292,27 +292,21 @@ class TaskTests(TestCase):
         })
         self.assertEqual(res2.status_code, 200)
 
-    # def test_upload_data(self):
-    #     # 以需求方的身份登录
-    #     res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-    #                            content_type=default_content_type)
-    #     self.assertEqual(res.status_code, 200)
-    #     self.assertEqual(res.json()["message"], "Succeed")
-    #     data_offered = {
-    #         "data": [
-    #             {
-    #                 "q_id": 0,
-    #                 "data": "string"
-    #             }
-    #         ]
-    #     }
-    #     res2 = self.client.post(f"/task/upload_data/{1}", data_offered, content_type=default_content_type)
-    #     self.assertEqual(res2.status_code, 200)
-    #     self.assertEqual(res2.json()["message"], "Succeed")
-
-    # def test_upload_data_not_login(self):
-    #     res = self.client.post(f"/task/upload_data/{1}")
-    #     self.assertJSONEqual(res.content, {"code": 1001, "message": "not_logged_in", "data": {}, })
+    def test_upload_data(self):
+        # 以需求方的身份登录
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        # open file
+        with open("task/data/upload_test_1.zip", "rb") as fp:
+            data = {
+                "file": fp
+            }
+            res2 = self.client.post("/task/upload_data?data_type=text", data)
+            self.assertEqual(res2.json()["data"]["legal_num"], 0)
+            # self.assertEqual(res2.json()["message"], "Succeed")
+            # self.assertEqual(res2.status_code, 200)
 
     # def test_res_data(self):
     #     # 以需求方的身份登录
