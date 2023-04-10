@@ -7,6 +7,7 @@ from picbed.models import Image
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
+from utils.utils_time import get_timestamp
 from user.models import User, UserToken, BanUser
 from task.models import Task, Result, TextData, Question, Current_tag_user
 
@@ -300,24 +301,67 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         return request_success()
 
 
-@CheckLogin
-def get_task(req: HttpRequest, user: User, task_id: int):
-    pass
-
-
+# 后端收到该请求后，将任务分发给另一个不在past_tag_user_list中的标注用户，并更新current_tag_user_list。若剩余可分发用户不足，则返回错误响应。
 @CheckLogin
 def refuse_task(req: HttpRequest, user: User, task_id: int):
-    pass
+    if req.method == "POST":
+        task = Task.objects.filter(task_id=task_id).first()
+        # 顺序分发(根据标注方的信用分从高到低分发)，找到所有的用户
+        if task.current_tag_user_list.filter(tag_user=user).exists():
+            tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
+            for tag_user in tag_users:
+                # 检测是否在被封禁用户列表中
+                if BanUser.objects.filter(ban_user=tag_user).exists():
+                    continue
+                # 检测是否在过去被分发到的用户列表
+                if task.past_tag_user_list.contains(tag_user):
+                    continue
+                # 检测是否在现在的用户列表
+                if task.current_tag_user_list.filter(tag_user=user).exists():
+                    continue
+                # tag_user 是新的标注用户，替换到user
+                target: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+                target.tag_user = tag_user
+                target.accepted_at = get_timestamp()
+                task.past_tag_user_list.add(user)
+                task.save()
+                return request_success()
+            # 没有合适的用户
+            return request_failed(17, "available user not enough")
+        else:
+            # no permission to accept
+            return request_failed(18, "no permission to accept")
+    else: 
+        return BAD_METHOD
 
 
 @CheckLogin
 def accept_task(req: HttpRequest, user: User, task_id: int):
-    pass
+    if req.method == "POST":
+        task = Task.objects.filter(task_id=task_id).first()
+        if task.current_tag_user_list.filter(tag_user=user).exists():
+            # current user is tag_user, change accepted_time
+            task.current_tag_user_list.filter(tag_user=user).first().accepted_at = get_timestamp()
+            task.save()
+            return request_success(task.serialize())
+        else:
+            # no permission to accept
+            return request_failed(18, "no permission to accept")
+    else:
+        return BAD_METHOD
 
 
 @CheckLogin
 def get_progress(req: HttpRequest, user: User, task_id: int):
-    pass
+    if req.method == "GET":
+        task = Task.objects.filter(task_id=task_id).first()
+        if task.current_tag_user_list.filter(tag_user=user).exists():
+            qid = task.progress.filter(tag_user=user).first().q_id
+            return request_success({"q_id": qid})  
+        else:
+            return request_failed(19, "no access permission")
+    else:
+        return BAD_METHOD
 
 
 # 后端判断当前用户是否已经接受任务task_id。
