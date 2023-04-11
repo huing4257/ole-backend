@@ -317,7 +317,7 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
                 if task.past_tag_user_list.contains(tag_user):
                     continue
                 # 检测是否在现在的用户列表
-                if task.current_tag_user_list.filter(tag_user=user).exists():
+                if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                     continue
                 # tag_user 是新的标注用户，替换到user
                 target: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
