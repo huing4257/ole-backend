@@ -351,7 +351,10 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         task = Task.objects.filter(task_id=task_id).first()
         if task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
-            task.current_tag_user_list.filter(tag_user=user).first().accepted_at = get_timestamp()
+            for current_tag_user in task.current_tag_user_list.all():
+                if current_tag_user.tag_user == user:
+                    current_tag_user.accepted_at = get_timestamp()
+                    current_tag_user.save()
             task.save()
             return request_success(task.serialize())
         else:
