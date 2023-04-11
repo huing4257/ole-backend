@@ -234,7 +234,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                 # 已经做过这个题目
                 task.progress.filter(tag_user=user).first().q_id = q_id + 1
             else:
-                # 这个用户还没做过这个题目
+                # 这个用户还没做过这个题目，创建
                 progress: Progress = Progress.objects.create(
                     tag_user=user,
                     q_id=q_id + 1,
