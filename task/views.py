@@ -356,8 +356,13 @@ def get_progress(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task = Task.objects.filter(task_id=task_id).first()
         if task.current_tag_user_list.filter(tag_user=user).exists():
-            qid = task.progress.filter(tag_user=user).first().q_id
-            return request_success({"q_id": qid})  
+            if task.progress.filter(tag_user=user).first():
+                # 已经做过这个题目
+                qid = task.progress.filter(tag_user=user).first().q_id
+                return request_success({"q_id": qid})  
+            else:
+                # 这个用户还没做过这个题目
+                return request_success({"q_id": 1})
         else:
             return request_failed(19, "no access permission")
     else:
@@ -374,10 +379,10 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         # 没有分发
         if task.current_tag_user_list.count() == 0:
             return request_failed(22, "task not distributed", 400)
-        if task.current_tag_user_list.filter(tag_user=user).exists():
-            return request_success({"is_accepted": True})
-        else:
-            return request_success({"is_accepted": False})
+        for current_tag_user in task.current_tag_user_list.all():
+            if current_tag_user.tag_user == user and current_tag_user.accepted_at:
+                return request_success({"is_accepted": True})
+        return request_success({"is_accepted": False})
     else:
         return BAD_METHOD
 
@@ -416,7 +421,7 @@ def manual_check(req: HttpRequest, user: User, task_id: int):
             q_num = len(q_all_list)  # 总题数
             # 如果总数过高，则不按比例抽取，固定抽取100道题
             check_num = q_num // 10 if q_num <= 1000 else 100
-            q_list = secrets.sample(q_all_list, check_num)
+            q_list = secrets.SystemRandom().sample(q_all_list, check_num)
         else:  # 全量审核
             q_list = task.questions.all().order_by("q_id")
         return_data = {}
