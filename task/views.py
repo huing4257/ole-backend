@@ -8,8 +8,8 @@ from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
-from user.models import User, UserToken, BanUser
-from task.models import Task, Result, TextData, Question, Current_tag_user
+from user.models import User, BanUser
+from task.models import Task, Result, TextData, Question, Current_tag_user, Progress
 
 
 # Create your views here.
@@ -217,23 +217,31 @@ def upload_data(req: HttpRequest, user: User):
 def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        # RL is a json list
         result_list = require(body, "result", "list", err_msg="invalid request", err_code=2)
         if not result_list:
             return request_failed(1005, "invalid request")
         else:
-            # 判断是否登录
-            if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
-                task = Task.objects.filter(task_id=task_id).first()
-                result = Result.objects.create(
-                    user_id=user.user_id,
-                    result=result_list,
-                )
-                task.result.add(result)
-                task.save()
-                return request_success()
+            task: Task = Task.objects.filter(task_id=task_id).first()
+            # 处理result            # 上传的是第q_id个问题的结果
+            result = Result.objects.create(
+                tag_user=user,
+                tag_res=result_list,
+            )
+            quest: Question = task.questions.filter(q_id=q_id).first()
+            quest.result.add(result)
+            # 处理progress
+            if task.progress.filter(tag_user=user).first():
+                # 已经做过这个题目
+                task.progress.filter(tag_user=user).first().q_id = q_id + 1
             else:
-                return request_failed(1001, "not_logged_in")
+                # 这个用户还没做过这个题目
+                progress: Progress = Progress.objects.create(
+                    tag_user=user,
+                    q_id=q_id + 1,
+                )
+                task.progress.add(progress)
+            task.save()
+            return request_success()
     else:
         return BAD_METHOD
 
