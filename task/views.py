@@ -356,8 +356,13 @@ def get_progress(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task = Task.objects.filter(task_id=task_id).first()
         if task.current_tag_user_list.filter(tag_user=user).exists():
-            qid = task.progress.filter(tag_user=user).first().q_id
-            return request_success({"q_id": qid})  
+            if task.progress.filter(tag_user=user).first():
+                # 已经做过这个题目
+                qid = task.progress.filter(tag_user=user).first().q_id
+                return request_success({"q_id": qid})  
+            else:
+                # 这个用户还没做过这个题目
+                return request_success({"q_id": 1})
         else:
             return request_failed(19, "no access permission")
     else:
