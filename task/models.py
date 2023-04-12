@@ -30,12 +30,22 @@ class Result(models.Model):
         }
 
 
+class TagType(models.Model):
+    type_name = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "type_name": self.type_name,
+        }
+
+
 class Question(models.Model):
     q_id = models.BigIntegerField(null=False, default=1)
     data = models.CharField(max_length=MAX_CHAR_LENGTH)
     result = models.ManyToManyField(Result, default=[])
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
+    tag_type = models.ManyToManyField(TagType, default=[])
 
     def serialize(self, detail=False):
         if detail:
@@ -50,6 +60,7 @@ class Question(models.Model):
             "data": data,
             "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
+            "tag_type": [tag_type.ty for tag_type in self.tag_type.all()]
         }
 
 
@@ -93,6 +104,7 @@ class Task(models.Model):
     progress = models.ManyToManyField(Progress, default=[])
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
+    tag_type = models.ManyToManyField(TagType, default=[])
 
     def serialize(self):
         return {
@@ -112,4 +124,5 @@ class Task(models.Model):
             "progress": [user.serialize() for user in self.progress.all()],
             "result_type": self.result_type,
             "accept_method": self.accept_method,
+            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
         }
