@@ -223,36 +223,33 @@ def upload_data(req: HttpRequest, user: User):
 def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        result_list = require(body, "result", "list", err_msg="invalid request", err_code=2)
-        if not result_list:
-            return request_failed(1005, "invalid request")
-        else:
-            task: Task = Task.objects.filter(task_id=task_id).first()
-            # 处理result            # 上传的是第q_id个问题的结果
-            result = Result.objects.create(
-                tag_user=user,
-                tag_res=result_list,
-            )
-            quest: Question = task.questions.filter(q_id=q_id).first()
-            quest.result.add(result)
-            # 处理progress
-            if task.progress.filter(tag_user=user).first():
-                # 已经做过这个题目
-                # 判断是最后一道题
-                if q_id < task.q_num:
-                    task.progress.filter(tag_user=user).first().q_id = q_id + 1
-                else:
-                    # 最后一个题已经做完了，就把progress设为0
-                    task.progress.filter(tag_user=user).first().q_id = 0
+        result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        # 处理result            # 上传的是第q_id个问题的结果
+        result = Result.objects.create(
+            tag_user=user,
+            tag_res=result,
+        )
+        quest: Question = task.questions.filter(q_id=q_id).first()
+        quest.result.add(result)
+        # 处理progress
+        if task.progress.filter(tag_user=user).first():
+            # 已经做过这个题目
+            # 判断是最后一道题
+            if q_id < task.q_num:
+                task.progress.filter(tag_user=user).first().q_id = q_id + 1
             else:
-                # 这个用户还没做过这个题目，创建
-                progress: Progress = Progress.objects.create(
-                    tag_user=user,
-                    q_id=q_id + 1,
-                )
-                task.progress.add(progress)
-            task.save()
-            return request_success()
+                # 最后一个题已经做完了，就把progress设为0
+                task.progress.filter(tag_user=user).first().q_id = 0
+        else:
+            # 这个用户还没做过这个题目，创建
+            progress: Progress = Progress.objects.create(
+                tag_user=user,
+                q_id=q_id + 1,
+            )
+            task.progress.add(progress)
+        task.save()
+        return request_success()
     else:
         return BAD_METHOD
 
