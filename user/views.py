@@ -61,6 +61,7 @@ def login(req: HttpRequest):
                 user_token.save()
                 response.set_cookie("token", token, max_age=604800)
                 response.set_cookie("userId", user.user_id, max_age=604800)
+                response.set_cookie("user_type", user.user_type, max_age=604800)
                 return response
             else:
                 return request_failed(4, "wrong username or password", 400)
@@ -76,6 +77,7 @@ def logout(req: HttpRequest, _user: User):
     user_token.delete()
     response.delete_cookie('token')
     response.delete_cookie('userId')
+    response.delete_cookie('user_type')
     return response
 
 
