@@ -60,7 +60,7 @@ class Question(models.Model):
             "data": data,
             "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
-            "tag_type": [tag_type.ty for tag_type in self.tag_type.all()]
+            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
         }
 
 

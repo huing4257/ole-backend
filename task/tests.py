@@ -219,9 +219,9 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
-        res = self.client.get("/task/1")
+        res = self.client.get("/task/2")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["data"], Task.objects.get(task_id=1).serialize())
+        self.assertEqual(res.json()["data"], Task.objects.get(task_id=2).serialize())
 
     def test_get_all_tasks(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
