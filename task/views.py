@@ -232,7 +232,12 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
             # 处理progress
             if task.progress.filter(tag_user=user).first():
                 # 已经做过这个题目
-                task.progress.filter(tag_user=user).first().q_id = q_id + 1
+                # 判断是最后一道题
+                if q_id < task.q_num:
+                    task.progress.filter(tag_user=user).first().q_id = q_id + 1
+                else:
+                    # 最后一个题已经做完了，就把progress设为0
+                    task.progress.filter(tag_user=user).first().q_id = 0
             else:
                 # 这个用户还没做过这个题目，创建
                 progress: Progress = Progress.objects.create(
