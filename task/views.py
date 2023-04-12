@@ -219,6 +219,7 @@ def upload_data(req: HttpRequest, user: User):
 
 
 @CheckLogin
+@CheckRequire
 def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
