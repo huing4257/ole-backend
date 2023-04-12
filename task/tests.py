@@ -332,6 +332,7 @@ class TaskTests(TestCase):
         res = self.client.post("/task/upload_res/1/2", data, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
+
     # bug here
     # def test_get_task_question_publisher(self):
     #     self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -382,6 +383,26 @@ class TaskTests(TestCase):
     #     # receiver2 and receiver3 with higher credit should be in the tag_user list
     #     distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task2.current_tag_user_list.all())
     #     self.assertSetEqual(distribute_user_list, {3, 4})
+
+    def test_refuse_task(self):
+        res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.post("/task/refuse/1")
+        task1 = Task.objects.get(task_id=1)
+        user2 = User.objects.get(user_name="testReceiver1")
+        self.assertTrue(task1.current_tag_user_list.filter(tag_user=user2).exists())
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+
+    def test_refuse_task_not_receiver(self):
+        res = self.client.post("/user/login", {"user_name": "testReceiver2", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.post("/task/refuse/1")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["message"], "no permission to accept")
+
     def test_get_progress(self):
         self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
                          content_type=default_content_type)
