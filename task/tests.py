@@ -101,6 +101,19 @@ class TaskTests(TestCase):
         task.publisher = test_publisher
         task.save()
 
+    para = {
+        "task_type": "image",
+        "task_style": "string",
+        "reward_per_q": 0,
+        "time_limit_per_q": 0,
+        "total_time_limit": 0,
+        "distribute_user_num": 1,
+        "task_name": "testTask",
+        "accept_method": "auto",
+        "files": [1, 2, 3, 4],
+        "tag_type": ["tag1", "tag2", "tag3"],
+    }
+
     def post_task(self, para: dict):
         return self.client.post("/task/", para, content_type=default_content_type)
 
@@ -122,35 +135,16 @@ class TaskTests(TestCase):
     def test_create_task_success(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-        para = {
-            "task_type": "image",
-            "task_style": "string",
-            "reward_per_q": 0,
-            "time_limit_per_q": 0,
-            "total_time_limit": 0,
-            "distribute_user_num": 1,
-            "task_name": "testTask",
-            "accept_method": "auto",
-            "files": [1, 2, 3, 4]
-        }
-        res = self.post_task(para)
+
+        res = self.post_task(self.para)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
     def test_create_task_score_not_enough(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-        para = {
-            "task_type": "image",
-            "task_style": "string",
-            "reward_per_q": 100,
-            "time_limit_per_q": 0,
-            "total_time_limit": 0,
-            "distribute_user_num": 10,
-            "task_name": "testTask",
-            "accept_method": "auto",
-            "files": [1, 2, 3, 4]
-        }
+        para = self.para.copy()
+        para["reward_per_q"] = 10000000
         res = self.post_task(para)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 10)
@@ -173,32 +167,12 @@ class TaskTests(TestCase):
                                content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
-        para = {
-            "task_type": "image",
-            "task_style": "string",
-            "reward_per_q": 0,
-            "time_limit_per_q": 0,
-            "total_time_limit": 0,
-            "distribute_user_num": 1,
-            "task_name": "testTask",
-            "accept_method": "auto",
-            "files": [1, 2, 3, 4]
-        }
-        res = self.post_task(para)
+        res = self.post_task(self.para)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
-        para2 = {
-            "task_type": "image",
-            "task_style": "string",
-            "reward_per_q": 2,
-            "time_limit_per_q": 3,
-            "total_time_limit": 4,
-            "distribute_user_num": 5,
-            "task_name": "NewTestTask",
-            "accept_method": "auto",
-            "files": [1, 2, 3, 4]
-        }
+        para2 = self.para.copy()
+        para2["task_name"] = "testTask2"
         res2 = self.client.put('/task/1', para2, content_type=default_content_type)
         self.assertEqual(res2.status_code, 200)
         self.assertEqual(res2.json()["data"], {"task_id": 1})
@@ -218,20 +192,7 @@ class TaskTests(TestCase):
     def test_delete_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["message"], "Succeed")
-        para = {
-            "task_type": "image",
-            "task_style": "string",
-            "reward_per_q": 0,
-            "time_limit_per_q": 0,
-            "total_time_limit": 0,
-            "distribute_user_num": 1,
-            "task_name": "testTask",
-            "accept_method": "auto",
-            "files": [1, 2, 3, 4]
-        }
-        res = self.post_task(para)
+        res = self.post_task(self.para)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
@@ -254,20 +215,7 @@ class TaskTests(TestCase):
     def test_get_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["message"], "Succeed")
-        para = {
-            "task_type": "image",
-            "task_style": "string",
-            "reward_per_q": 0,
-            "time_limit_per_q": 0,
-            "total_time_limit": 0,
-            "distribute_user_num": 1,
-            "task_name": "testTask",
-            "accept_method": "auto",
-            "files": [1, 2, 3, 4]
-        }
-        res = self.post_task(para)
+        res = self.post_task(self.para)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 

@@ -9,7 +9,7 @@ from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from user.models import User, BanUser
-from task.models import Task, Result, TextData, Question, Current_tag_user, Progress
+from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 
 
 # Create your views here.
@@ -29,9 +29,14 @@ def require_tasks(req: HttpRequest):
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
     # 构建这个task的questions，把数据绑定到每个上
     file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
     task.q_num = len(file_list)
+    tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
+    task.tag_type.set(tag_type_list)
     for q_id, f_id in enumerate(file_list):
-        question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+        for tag_type in tag_type_list:
+            question.tag_type.add(tag_type)
         question.save()
         task.questions.add(question)
     return task
@@ -262,20 +267,20 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         if not question:
             return request_failed(13, "question does not exist")
         release_user_id = task.publisher.user_id
-        type: str = user.user_type
-        if type == "demand":
+        user_type: str = user.user_type
+        if user_type == "demand":
             if release_user_id == user.user_id:
                 return_data = question.serialize(detail=True)
                 return request_success(return_data)
             else:
                 return request_failed(16, "no access permission")
-        elif type == "tag":
+        elif user_type == "tag":
             if task.current_tag_user_list.filter(tag_user=user):
                 return_data = question.serialize(detail=True)
                 return request_success(return_data)
             else:
                 return request_failed(16, "no access permission")
-        elif type == "admin":
+        elif user_type == "admin":
             return_data = question.serialize(detail=True)
             return request_success(return_data)
         else:
@@ -322,7 +327,8 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
         # 顺序分发(根据标注方的信用分从高到低分发)，找到所有的用户
         if task.current_tag_user_list.filter(tag_user=user).exists():
             tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
-            if tag_users.count() > BanUser.objects.all().count() + task.past_tag_user_list.count() + task.current_tag_user_list.count():
+            if tag_users.count() > BanUser.objects.all().count() + task.past_tag_user_list.count() + \
+                    task.current_tag_user_list.count():
                 for tag_user in tag_users:
                     # 检测是否在被封禁用户列表中
                     if BanUser.objects.filter(ban_user=tag_user).exists():
@@ -346,7 +352,7 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
         else:
             # no permission to accept
             return request_failed(18, "no permission to accept")
-    else: 
+    else:
         return BAD_METHOD
 
 
@@ -377,7 +383,7 @@ def get_progress(req: HttpRequest, user: User, task_id: int):
             if task.progress.filter(tag_user=user).first():
                 # 已经做过这个题目
                 qid = task.progress.filter(tag_user=user).first().q_id
-                return request_success({"q_id": qid})  
+                return request_success({"q_id": qid})
             else:
                 # 这个用户还没做过这个题目
                 return request_success({"q_id": 1})
