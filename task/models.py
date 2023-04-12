@@ -25,7 +25,7 @@ class Result(models.Model):
 
     def serialize(self):
         return {
-            "tag_user_id": self.tag_user.id,
+            "tag_user_id": self.tag_user.user_id,
             "tag_res": self.tag_res
         }
 

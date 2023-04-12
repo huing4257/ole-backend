@@ -466,7 +466,7 @@ def manual_check(req: HttpRequest, user: User, task_id: int):
             if q_id == len(q_list):
                 status = "tagged"
             tag_user_list.append({
-                "tag_user_id": tag_user.id,
+                "tag_user_id": tag_user.user_id,
                 "status": status,
                 "q_id": q_id,
                 "accepted_at": accepted_at
