@@ -317,19 +317,21 @@ class TaskTests(TestCase):
             self.assertEqual(res2.json()["message"], "Succeed")
             self.assertEqual(len(res2.json()["data"]), 3)
 
-    # def test_upload_result(self):
-    #     # 以需求方的身份登录
-    #     self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
-    #                      content_type=default_content_type)
-    #     data = {
-    #         "result": [
-    #             "string",
-    #         ]
-    #     }
-    #     res = self.client.post("/task/upload_res/1/1", data, content_type=default_content_type)
-    #     self.assertEqual(res.status_code, 200)
-    #     self.assertEqual(res.json()["message"], "Succeed")
-
+    def test_upload_result(self):
+        # 以需求方的身份登录
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        data = {
+            "result": [
+                "testString",
+            ]
+        }
+        res = self.client.post("/task/upload_res/1/1", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        res = self.client.post("/task/upload_res/1/2", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
     # bug here
     # def test_get_task_question_publisher(self):
     #     self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -380,3 +382,29 @@ class TaskTests(TestCase):
     #     # receiver2 and receiver3 with higher credit should be in the tag_user list
     #     distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task2.current_tag_user_list.all())
     #     self.assertSetEqual(distribute_user_list, {3, 4})
+    def test_get_progress(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get("/task/progress/1", content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["data"], {"q_id": 1})
+        # 做完了题上传答案
+        data = {
+            "result": [
+                "testString",
+            ]
+        }
+        res = self.client.post("/task/upload_res/1/1", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        res = self.client.get("/task/progress/1", content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["data"], {"q_id": 2})
+
+    def test_is_accepted_success(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get("/task/is_accepted/1", content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["data"], {"is_accepted": True})
+
