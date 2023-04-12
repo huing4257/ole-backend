@@ -1,7 +1,7 @@
 # Create your tests here.
 from django.test import TestCase
 from user.models import User
-from task.models import Question, Current_tag_user, Task, TextData
+from task.models import Question, Current_tag_user, Task, TextData, TagType
 import bcrypt
 import datetime
 
@@ -59,6 +59,13 @@ class TaskTests(TestCase):
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
 
+        tag_list = ["tag1", "tag2", "tag3"]
+        for tag in tag_list:
+            TagType.objects.create(
+                type_name=tag
+            )
+        tag_type_list = TagType.objects.all()
+
         task = Task.objects.create(
             task_type="text",
             task_style="",
@@ -68,18 +75,21 @@ class TaskTests(TestCase):
             publisher=test_publisher,
             task_id=1,
             distribute_user_num=0,
-            task_name="testTask"
+            task_name="testTask",
         )
+        task.tag_type.set(tag_type_list)
         question1 = Question.objects.create(
             q_id=1,
             data="1",
             data_type="text",
         )
+        question1.tag_type.set(tag_type_list)
         question2 = Question.objects.create(
             q_id=2,
             data="1",
             data_type="text",
         )
+        question2.tag_type.set(tag_type_list)
 
         TextData.objects.create(
             data="string"
@@ -215,13 +225,10 @@ class TaskTests(TestCase):
     def test_get_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
-        res = self.post_task(self.para)
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["message"], "Succeed")
 
-        res = self.client.get("/task/2")
+        res = self.client.get("/task/1")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["data"], Task.objects.get(task_id=2).serialize())
+        self.assertEqual(res.json()["data"], Task.objects.get(task_id=1).serialize())
 
     def test_get_all_tasks(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
