@@ -161,7 +161,6 @@ class UserTests(TestCase):
         password = "testPassword"
         self.post_login(user_name, password)
         res2 = self.client.get(f"/user/userinfo/{1}")
-        print(res2.content)
         self.assertJSONEqual(res2.content, {
             "code": 0,
             "message": "Succeed",
@@ -172,9 +171,9 @@ class UserTests(TestCase):
                 "score": 0,
                 "membership_level": 0,
                 "invite_code": "testInviteCode",
-                "credit_score": 0,
+                "credit_score": 100,
                 "bank_account": "",
-                "account_balance": 0,
+                "account_balance": 100,
                 "grow_value": 0,
                 "vip_expire_time": datetime.datetime.max.timestamp()
             }

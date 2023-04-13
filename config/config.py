@@ -1,3 +1,7 @@
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost',
+]
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
