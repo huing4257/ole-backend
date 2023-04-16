@@ -19,7 +19,7 @@ class User(models.Model):
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
 
-    def serialize(self):
+    def serialize(self, private: bool = False):
         return {
             "user_id": self.user_id,
             "user_name": self.user_name,
@@ -32,6 +32,14 @@ class User(models.Model):
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
+        } if private else {
+            "user_id": self.user_id,
+            "user_name": self.user_name,
+            "user_type": self.user_type,
+            "score": self.score,
+            "membership_level": self.membership_level,
+            "credit_score": self.credit_score,
+            "grow_value": self.grow_value,
         }
 
     def __str__(self) -> str:

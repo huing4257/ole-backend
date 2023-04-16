@@ -16,5 +16,4 @@ urlpatterns = [
     path('progress/<int:task_id>', views.get_progress),
     path('is_accepted/<task_id>', views.is_accepted),
     path('is_distributed/<task_id>', views.is_distributed),
-    path('manual_check/<task_id>', views.manual_check),
 ]

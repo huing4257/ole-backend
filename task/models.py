@@ -47,7 +47,7 @@ class Question(models.Model):
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     tag_type = models.ManyToManyField(TagType, default=[])
 
-    def serialize(self, detail=False):
+    def serialize(self, detail=False, user_id: int = None):
         if detail:
             if self.data_type == "text":
                 data = TextData.objects.filter(id=int(self.data)).first().data.split('\n')
@@ -61,6 +61,11 @@ class Question(models.Model):
             "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
             "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
+        } if user_id is None else {
+            "q_id": self.q_id,
+            "data": data,
+            "result": self.result.filter(tag_user=user_id).first().serialize(),
+            "data_type": self.data_type,
         }
 
 
@@ -68,11 +73,13 @@ class Current_tag_user(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
     # todo 
     accepted_at = models.FloatField(null=True)
+    is_finished = models.BooleanField(default=False)
 
     def serialize(self):
         return {
             "tag_user": self.tag_user.serialize(),
             "accepted_at": self.accepted_at,
+            "is_finished": self.is_finished,
         }
 
 

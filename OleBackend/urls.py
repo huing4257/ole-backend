@@ -22,8 +22,8 @@ from utils.utils_request import request_success
 
 urlpatterns = [
     path('get_csrf_token/', lambda req: request_success({'csrf_token': get_token(req)})),
-    path('admin/', admin.site.urls),
     path('user/', include('user.urls')),
     path('task/', include('task.urls')),
     path('picbed/', include('picbed.urls')),
+    path('review/', include('review.urls')),
 ]

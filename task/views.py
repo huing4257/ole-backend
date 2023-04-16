@@ -13,8 +13,8 @@ from task.models import Task, Result, TextData, Question, Current_tag_user, Prog
 
 
 # Create your views here.
-def require_tasks(req: HttpRequest):
-    task = Task.objects.create()
+
+def task_modify_util(req: HttpRequest, task: Task):
     body = json.loads(req.body.decode("utf-8"))
     task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
     task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
@@ -29,6 +29,12 @@ def require_tasks(req: HttpRequest):
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
     # 构建这个task的questions，把数据绑定到每个上
     file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    return body, file_list
+
+
+def require_tasks(req: HttpRequest):
+    task = Task.objects.create()
+    body, file_list = task_modify_util(req, task)
     tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
     task.q_num = len(file_list)
     tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
@@ -56,20 +62,7 @@ def create_task(req: HttpRequest, user: User):
 
 
 def change_tasks(req: HttpRequest, task: Task):
-    body = json.loads(req.body.decode("utf-8"))
-    task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
-    task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
-    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
-                                err_code=9)
-    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
-                                    err_code=9)
-    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
-                                    err_code=9)
-    task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
-    task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
-    task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
-    # 构建这个task的questions，把数据绑定到每个上
-    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    _, file_list = task_modify_util(req, task)
     task.q_num = len(file_list)
     for q_id, f_id in enumerate(file_list):
         question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
@@ -225,7 +218,8 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         body = json.loads(req.body.decode("utf-8"))
         result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         task: Task = Task.objects.filter(task_id=task_id).first()
-        # 处理result            # 上传的是第q_id个问题的结果
+        # 处理result
+        # 上传的是第q_id个问题的结果
         result = Result.objects.create(
             tag_user=user,
             tag_res=result,
@@ -242,6 +236,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
             else:
                 # 最后一个题已经做完了，就把progress设为0
                 progress.q_id = 0
+                curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+                curr_tag_user.is_finished = True
+                curr_tag_user.save()
             progress.save()
         else:
             # 这个用户还没做过这个题目，创建
@@ -422,58 +419,5 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
             return request_success({"is_distributed": False})
         else:
             return request_success({"is_distributed": True})
-    else:
-        return BAD_METHOD
-
-
-# 需求方人工审核
-@CheckLogin
-def manual_check(req: HttpRequest, user: User, task_id: int):
-    if req.method == "POST":
-        task: Task = Task.objects.filter(task_id=task_id).first()
-        if not task:
-            return request_failed(14, "task not created", 400)
-        if user != task.publisher:
-            return request_failed(16, "no permissions")
-        if task.current_tag_user_list.count() == 0:
-            return request_failed(24, "task not distributed")
-        q_list = []
-        body = json.loads(req.body.decode("utf-8"))
-        check_method = require(body, "check_method", err_msg="Missing or error type of [check_method]")
-        if check_method == "select":  # 随机抽取任务总题数的1/10
-            q_all_list = task.questions.all()
-            q_num = len(q_all_list)  # 总题数
-            # 如果总数过高，则不按比例抽取，固定抽取100道题
-            check_num = q_num // 10 if q_num <= 1000 else 100
-            q_list = secrets.SystemRandom().sample(q_all_list, check_num)
-        else:  # 全量审核
-            q_list = task.questions.all().order_by("q_id")
-        return_data = {}
-        q_info = []
-        tag_user_list = []
-        for q in q_list:
-            q_dict = q.serialize(True)
-            q_info.append(q_dict)
-        return_data["q_info"] = q_info
-        for current_tag_user in task.current_tag_user_list.all():
-            status = "tagging"
-            accepted_at = 0
-            if not hasattr(current_tag_user, "accepted_at"):
-                status = "not accept"
-            else:
-                accepted_at = current_tag_user.accepted_at
-            tag_user = current_tag_user.tag_user
-            progress = task.progress.filter(tag_user=tag_user).first()
-            q_id = progress.q_id
-            if q_id == len(q_list):
-                status = "tagged"
-            tag_user_list.append({
-                "tag_user_id": tag_user.user_id,
-                "status": status,
-                "q_id": q_id,
-                "accepted_at": accepted_at
-            })
-        return_data["tag_user_list"] = tag_user_list
-        return request_success(return_data)
     else:
         return BAD_METHOD
