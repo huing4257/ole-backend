@@ -74,12 +74,14 @@ class Current_tag_user(models.Model):
     # todo 
     accepted_at = models.FloatField(null=True)
     is_finished = models.BooleanField(default=False)
+    is_check_accepted = models.CharField(max_length=MAX_CHAR_LENGTH, default="none")
 
     def serialize(self):
         return {
             "tag_user": self.tag_user.serialize(),
             "accepted_at": self.accepted_at,
             "is_finished": self.is_finished,
+            "is_check_accepted": self.is_check_accepted,
         }
 
 

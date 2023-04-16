@@ -36,7 +36,6 @@ class User(models.Model):
             "user_id": self.user_id,
             "user_name": self.user_name,
             "user_type": self.user_type,
-            "score": self.score,
             "membership_level": self.membership_level,
             "credit_score": self.credit_score,
             "grow_value": self.grow_value,
