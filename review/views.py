@@ -1,12 +1,14 @@
 import csv
 import json
 import secrets
+import io
 
 from django.http import HttpRequest, HttpResponse
 
 from picbed.models import Image
 from task.models import Task, Question, Current_tag_user, TextData, Result, TagType
 from user.models import User
+from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
@@ -49,6 +51,36 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
             return_data["q_info"].append(question.serialize(detail=True, user_id=user_id))
         return_data["q_info"].sort(key=lambda item: item['q_id'])
         return request_success(return_data)
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def auto_check(req: HttpRequest, user: User, task_id: int, user_id: int):
+    pass
+
+
+@CheckLogin
+@CheckRequire
+def upload_stdans(req: HttpRequest, user: User):
+    if req.method == "POST":
+        csv_file = req.FILES["file"]
+        decoded_file = csv_file.read().decode('utf-8')
+        io_string = io.StringIO(decoded_file)
+        reader = csv.reader(io_string, delimiter=',', quotechar='|')
+        anslist = AnsList.objects.create()
+        for row in reader:
+            # print(row)
+            if len(row) != 2:
+                return request_failed(20, "field error")
+            ansdata = AnsData.objects.create(filename=row[0], std_ans=row[1])
+            ansdata.save()
+            anslist.ans_list.add(ansdata)
+        anslist.save()
+        return request_success({
+            "tag": str(anslist.id),
+        })
     else:
         return BAD_METHOD
 

@@ -14,9 +14,9 @@ class AnsData(models.Model):
         }
 
 
-class AnsListData(models.Model):
+class AnsList(models.Model):
     id = models.AutoField(primary_key=True)
     ans_list = models.ManyToManyField(AnsData, default=[])
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, default=None)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, null=True)
 
 
