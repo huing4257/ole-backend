@@ -105,7 +105,11 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(11, "task does not exist", 404)
-        response = request_success(task.serialize())
+        ret_data = task.serialize()
+        if user.user_type == "tag":
+            curr_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first
+            ret_data['accepted_time'] = curr_user.accepted_at
+        response = request_success()
         response.set_cookie("user_type", user.user_type)
         return response
     else:
