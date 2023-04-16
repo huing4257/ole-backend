@@ -125,12 +125,12 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                     for question in questions:
                         text_data: TextData = TextData.objects.filter(id=question.data).first()
                         res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([text_data.filename, tags[res.index(max(res))]])
+                        writer.writerow([text_data.filename, tags[res.index(max(res))].type_name])
                 elif task.task_type == "image":
                     for question in questions:
                         img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
                         res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([img_data.filename, tags[res.index(max(res))]])
+                        writer.writerow([img_data.filename, tags[res.index(max(res))].type_name])
         else:
             if task.task_type == "text":
                 for question in questions:
