@@ -1,8 +1,11 @@
+import csv
 import json
 import secrets
-from django.http import HttpRequest
 
-from task.models import Task, Question, Current_tag_user
+from django.http import HttpRequest, HttpResponse
+
+from picbed.models import Image
+from task.models import Task, Question, Current_tag_user, TextData, Result
 from user.models import User
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
@@ -78,5 +81,49 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
         curr_tag_user.is_check_accepted = "fail"
         curr_tag_user.save()
         return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+# @CheckRequire
+def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
+    if req.method == "GET":
+        type = req.GET.get("type")
+        check_passed, task = check_task(task_id, user)
+        if not check_passed:
+            return task
+        task: Task = task
+        file_name = "result.csv"
+        response = HttpResponse(content_type="application/octet-stream")
+        response["Content-Disposition"] = f'attachment; filename={file_name}'
+        response["Access-Control-Expose-Headers"] = "Content-Disposition"
+
+        writer = csv.writer(response)
+        if user_id is None:
+            if type == "all":
+                if task.task_type == "text":
+                    tags = list(task.tag_type.all())
+                elif task.task_type == "image":
+                    tags = list(task.tag_type.all())
+            else:
+                if task.task_type == "text":
+                    tags = list(task.tag_type.all())
+                elif task.task_type == "image":
+                    tags = list(task.tag_type.all())
+        else:
+            questions: list[Question] = list(task.questions.all())
+            if task.task_type == "text":
+                for question in questions:
+                    text_data: TextData = TextData.objects.filter(id=question.data).first()
+                    tag_res: Result = question.result.filter(tag_user=user_id).first()
+                    writer.writerow([text_data.filename, tag_res.tag_res])
+            elif task.task_type == "image":
+                for question in questions:
+                    img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
+                    tag_res: Result = question.result.filter(tag_user=user_id).first()
+                    writer.writerow([img_data.filename, tag_res.tag_res])
+
+        return response
     else:
         return BAD_METHOD

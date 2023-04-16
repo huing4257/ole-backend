@@ -193,10 +193,11 @@ def upload_data(req: HttpRequest, user: User):
                 data = zfile.read(f"{i}.jpg")
                 data_file = SimpleUploadedFile(f"{i}.jpg", data, content_type='image/jpeg')
                 img_data = Image(img_file=data_file)
+                img_data.filename = filename
                 img_data.save()
                 img_datas.append({
                     "filename": filename,
-                    "tag": str(img_data.img_file.name),
+                    "tag": str(f"picbed/{img_data.img_file.name}"),
                 })
             if not flag:
                 return_data = {
