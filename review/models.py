@@ -1,5 +1,4 @@
 from django.db import models
-from task.models import Task
 from utils.utils_require import MAX_CHAR_LENGTH
 
 
@@ -17,6 +16,5 @@ class AnsData(models.Model):
 class AnsList(models.Model):
     id = models.AutoField(primary_key=True)
     ans_list = models.ManyToManyField(AnsData, default=[])
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, null=True)
 
 

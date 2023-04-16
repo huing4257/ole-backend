@@ -1,5 +1,6 @@
 from django.db import models
 from user.models import User
+from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
 
 
@@ -114,6 +115,7 @@ class Task(models.Model):
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
     tag_type = models.ManyToManyField(TagType, default=[])
+    ans_list = models.ForeignKey(AnsList, on_delete=models.CASCADE, null=True)
 
     def serialize(self):
         return {
@@ -133,5 +135,6 @@ class Task(models.Model):
             "progress": [user.serialize() for user in self.progress.all()],
             "result_type": self.result_type,
             "accept_method": self.accept_method,
-            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
+            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()],
+            "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else []
         }
