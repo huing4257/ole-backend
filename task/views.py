@@ -1,5 +1,4 @@
 import json
-import secrets
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 import zipfile
