@@ -78,9 +78,7 @@ def upload_stdans(req: HttpRequest, user: User):
             ansdata.save()
             anslist.ans_list.add(ansdata)
         anslist.save()
-        return request_success({
-            "tag": str(anslist.id),
-        })
+        return request_success(str(anslist.id))
     else:
         return BAD_METHOD
 

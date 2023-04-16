@@ -9,6 +9,7 @@ from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from user.models import User, BanUser
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
+from review.models import AnsList
 
 
 # Create your views here.
@@ -35,6 +36,9 @@ def require_tasks(req: HttpRequest):
     task = Task.objects.create()
     body, file_list = task_modify_util(req, task)
     tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+    if "stdans_tag" in body.keys():
+        ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
+        task.ans_list = ans_list
     task.q_num = len(file_list)
     tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
     task.tag_type.set(tag_type_list)
