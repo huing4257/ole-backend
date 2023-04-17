@@ -256,9 +256,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                         q_id = int(ans.filename.split('.')[0])
                         question = questions.filter(q_id=q_id).first()
                         result = question.result.all().filter(tag_user=user).first()
-                        print(f"第{q_id}题")
-                        print(f"标注结果{result.tag_res}")
-                        print(f"标准答案{ans.std_ans}")
+                        # print(f"第{q_id}题")
+                        # print(f"标注结果{result.tag_res}")
+                        # print(f"标准答案{ans.std_ans}")
                         if result.tag_res != ans.std_ans:
                             curr_tag_user.is_check_accepted = "fail"
                     if curr_tag_user.is_check_accepted == "pass":
