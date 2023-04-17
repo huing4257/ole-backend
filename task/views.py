@@ -246,7 +246,23 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                 progress.q_id = 0
                 curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
                 curr_tag_user.is_finished = True
+                
+                # 开始自动审核
+                if task.accept_method == "auto":
+                    curr_tag_user.is_check_accepted = "pass"
+                    ans_list = task.ans_list
+                    questions = task.questions.all()
+                    for ans in ans_list.ans_list.all():
+                        q_id = int(ans.filename.split('.')[0])
+                        question = questions.filter(q_id=q_id).first()
+                        result = question.result.all().filter(tag_user=user).first()
+                        # print(f"第{q_id}题")
+                        # print(f"标注结果{result.tag_res}")
+                        # print(f"标准答案{ans.std_ans}")
+                        if result.tag_res != ans.std_ans:
+                            curr_tag_user.is_check_accepted = "fail"
                 curr_tag_user.save()
+                # print(curr_tag_user.is_check_accepted)
             progress.save()
         else:
             # 这个用户还没做过这个题目，创建
