@@ -261,8 +261,10 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                         # print(f"标准答案{ans.std_ans}")
                         if result.tag_res != ans.std_ans:
                             curr_tag_user.is_check_accepted = "fail"
+                    if curr_tag_user.is_check_accepted == "pass":
+                        user.score += task.reward_per_q * task.q_num
+                        user.save()
                 curr_tag_user.save()
-                # print(curr_tag_user.is_check_accepted)
             progress.save()
         else:
             # 这个用户还没做过这个题目，创建
