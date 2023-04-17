@@ -57,12 +57,6 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
 
 @CheckLogin
 @CheckRequire
-def auto_check(req: HttpRequest, user: User, task_id: int, user_id: int):
-    pass
-
-
-@CheckLogin
-@CheckRequire
 def upload_stdans(req: HttpRequest, user: User):
     if req.method == "POST":
         csv_file = req.FILES["file"]
