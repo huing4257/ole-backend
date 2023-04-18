@@ -507,8 +507,9 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                     # 检测是否在现在的用户列表
                     if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                         continue
-                # tag_user 是新的标注方
-                new_tag_user: Current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
-                cur_tag_user = new_tag_user
+                    # tag_user 是新的标注方
+                    new_tag_user: Current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+                    cur_tag_user = new_tag_user
+                    break
         task.save()
         return request_success()
