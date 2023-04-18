@@ -325,12 +325,13 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = Task.objects.count()
         res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         task = Task.objects.get(task_id=task_id)
         # receiver2 and receiver3 with higher credit should be in the tag_user list
         distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
-        self.assertSetEqual(distribute_user_list, {3,4})
+        self.assertSetEqual(distribute_user_list, {3, 4})
 
     def test_refuse_task(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
