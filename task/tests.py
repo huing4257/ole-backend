@@ -9,6 +9,20 @@ default_content_type = "application/json"
 
 
 class TaskTests(TestCase):
+    para = {
+        "task_type": "image",
+        "task_style": "string",
+        "reward_per_q": 0,
+        "time_limit_per_q": 0,
+        "total_time_limit": 0,
+        "distribute_user_num": 1,
+        "task_name": "testTask",
+        "accept_method": "auto",
+        "files": [1, 2, 3, 4],
+        "tag_type": ["tag1", "tag2", "tag3"],
+        "stdans_tag": ""
+    }
+
     def setUp(self) -> None:
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
@@ -109,21 +123,9 @@ class TaskTests(TestCase):
         task.questions.add(question1)
         task.questions.add(question2)
         task.publisher = test_publisher
-        task.save()
 
-    para = {
-        "task_type": "image",
-        "task_style": "string",
-        "reward_per_q": 0,
-        "time_limit_per_q": 0,
-        "total_time_limit": 0,
-        "distribute_user_num": 1,
-        "task_name": "testTask",
-        "accept_method": "auto",
-        "files": [1, 2, 3, 4],
-        "tag_type": ["tag1", "tag2", "tag3"],
-        "stdans_tag": ""
-    }
+
+        task.save()
 
     def post_task(self, para: dict):
         return self.client.post("/task/", para, content_type=default_content_type)
@@ -203,6 +205,7 @@ class TaskTests(TestCase):
     def test_delete_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
+        assert res.status_code == 200
         res = self.post_task(self.para)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
@@ -226,7 +229,7 @@ class TaskTests(TestCase):
     def test_get_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
-
+        self.assertEqual(res.status_code, 200)
         res = self.client.get("/task/1")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["data"], Task.objects.get(task_id=1).serialize())
@@ -323,7 +326,10 @@ class TaskTests(TestCase):
         para["distribute_user_num"] = 2
         res = self.post_task(para)
         self.assertEqual(res.status_code, 200)
-        task_id = Task.objects.count()
+        task_id = 2
+        while True:
+            if Task.objects.filter(task_id=task_id).exists():
+                break
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.status_code, 200)
