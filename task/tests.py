@@ -289,13 +289,14 @@ class TaskTests(TestCase):
         self.assertEqual(res.json()["message"], "Succeed")
 
     # bug here
-    # def test_get_task_question_publisher(self):
-    #     self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-    #                      content_type=default_content_type)
-    #     res = self.client.get(f"/task/{1}/{1}")
-    #     self.assertEqual(res.status_code, 200)
-    #     self.assertEqual(res.json()["message"], "Succeed")
-    #     self.assertEqual(res.json()["data"], Question.objects.get(q_id=1).serialize(detail=True))
+    def test_get_task_question_publisher(self):
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.get(f"/task/{1}/{1}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        self.assertEqual(res.json()["data"], Question.objects.get(q_id=1).serialize(detail=True))
 
     # bug here
     # def test_get_task_question_receiver(self):
