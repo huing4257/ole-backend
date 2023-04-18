@@ -455,3 +455,60 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
             return request_success({"is_distributed": True})
     else:
         return BAD_METHOD
+
+
+# 分发任务
+@CheckLogin
+def redistribute_task(req: HttpRequest, user: User, task_id: int):
+    if req.method == "POST":
+        task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(14, "task not created")
+        if task.publisher != user:
+            return request_failed(15, "no distribute permission")
+        
+        valid_tagger: list = []
+        invalid_tagger: list = []
+        for current_tagger in task.current_tag_user_list:
+            # 从接取任务到现在的时间超过了总时限
+            if task.total_time_limit > get_timestamp() - current_tagger.accepted_at:
+                valid_tagger.append(current_tagger)
+            else:
+                invalid_tagger.append(current_tagger)
+                task.past_tag_user_list.add(current_tagger)
+            if current_tagger.is_check_accepted == "pass":
+                valid_tagger.append(current_tagger)
+            else:
+                invalid_tagger.append(current_tagger)
+                
+        # 重新顺序分发(根据标注方的信用分从高到低分发)
+        tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
+        # 设定的分发用户数比可分发的用户数多
+        if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count():
+            return request_failed(21, "tag user not enough")
+        
+        # 检测分数是否足够 扣分
+        if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
+            return request_failed(10, "score not enough")
+        else:
+            user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
+            user.save()
+        
+        for cur_tag_user in task.current_tag_user_list:
+            if cur_tag_user in invalid_tagger:
+                # 这个标注方需要重新分发
+                for tag_user in tag_users:
+                    # 检测是否在被封禁用户列表中
+                    if BanUser.objects.filter(ban_user=tag_user).exists():
+                        continue
+                    # 检测是否在过去被分发到的用户列表
+                    if task.past_tag_user_list.contains(tag_user):
+                        continue
+                    # 检测是否在现在的用户列表
+                    if task.current_tag_user_list.filter(tag_user=tag_user).exists():
+                        continue
+                # tag_user 是新的标注方
+                new_tag_user: Current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+                cur_tag_user = new_tag_user
+        task.save()
+        return request_success()
