@@ -10,6 +10,7 @@ from utils.utils_time import get_timestamp
 from user.models import User, BanUser
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 from review.models import AnsList
+from django.core.cache import cache
 
 
 # Create your views here.
@@ -316,6 +317,12 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
 @CheckLogin
 def distribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
+        # 获取当前被分发到的user_id
+        user_id = cache.get('current_user_id')
+        if user_id is None:
+            user_id = 1
+            cache.set('current_user_id',user_id)
+        print("user_id",user_id)
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created")
@@ -324,7 +331,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         if task.current_tag_user_list.count() != 0:
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
-        tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
+        tag_users = User.objects.filter(user_type="tag").all()
         # 设定的分发用户数比可分发的用户数多
         if task.distribute_user_num > tag_users.count() - BanUser.objects.count():
             return request_failed(21, "tag user not enough")
@@ -337,10 +344,23 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
             user.save()
         
         current_tag_user_num = 0  # 当前被分发到的用户数
-        for tag_user in tag_users:
-            # 检测是否在被封禁用户列表中
-            if BanUser.objects.filter(ban_user=tag_user).exists():
-                continue
+        while current_tag_user_num < task.distribute_user_num:
+            if user_id >= tag_users[len(tag_users)-1].user_id:
+                tag_user = tag_users[0]
+                user_id = tag_user.user_id
+                # 检测是否在被封禁用户列表中
+                if BanUser.objects.filter(ban_user=tag_user).exists():
+                    continue
+            else:
+                user_id += 1
+                tag_user = tag_users.filter(user_id=user_id).first()
+                while not tag_user:
+                    user_id += 1
+                    tag_user = tag_users.filter(user_id=user_id).first()
+                #检测是否被封禁
+                if BanUser.objects.filter(ban_user=tag_user).exists():
+                    continue
+            cache.set('current_user_id',user_id)
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
