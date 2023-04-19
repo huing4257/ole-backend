@@ -482,65 +482,70 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
 # 分发任务
 @CheckLogin
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
-    
     if req.method == "POST":
+        # 获取当前被分发到的user_id
+        user_id = cache.get('current_user_id')
+        if user_id is None:
+            user_id = 1
+            cache.set('current_user_id', user_id)
+        print("user_id", user_id)
+
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created")
         if task.publisher != user:
             return request_failed(15, "no distribute permission")
-        # bug here
-        valid_tagger: list = []
-        invalid_tagger: list = []
-        for current_tagger in task.current_tag_user_list.all():
-            if current_tagger.accepted_at is None:
+        
+        current_tagger_list = task.current_tag_user_list.all()
+        for current_tagger in current_tagger_list:
+            if not current_tagger.accepted_at:
                 continue
-            # 从接取任务到现在的时间超过了总时限
-            if task.total_time_limit > get_timestamp() - current_tagger.accepted_at:
-                valid_tagger.append(current_tagger)
-            else:
-                invalid_tagger.append(current_tagger)
-            if current_tagger.is_check_accepted == "pass":
-                valid_tagger.append(current_tagger)
-            else:
-                invalid_tagger.append(current_tagger)
-        # 重新顺序分发(根据标注方的id顺序发送)
-        tag_users = User.objects.filter(user_type="tag").order_by("-user_id")
-        # 设定的分发用户数比可分发的用户数多
-        if len(invalid_tagger) > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count() \
-                - task.past_tag_user_list.count() + len(invalid_tagger):
-            return request_failed(21, "tag user not enough")
-        # 检测分数是否足够 扣分
-        if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
-            return request_failed(10, "score not enough")
-        else:
-            user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
-            user.save()
-
-        for usr in task.current_tag_user_list.all():
-            print(usr.tag_user.serialize())
-
-        for cur_tag_user in task.current_tag_user_list.all():
-            if cur_tag_user in invalid_tagger:
-                # 这个标注方需要重新分发
-                for tag_user in tag_users:
-                    # 检测是否在被封禁用户列表中
-                    if BanUser.objects.filter(ban_user=tag_user).exists():
-                        continue
-                    # 检测是否在过去被分发到的用户列表
-                    if task.past_tag_user_list.contains(tag_user):
-                        continue
-                    # 检测是否在现在的用户列表
-                    if task.current_tag_user_list.filter(tag_user=tag_user).exists():
-                        continue
-                    # tag_user 是新的标注方
-                    new_tag_user: Current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
-                    task.current_tag_user_list.filter(tag_user=cur_tag_user.tag_user).delete()
-                    task.current_tag_user_list.create(tag_user=new_tag_user.tag_user)
-                    for usr in task.current_tag_user_list.all():
-                        print(usr.tag_user.serialize())
-                    break
+            if current_tagger.is_finished:
+                continue
+            # print("task.total_time_limit", task.total_time_limit)
+            # print("get_timestamp()", get_timestamp())
+            # print("current_tagger.accepted_at", current_tagger.accepted_at)
+            if task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+                # print("current_tagger.accepted_at", current_tagger.accepted_at)
+                task.past_tag_user_list.add(current_tagger.tag_user)
+                task.current_tag_user_list.remove(current_tagger)
+        # task.current_tag_user_list.save()
+        # task.past_tag_user_list.save()
         task.save()
-        for usr in task.current_tag_user_list.all():
-            print(usr.tag_user.serialize())        
+        tag_users = User.objects.filter(user_type="tag").all()
+        invalid_num = task.past_tag_user_list.count()
+        for ban_user in BanUser.objects.all():
+            if not task.past_tag_user_list.filter(user=ban_user.ban_user).exists():
+                invalid_num += 1
+        if task.distribute_user_num > tag_users.count() - invalid_num:
+            return request_failed(21, "tag user not enough")
+        current_tag_user_num = task.current_tag_user_list.count()
+        while current_tag_user_num < task.distribute_user_num:
+            if user_id >= tag_users[len(tag_users) - 1].user_id:
+                tag_user = tag_users[0]
+                user_id = tag_user.user_id
+                
+            else:
+                user_id += 1
+                tag_user = tag_users.filter(user_id=user_id).first()
+                while not tag_user:
+                    user_id += 1
+                    tag_user = tag_users.filter(user_id=user_id).first()
+            # 检测是否在被封禁用户列表中
+            if BanUser.objects.filter(ban_user=tag_user).exists():
+                continue
+            # for current_tag_user in task.current_tag_user_list.all():
+            #     if current_tag_user.tag_user == tag_user:
+            #         continue
+            if task.current_tag_user_list.filter(tag_user=tag_user).exists():
+                continue
+            if task.past_tag_user_list.filter(user_id=tag_user.user_id).exists():
+                continue
+            cache.set('current_user_id', user_id)
+            current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+            task.current_tag_user_list.add(current_tag_user)
+            current_tag_user_num += 1
+        task.save()
         return request_success()
+    else:
+        return BAD_METHOD
