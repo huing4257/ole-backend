@@ -506,7 +506,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         # 重新顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
         # 设定的分发用户数比可分发的用户数多
-        if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count():
+        if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count() - task.past_tag_user_list.count():
             return request_failed(21, "tag user not enough")
 
         # 检测分数是否足够 扣分
