@@ -488,27 +488,28 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             return request_failed(14, "task not created")
         if task.publisher != user:
             return request_failed(15, "no distribute permission")
-
+        # bug here
         valid_tagger: list = []
         invalid_tagger: list = []
         for current_tagger in task.current_tag_user_list.all():
+            if current_tagger.accepted_at is None:
+                continue
             # 从接取任务到现在的时间超过了总时限
             if task.total_time_limit > get_timestamp() - current_tagger.accepted_at:
                 valid_tagger.append(current_tagger)
             else:
                 invalid_tagger.append(current_tagger)
-                task.past_tag_user_list.add(current_tagger)
             if current_tagger.is_check_accepted == "pass":
                 valid_tagger.append(current_tagger)
             else:
                 invalid_tagger.append(current_tagger)
-
-        # 重新顺序分发(根据标注方的信用分从高到低分发)
-        tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
+        # 重新顺序分发(根据标注方的id顺序发送)
+        tag_users = User.objects.filter(user_type="tag").order_by("-user_id")
         # 设定的分发用户数比可分发的用户数多
-        if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count() - task.past_tag_user_list.count():
+        print(task.past_tag_user_list.count())
+        if len(invalid_tagger) > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count() \
+                - task.past_tag_user_list.count() + len(invalid_tagger):
             return request_failed(21, "tag user not enough")
-
         # 检测分数是否足够 扣分
         if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
             return request_failed(10, "score not enough")
@@ -517,7 +518,9 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             user.save()
 
         for cur_tag_user in task.current_tag_user_list.all():
+            print(cur_tag_user.serialize())
             if cur_tag_user in invalid_tagger:
+                print("called")
                 # 这个标注方需要重新分发
                 for tag_user in tag_users:
                     # 检测是否在被封禁用户列表中
@@ -530,6 +533,8 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                     if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                         continue
                     # tag_user 是新的标注方
+                    print("called2")
+                    print(tag_user.serialize())
                     new_tag_user: Current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
                     cur_tag_user = new_tag_user
                     break
