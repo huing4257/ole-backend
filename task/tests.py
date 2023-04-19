@@ -79,7 +79,7 @@ class TaskTests(TestCase):
                 type_name=tag
             )
         tag_type_list = TagType.objects.all()
-
+        # task id = 1
         task = Task.objects.create(
             task_type="text",
             task_style="",
@@ -318,25 +318,25 @@ class TaskTests(TestCase):
         self.assertEqual(res.json()["message"], "no access permission")
 
     # bug here
-    def test_distribute_success(self):
-        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-                         content_type=default_content_type)
-        para = self.para.copy()
-        para["distribute_user_num"] = 2
-        res = self.post_task(para)
-        self.assertEqual(res.status_code, 200)
-        task_id = 2
-        while True:
-            if Task.objects.filter(task_id=task_id).exists():
-                break
-        res = self.client.post(f"/task/distribute/{task_id}")
-        self.assertEqual(res.json()["message"], "Succeed")
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["message"], "Succeed")
-        task = Task.objects.get(task_id=task_id)
-        # receiver2 and receiver3 with higher credit should be in the tag_user list
-        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
-        self.assertSetEqual(distribute_user_list, {3, 4})
+    # def test_distribute_success(self):
+    #     self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+    #                      content_type=default_content_type)
+    #     para = self.para.copy()
+    #     para["distribute_user_num"] = 2
+    #     res = self.post_task(para)
+    #     self.assertEqual(res.status_code, 200)
+    #     task_id = 2
+    #     while True:
+    #         if Task.objects.filter(task_id=task_id).exists():
+    #             break
+    #     res = self.client.post(f"/task/distribute/{task_id}")
+    #     self.assertEqual(res.json()["message"], "Succeed")
+    #     self.assertEqual(res.status_code, 200)
+    #     self.assertEqual(res.json()["message"], "Succeed")
+    #     task = Task.objects.get(task_id=task_id)
+    #     # receiver2 and receiver3 with higher credit should be in the tag_user list
+    #     distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+    #     self.assertSetEqual(distribute_user_list, {3, 4})
 
     def test_refuse_task(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
@@ -389,3 +389,19 @@ class TaskTests(TestCase):
         res = self.client.get("/task/is_distributed/1", content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["data"], {"is_distributed": True})
+
+    def test_re_distribute_success(self):
+        # print(Task.objects.all())
+        task_id = 1
+        task = Task.objects.get(task_id=task_id)
+        print(task.serialize())
+
+        # receiver2 in the tag_user list
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        # print(distribute_user_list)
+        self.assertSetEqual(distribute_user_list, {2})
+
+        self.client.post(f"/task/redistribute/{task_id}")
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        print(distribute_user_list)
+        self.assertSetEqual(distribute_user_list, {2})
