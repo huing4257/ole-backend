@@ -1,5 +1,7 @@
 # Create your tests here.
 from django.test import TestCase
+
+from review.models import AnsList, AnsData
 from user.models import User
 from task.models import Question, Current_tag_user, Task, TextData, TagType
 import bcrypt
@@ -60,7 +62,6 @@ class TaskTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
-
         User.objects.create(
             user_id=4,
             user_name="testReceiver3",
@@ -72,6 +73,18 @@ class TaskTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
+        User.objects.create(
+            user_id=5,
+            user_name="testAdmin",
+            password=hashed_password,  # store hashed password as a string
+            user_type="admin",
+            score=100,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )
 
         tag_list = ["tag1", "tag2", "tag3"]
         for tag in tag_list:
@@ -80,7 +93,7 @@ class TaskTests(TestCase):
             )
         tag_type_list = TagType.objects.all()
 
-        task = Task.objects.create(
+        self.task = Task.objects.create(
             task_type="text",
             task_style="",
             reward_per_q=0,
@@ -90,8 +103,9 @@ class TaskTests(TestCase):
             task_id=1,
             distribute_user_num=0,
             task_name="testTask",
+            q_num=3,
         )
-        task.tag_type.set(tag_type_list)
+        self.task.tag_type.set(tag_type_list)
         question1 = Question.objects.create(
             q_id=1,
             data="1",
@@ -104,27 +118,42 @@ class TaskTests(TestCase):
             data_type="text",
         )
         question2.tag_type.set(tag_type_list)
+        question3 = Question.objects.create(
+            q_id=3,
+            data="1",
+            data_type="text",
+        )
+        question3.tag_type.set(tag_type_list)
 
         TextData.objects.create(
-            data="string"
+            data="string",
+            filename="1.txt"
         )
-        #
-        # test_result = Result.objects.create(
-        #     tag_user=test_receiver1,
-        #     tag_res="string",
-        # )
 
         current_tag_user = Current_tag_user.objects.create(
             tag_user=test_receiver1,
             accepted_at=datetime.datetime.now().timestamp(),
         )
-        task.current_tag_user_list.add(current_tag_user)
-        task.past_tag_user_list.add(test_receiver2)
-        task.questions.add(question1)
-        task.questions.add(question2)
-        task.publisher = test_publisher
+        self.task.current_tag_user_list.add(current_tag_user)
+        self.task.past_tag_user_list.add(test_receiver2)
+        self.task.questions.add(question1)
+        self.task.questions.add(question2)
+        self.task.questions.add(question3)
+        self.task.publisher = test_publisher
 
-        task.save()
+        ans_list = AnsList.objects.create(
+            id=1,
+        )
+        ans_data = AnsData.objects.create(
+            filename="1.txt",
+            std_ans="test"
+        )
+        ans_data.save()
+        ans_list.ans_list.add(ans_data)
+        ans_list.save()
+        self.task.ans_list = ans_list
+
+        self.task.save()
 
     def test_create_task_not_logged_in(self):
         para = {
@@ -144,8 +173,9 @@ class TaskTests(TestCase):
     def test_create_task_success(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-
-        res = self.client.post("/task/", self.para, content_type=default_content_type)
+        para = self.para.copy()
+        para["stdans_tag"] = "1"
+        res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
@@ -170,6 +200,21 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 11)
 
+    def test_modify_task_no_permission(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.put("/task/1", {}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 12)
+
+    def test_modify_task_distributed(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        self.client.post("/task/distribute/1")
+        res = self.client.put("/task/1", {}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 22)
+
     def test_modify_task_success(self):
         # 首先创建一个
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -186,6 +231,16 @@ class TaskTests(TestCase):
         self.assertEqual(res2.status_code, 200)
         self.assertTrue(res2.json()["data"].get("task_id", None))
 
+    def test_modify_task_no_score(self):
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        res = self.client.post("/task/", self.para, content_type=default_content_type)
+        para2 = self.para.copy()
+        para2["reward_per_q"] = 114514
+        res2 = self.client.put(f'/task/{res.json()["data"]["task_id"]}', para2, content_type=default_content_type)
+        self.assertEqual(res2.status_code, 400)
+        self.assertEqual(res2.json()["code"], 10)
+
     def test_delete_task_not_logged_in(self):
         res = self.client.delete("/task/1")
         self.assertEqual(res.status_code, 401)
@@ -197,6 +252,13 @@ class TaskTests(TestCase):
         res = self.client.delete("/task/10000000003924924")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 11)
+
+    def test_delete_task_no_permission(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.delete("/task/1")
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.json()["code"], 12)
 
     def test_delete_task_success(self):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -230,6 +292,13 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["data"], Task.objects.get(task_id=1).serialize())
 
+    def test_get_task_success_recv(self):
+        res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.get("/task/1")
+        self.assertEqual(res.status_code, 200)
+
     def test_get_all_tasks(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
                                content_type=default_content_type)
@@ -254,6 +323,19 @@ class TaskTests(TestCase):
             "data": [task.serialize() for task in task]
         })
         self.assertEqual(res2.status_code, 200)
+
+    def test_get_my_tasks_recv(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res2 = self.client.get("/task/get_my_tasks")
+        self.assertEqual(res2.status_code, 200)
+
+    def test_get_my_tasks_admin(self):
+        self.client.post("/user/login", {"user_name": "testAdmin", "password": "testPassword"},
+                         content_type=default_content_type)
+        res2 = self.client.get("/task/get_my_tasks")
+        self.assertEqual(res2.status_code, 400)
+        self.assertEqual(res2.json()['code'], 12)
 
     def test_upload_data(self):
         # 以需求方的身份登录
@@ -281,31 +363,17 @@ class TaskTests(TestCase):
                 "testString",
             ]
         }
+        self.task.accept_method = "auto"
+        self.task.save()
         res = self.client.post("/task/upload_res/1/1", data, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         res = self.client.post("/task/upload_res/1/2", data, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
-
-    # bug here
-    # def test_get_task_question_publisher(self):
-    #     res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
-    #                            content_type=default_content_type)
-    #     self.assertEqual(res.status_code, 200)
-    #     res = self.client.get(f"/task/{1}/{1}")
-    #     self.assertEqual(res.status_code, 200)
-    #     self.assertEqual(res.json()["message"], "Succeed")
-    #     self.assertEqual(res.json()["data"], Question.objects.get(q_id=1).serialize(detail=True))
-
-    # bug here
-    # def test_get_task_question_receiver(self):
-    #     self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
-    #                      content_type=default_content_type)
-    #     res = self.client.get(f"/task/{1}/{2}")
-    #     self.assertEqual(res.status_code, 200)
-    #     self.assertEqual(res.json()["message"], "Succeed")
-    #     self.assertEqual(res.json()["data"], Question.objects.get(q_id=2).serialize(detail=True))
+        res = self.client.post("/task/upload_res/1/3", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
 
     def test_get_task_question_not_receiver(self):
         self.client.post("/user/login", {"user_name": "testReceiver2", "password": "testPassword"},
@@ -314,23 +382,94 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["message"], "no access permission")
 
-    # bug here
+    def test_get_task_question_receiver(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get(f"/task/{1}/{1}")
+        self.assertEqual(res.status_code, 200)
+
+    def test_get_task_question_admin(self):
+        self.client.post("/user/login", {"user_name": "testAdmin", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get(f"/task/{1}/{1}")
+        self.assertEqual(res.status_code, 200)
+
+    def test_get_task_question_demand(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get(f"/task/{114514}/{1}")
+        self.assertEqual(res.status_code, 404)
+
+        res = self.client.get(f"/task/{1}/{114514}")
+        self.assertEqual(res.status_code, 404)
+
+        res = self.client.get(f"/task/{1}/{1}")
+        self.assertEqual(res.status_code, 200)
+
     def test_distribute_success(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
+
+        res = self.client.post("/task/distribute/114514")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()['code'], 14)
+
         para = self.para.copy()
-        para["distribute_user_num"] = 2
+        para["distribute_user_num"] = 3
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
+
         res = self.client.post(f"/task/distribute/{task_id}")
-        self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         task = Task.objects.get(task_id=task_id)
 
         distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
-        self.assertEqual(len(distribute_user_list), 2)
+        self.assertEqual(len(distribute_user_list), 3)
+
+    def test_distribute_no_permission(self):
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        res = self.client.post("/task/distribute/1")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()['code'], 15)
+
+    def test_distribute_no_enough_user(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 114
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()['code'], 21)
+
+    def test_distribute_no_enough_score(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        para = self.para.copy()
+        para["reward_per_q"] = 20
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id1 = res.json()['data']['task_id']
+
+        para["reward_per_q"] = 20
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        res = self.client.post(f"/task/distribute/{task_id1}")
+        self.assertEqual(res.status_code, 200)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()['code'], 10)
 
     def test_refuse_task(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
