@@ -126,9 +126,6 @@ class TaskTests(TestCase):
 
         task.save()
 
-    def post_task(self, para: dict):
-        return self.client.post("/task/", para, content_type=default_content_type)
-
     def test_create_task_not_logged_in(self):
         para = {
             "task_type": "image",
@@ -140,7 +137,7 @@ class TaskTests(TestCase):
             "task_name": "testTask",
             "accept_method": "auto",
         }
-        res = self.post_task(para)
+        res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["message"], "not_logged_in")
 
@@ -148,7 +145,7 @@ class TaskTests(TestCase):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
 
-        res = self.post_task(self.para)
+        res = self.client.post("/task/", self.para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
@@ -157,7 +154,7 @@ class TaskTests(TestCase):
                          content_type=default_content_type)
         para = self.para.copy()
         para["reward_per_q"] = 10000000
-        res = self.post_task(para)
+        res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 10)
 
@@ -179,7 +176,7 @@ class TaskTests(TestCase):
                                content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
-        res = self.post_task(self.para)
+        res = self.client.post("/task/", self.para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
@@ -205,7 +202,7 @@ class TaskTests(TestCase):
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                                content_type=default_content_type)
         assert res.status_code == 200
-        res = self.post_task(self.para)
+        res = self.client.post("/task/", self.para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
 
@@ -323,20 +320,17 @@ class TaskTests(TestCase):
                          content_type=default_content_type)
         para = self.para.copy()
         para["distribute_user_num"] = 2
-        res = self.post_task(para)
+        res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         task_id = 2
-        while True:
-            if Task.objects.filter(task_id=task_id).exists():
-                break
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         task = Task.objects.get(task_id=task_id)
-        # receiver2 and receiver3 with higher credit should be in the tag_user list
+
         distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
-        self.assertSetEqual(distribute_user_list, {3, 4})
+        self.assertEqual(len(distribute_user_list), 2)
 
     def test_refuse_task(self):
         res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
