@@ -83,7 +83,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
     if req.method == 'PUT':
         task = Task.objects.filter(task_id=task_id).first()
         if task is None:
-            return request_failed(11, "task does not exist", status_code=400)
+            return request_failed(11, "task does not exist", status_code=404)
         elif task.publisher != user:
             return request_failed(12, "no permission to modify", status_code=400)
         elif task.current_tag_user_list.count() != 0:
@@ -101,7 +101,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
     elif req.method == 'DELETE':
         task = Task.objects.filter(task_id=task_id).first()
         if task is None:
-            return request_failed(11, "task does not exist", status_code=400)
+            return request_failed(11, "task does not exist", status_code=404)
         elif task.publisher != user:
             return request_failed(12, "no permission to delete", status_code=403)
         else:
@@ -300,10 +300,10 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         # 找到task 和 question
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(11, "task does not exist")
+            return request_failed(11, "task does not exist", 404)
         question = task.questions.filter(q_id=q_id).first()
         if not question:
-            return request_failed(13, "question does not exist")
+            return request_failed(13, "question does not exist", 404)
         release_user_id = task.publisher.user_id
         user_type: str = user.user_type
         if user_type == "demand":
@@ -387,28 +387,8 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
 def refuse_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         task = Task.objects.filter(task_id=task_id).first()
-        # 顺序分发，找到所有的用户
-        # if task.current_tag_user_list.filter(tag_user=user).exists():
-        #     tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
-        #     if tag_users.count() > BanUser.objects.all().count() + task.past_tag_user_list.count() + \
-        #             task.current_tag_user_list.count():
-        #         for tag_user in tag_users:
-        #             # 检测是否在被封禁用户列表中
-        #             if BanUser.objects.filter(ban_user=tag_user).exists():
-        #                 continue
-        #             # 检测是否在过去被分发到的用户列表
-        #             if task.past_tag_user_list.contains(tag_user):
-        #                 continue
-        #             # 检测是否在现在的用户列表
-        #             if task.current_tag_user_list.filter(tag_user=tag_user).exists():
-        #                 continue
-        #             # tag_user 是新的标注用户，替换到user
-        #             target: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
-        #             target.tag_user = tag_user
-        #             target.accepted_at = get_timestamp()
-        #             task.past_tag_user_list.add(user)
-        #             task.save()
-        #             return request_success()
+        if not task.current_tag_user_list.filter(tag_user=user).exists():
+            return request_failed(18, "no permission to accept")
         current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
         current_tag_user.accepted_at = -1
         current_tag_user.save()
@@ -504,7 +484,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             return request_failed(14, "task not created")
         if task.publisher != user:
             return request_failed(15, "no distribute permission")
-        
+
         current_tagger_list = task.current_tag_user_list.all()
         for current_tagger in current_tagger_list:
             if current_tagger.accepted_at is None:
@@ -537,7 +517,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             if user_id >= tag_users[len(tag_users) - 1].user_id:
                 tag_user = tag_users[0]
                 user_id = tag_user.user_id
-                
+
             else:
                 user_id += 1
                 tag_user = tag_users.filter(user_id=user_id).first()
