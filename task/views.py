@@ -30,6 +30,7 @@ def task_modify_util(req: HttpRequest, task: Task):
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
     # 构建这个task的questions，把数据绑定到每个上
     file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    # print(file_list)
     return body, file_list
 
 
@@ -67,6 +68,7 @@ def create_task(req: HttpRequest, user: User):
 
 def change_tasks(req: HttpRequest, task: Task):
     _, file_list = task_modify_util(req, task)
+    # print(file_list)
     task.q_num = len(file_list)
     for q_id, f_id in enumerate(file_list):
         question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
@@ -90,6 +92,8 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             return request_failed(22, "task has been distributed")
         else:
             # 可以修改
+            task.questions.set([])
+            task.save()
             change_tasks(req, task)
             if user.score < task.reward_per_q * task.distribute_user_num:
                 return request_failed(10, "score not enough", status_code=400)
