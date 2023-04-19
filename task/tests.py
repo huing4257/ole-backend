@@ -358,13 +358,13 @@ class TaskTests(TestCase):
         for i in range(1, 3):
             with open(f"./tmp/{i}.txt", 'w', encoding="utf-8") as f:
                 f.write("test")
-        with open(f"./tmp/5.txt", 'w', encoding="utf-8") as f:
+        with open("./tmp/5.txt", 'w', encoding="utf-8") as f:
             f.write("test")
 
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
         for i in range(1, 3):
-            test_zip.write(f"./tmp/{i}.txt")
-        test_zip.write(f"./tmp/{5}.txt")
+            test_zip.write(f"./{i}.txt")
+        test_zip.write(f"./{5}.txt")
         test_zip.close()
         with open("./tmp/test.zip", 'rb') as test_zip:
             data = {
@@ -389,7 +389,7 @@ class TaskTests(TestCase):
         for i in range(1, 3):
             with open(f"./tmp/{i}.jpg", 'wb') as f:
                 f.write(b"")
-        with open(f"./tmp/5.jpg", 'wb') as f:
+        with open("./tmp/5.jpg", 'wb') as f:
             f.write(b"")
 
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
