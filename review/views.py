@@ -87,9 +87,9 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         task: Task = task
         curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "pass"
+        curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
+        curr_tag_user.tag_user.save()
         curr_tag_user.save()
-        user.score += task.reward_per_q * task.q_num
-        user.save()
         return request_success()
     else:
         return BAD_METHOD
