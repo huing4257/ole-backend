@@ -366,8 +366,6 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
-            if current_tag_user_num >= task.distribute_user_num:
-                break
         task.save()
         return request_success()
 
