@@ -271,9 +271,6 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                         q_id = int(ans.filename.split('.')[0])
                         question = questions.filter(q_id=q_id).first()
                         result = question.result.all().filter(tag_user=user).first()
-                        # print(f"第{q_id}题")
-                        # print(f"标注结果{result.tag_res}")
-                        # print(f"标准答案{ans.std_ans}")
                         if result.tag_res != ans.std_ans:
                             curr_tag_user.is_check_accepted = "fail"
                     if curr_tag_user.is_check_accepted == "pass":
@@ -327,21 +324,27 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         return BAD_METHOD
 
 
+def pre_distribute(task_id: int, user: User):
+    # 获取当前被分发到的user_id
+    user_id = cache.get('current_user_id')
+    if user_id is None:
+        user_id = 1
+        cache.set('current_user_id', user_id)
+    task = Task.objects.filter(task_id=task_id).first()
+    if not task:
+        return user_id, task, request_failed(14, "task not created", 404)
+    if task.publisher != user:
+        return user_id, task, request_failed(15, "no distribute permission")
+    return user_id, task, None
+
+
 # 分发任务
 @CheckLogin
 def distribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
-        # 获取当前被分发到的user_id
-        user_id = cache.get('current_user_id')
-        if user_id is None:
-            user_id = 1
-            cache.set('current_user_id', user_id)
-        print("user_id", user_id)
-        task = Task.objects.filter(task_id=task_id).first()
-        if not task:
-            return request_failed(14, "task not created")
-        if task.publisher != user:
-            return request_failed(15, "no distribute permission")
+        user_id, task, err = pre_distribute(task_id, user)
+        if err is not None:
+            return err
         if task.current_tag_user_list.count() != 0:
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
@@ -441,7 +444,7 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(14, "task not created", 400)
+            return request_failed(14, "task not created", 404)
         # 没有分发
         if task.current_tag_user_list.count() == 0:
             return request_failed(22, "task not distributed", 400)
@@ -459,7 +462,7 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(14, "task not created", 400)
+            return request_failed(14, "task not created", 404)
         if task.current_tag_user_list.count() == 0:
             return request_success({"is_distributed": False})
         else:
@@ -472,18 +475,9 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
 @CheckLogin
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
-        # 获取当前被分发到的user_id
-        user_id = cache.get('current_user_id')
-        if user_id is None:
-            user_id = 1
-            cache.set('current_user_id', user_id)
-        print("user_id", user_id)
-
-        task = Task.objects.filter(task_id=task_id).first()
-        if not task:
-            return request_failed(14, "task not created")
-        if task.publisher != user:
-            return request_failed(15, "no distribute permission")
+        user_id, task, err = pre_distribute(task_id, user)
+        if err is not None:
+            return err
 
         current_tagger_list = task.current_tag_user_list.all()
         for current_tagger in current_tagger_list:
@@ -495,15 +489,9 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                 continue
             if current_tagger.is_finished:
                 continue
-            # print("task.total_time_limit", task.total_time_limit)
-            # print("get_timestamp()", get_timestamp())
-            # print("current_tagger.accepted_at", current_tagger.accepted_at)
             if task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
-                # print("current_tagger.accepted_at", current_tagger.accepted_at)
                 task.past_tag_user_list.add(current_tagger.tag_user)
                 task.current_tag_user_list.remove(current_tagger)
-        # task.current_tag_user_list.save()
-        # task.past_tag_user_list.save()
         task.save()
         tag_users = User.objects.filter(user_type="tag").all()
         invalid_num = task.past_tag_user_list.count()
@@ -527,9 +515,6 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             # 检测是否在被封禁用户列表中
             if BanUser.objects.filter(ban_user=tag_user).exists():
                 continue
-            # for current_tag_user in task.current_tag_user_list.all():
-            #     if current_tag_user.tag_user == tag_user:
-            #         continue
             if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                 continue
             if task.past_tag_user_list.filter(user_id=tag_user.user_id).exists():
