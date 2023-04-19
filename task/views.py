@@ -36,21 +36,7 @@ def task_modify_util(req: HttpRequest, task: Task):
 
 def require_tasks(req: HttpRequest):
     task = Task.objects.create()
-    body, file_list = task_modify_util(req, task)
-    tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
-    if body["stdans_tag"] != "":
-        ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
-        task.ans_list = ans_list
-    task.q_num = len(file_list)
-    tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
-    task.tag_type.set(tag_type_list)
-    for q_id, f_id in enumerate(file_list):
-        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=task.task_type)
-        for tag_type in tag_type_list:
-            question.tag_type.add(tag_type)
-        question.save()
-        task.questions.add(question)
-    return task
+    return change_tasks(req, task)
 
 
 @CheckLogin
@@ -67,11 +53,18 @@ def create_task(req: HttpRequest, user: User):
 
 
 def change_tasks(req: HttpRequest, task: Task):
-    _, file_list = task_modify_util(req, task)
-    # print(file_list)
+    body, file_list = task_modify_util(req, task)
+    tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+    if body["stdans_tag"] != "":
+        ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
+        task.ans_list = ans_list
     task.q_num = len(file_list)
+    tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
+    task.tag_type.set(tag_type_list)
     for q_id, f_id in enumerate(file_list):
-        question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+        for tag_type in tag_type_list:
+            question.tag_type.add(tag_type)
         question.save()
         task.questions.add(question)
     return task
