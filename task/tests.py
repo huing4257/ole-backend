@@ -182,9 +182,9 @@ class TaskTests(TestCase):
 
         para2 = self.para.copy()
         para2["task_name"] = "testTask2"
-        res2 = self.client.put('/task/1', para2, content_type=default_content_type)
+        res2 = self.client.put(f'/task/{res.json()["data"]["task_id"]}', para2, content_type=default_content_type)
         self.assertEqual(res2.status_code, 200)
-        self.assertEqual(res2.json()["data"], {"task_id": 1})
+        self.assertTrue(res2.json()["data"].get("task_id", None))
 
     def test_delete_task_not_logged_in(self):
         res = self.client.delete("/task/1")
@@ -322,7 +322,7 @@ class TaskTests(TestCase):
         para["distribute_user_num"] = 2
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
-        task_id = 2
+        task_id = res.json()['data']['task_id']
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.json()["message"], "Succeed")
         self.assertEqual(res.status_code, 200)
