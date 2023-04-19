@@ -105,12 +105,11 @@ class ReviewTests(TestCase):
         self.assertEqual(res.json()["code"], 16)
 
     def test_upload_stdans_success(self):
-        task_id = self.login_create_task()
-
+        self.login_create_task()
         with open("a.csv", "w") as f:
             f.write("1.txt,tag_1_1")
         file = SimpleUploadedFile("a.csv", open("a.csv", "rb").read())
-        res = self.client.post(f"/review/upload_stdans", {
+        res = self.client.post("/review/upload_stdans", {
             "file": file
         })
         ans_id = res.json()["data"]
