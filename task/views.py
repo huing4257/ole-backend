@@ -482,6 +482,7 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
 # 分发任务
 @CheckLogin
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
+    
     if req.method == "POST":
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
@@ -506,7 +507,6 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         # 重新顺序分发(根据标注方的id顺序发送)
         tag_users = User.objects.filter(user_type="tag").order_by("-user_id")
         # 设定的分发用户数比可分发的用户数多
-        print(task.past_tag_user_list.count())
         if len(invalid_tagger) > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count() \
                 - task.past_tag_user_list.count() + len(invalid_tagger):
             return request_failed(21, "tag user not enough")
@@ -517,10 +517,11 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
 
+        for usr in task.current_tag_user_list.all():
+            print(usr.tag_user.serialize())
+
         for cur_tag_user in task.current_tag_user_list.all():
-            print(cur_tag_user.serialize())
             if cur_tag_user in invalid_tagger:
-                print("called")
                 # 这个标注方需要重新分发
                 for tag_user in tag_users:
                     # 检测是否在被封禁用户列表中
@@ -533,10 +534,13 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                     if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                         continue
                     # tag_user 是新的标注方
-                    print("called2")
-                    print(tag_user.serialize())
                     new_tag_user: Current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
-                    cur_tag_user = new_tag_user
+                    task.current_tag_user_list.filter(tag_user=cur_tag_user.tag_user).delete()
+                    task.current_tag_user_list.create(tag_user=new_tag_user.tag_user)
+                    for usr in task.current_tag_user_list.all():
+                        print(usr.tag_user.serialize())
                     break
         task.save()
+        for usr in task.current_tag_user_list.all():
+            print(usr.tag_user.serialize())        
         return request_success()
