@@ -112,18 +112,23 @@ class TaskTests(TestCase):
             data_type="text",
         )
         question1.tag_type.set(tag_type_list)
+        question1.save()
+
         question2 = Question.objects.create(
             q_id=2,
             data="1",
             data_type="text",
         )
         question2.tag_type.set(tag_type_list)
+        question2.save()
+
         question3 = Question.objects.create(
             q_id=3,
             data="1",
             data_type="text",
         )
         question3.tag_type.set(tag_type_list)
+        question3.save()
 
         TextData.objects.create(
             data="string",

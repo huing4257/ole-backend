@@ -10,6 +10,7 @@ DATABASES = {
         'PASSWORD': 'testrootpwd',
         'HOST': 'mysql',
         'PORT': 3306,
+        'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
 # 本地调试用
