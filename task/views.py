@@ -507,7 +507,11 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         
         current_tagger_list = task.current_tag_user_list.all()
         for current_tagger in current_tagger_list:
-            if not current_tagger.accepted_at:
+            if current_tagger.accepted_at is None:
+                continue
+            if current_tagger.accepted_at == -1:
+                task.past_tag_user_list.add(current_tagger.tag_user)
+                task.current_tag_user_list.remove(current_tagger)
                 continue
             if current_tagger.is_finished:
                 continue
