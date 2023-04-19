@@ -124,7 +124,6 @@ class TaskTests(TestCase):
         task.questions.add(question2)
         task.publisher = test_publisher
 
-
         task.save()
 
     def post_task(self, para: dict):
