@@ -132,7 +132,8 @@ class TaskTests(TestCase):
 
         TextData.objects.create(
             data="string",
-            filename="1.txt"
+            filename="1.txt",
+            id=1,
         )
 
         current_tag_user = Current_tag_user.objects.create(
