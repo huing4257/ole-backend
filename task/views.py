@@ -375,34 +375,33 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
 def refuse_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         task = Task.objects.filter(task_id=task_id).first()
-        # 顺序分发(根据标注方的信用分从高到低分发)，找到所有的用户
-        if task.current_tag_user_list.filter(tag_user=user).exists():
-            tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
-            if tag_users.count() > BanUser.objects.all().count() + task.past_tag_user_list.count() + \
-                    task.current_tag_user_list.count():
-                for tag_user in tag_users:
-                    # 检测是否在被封禁用户列表中
-                    if BanUser.objects.filter(ban_user=tag_user).exists():
-                        continue
-                    # 检测是否在过去被分发到的用户列表
-                    if task.past_tag_user_list.contains(tag_user):
-                        continue
-                    # 检测是否在现在的用户列表
-                    if task.current_tag_user_list.filter(tag_user=tag_user).exists():
-                        continue
-                    # tag_user 是新的标注用户，替换到user
-                    target: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
-                    target.tag_user = tag_user
-                    target.accepted_at = get_timestamp()
-                    task.past_tag_user_list.add(user)
-                    task.save()
-                    return request_success()
-            else:
-                # 没有合适的用户
-                return request_failed(17, "available user not enough")
-        else:
-            # no permission to accept
-            return request_failed(18, "no permission to accept")
+        # 顺序分发，找到所有的用户
+        # if task.current_tag_user_list.filter(tag_user=user).exists():
+        #     tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
+        #     if tag_users.count() > BanUser.objects.all().count() + task.past_tag_user_list.count() + \
+        #             task.current_tag_user_list.count():
+        #         for tag_user in tag_users:
+        #             # 检测是否在被封禁用户列表中
+        #             if BanUser.objects.filter(ban_user=tag_user).exists():
+        #                 continue
+        #             # 检测是否在过去被分发到的用户列表
+        #             if task.past_tag_user_list.contains(tag_user):
+        #                 continue
+        #             # 检测是否在现在的用户列表
+        #             if task.current_tag_user_list.filter(tag_user=tag_user).exists():
+        #                 continue
+        #             # tag_user 是新的标注用户，替换到user
+        #             target: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+        #             target.tag_user = tag_user
+        #             target.accepted_at = get_timestamp()
+        #             task.past_tag_user_list.add(user)
+        #             task.save()
+        #             return request_success()
+        current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+        current_tag_user.accepted_at = -1
+        current_tag_user.save()
+        task.save()
+        return request_success()
     else:
         return BAD_METHOD
 
