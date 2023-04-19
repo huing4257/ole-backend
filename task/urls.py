@@ -16,4 +16,5 @@ urlpatterns = [
     path('progress/<int:task_id>', views.get_progress),
     path('is_accepted/<task_id>', views.is_accepted),
     path('is_distributed/<task_id>', views.is_distributed),
+    path('redistribute/<int:task_id>', views.redistribute_task),
 ]

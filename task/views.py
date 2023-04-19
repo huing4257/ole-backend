@@ -491,7 +491,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
 
         valid_tagger: list = []
         invalid_tagger: list = []
-        for current_tagger in task.current_tag_user_list:
+        for current_tagger in task.current_tag_user_list.all():
             # 从接取任务到现在的时间超过了总时限
             if task.total_time_limit > get_timestamp() - current_tagger.accepted_at:
                 valid_tagger.append(current_tagger)
@@ -506,7 +506,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         # 重新顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
         # 设定的分发用户数比可分发的用户数多
-        if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count():
+        if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count() - task.past_tag_user_list.count():
             return request_failed(21, "tag user not enough")
 
         # 检测分数是否足够 扣分
@@ -516,7 +516,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
 
-        for cur_tag_user in task.current_tag_user_list:
+        for cur_tag_user in task.current_tag_user_list.all():
             if cur_tag_user in invalid_tagger:
                 # 这个标注方需要重新分发
                 for tag_user in tag_users:
