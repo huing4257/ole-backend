@@ -247,7 +247,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                 progress.q_id = 0
                 curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
                 curr_tag_user.is_finished = True
-                
+
                 # 开始自动审核
                 if task.accept_method == "auto":
                     curr_tag_user.is_check_accepted = "pass"
@@ -321,8 +321,8 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         user_id = cache.get('current_user_id')
         if user_id is None:
             user_id = 1
-            cache.set('current_user_id',user_id)
-        print("user_id",user_id)
+            cache.set('current_user_id', user_id)
+        print("user_id", user_id)
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created")
@@ -335,17 +335,17 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         # 设定的分发用户数比可分发的用户数多
         if task.distribute_user_num > tag_users.count() - BanUser.objects.count():
             return request_failed(21, "tag user not enough")
-        
+
         # 检测分数是否足够 扣分
         if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
             return request_failed(10, "score not enough")
         else:
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
-        
+
         current_tag_user_num = 0  # 当前被分发到的用户数
         while current_tag_user_num < task.distribute_user_num:
-            if user_id >= tag_users[len(tag_users)-1].user_id:
+            if user_id >= tag_users[len(tag_users) - 1].user_id:
                 tag_user = tag_users[0]
                 user_id = tag_user.user_id
                 # 检测是否在被封禁用户列表中
@@ -357,10 +357,10 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                 while not tag_user:
                     user_id += 1
                     tag_user = tag_users.filter(user_id=user_id).first()
-                #检测是否被封禁
+                # 检测是否被封禁
                 if BanUser.objects.filter(ban_user=tag_user).exists():
                     continue
-            cache.set('current_user_id',user_id)
+            cache.set('current_user_id', user_id)
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
@@ -486,7 +486,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             return request_failed(14, "task not created")
         if task.publisher != user:
             return request_failed(15, "no distribute permission")
-        
+
         valid_tagger: list = []
         invalid_tagger: list = []
         for current_tagger in task.current_tag_user_list:
@@ -500,20 +500,20 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                 valid_tagger.append(current_tagger)
             else:
                 invalid_tagger.append(current_tagger)
-                
+
         # 重新顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
         # 设定的分发用户数比可分发的用户数多
         if task.distribute_user_num > tag_users.count() - BanUser.objects.count() - task.current_tag_user_list.count():
             return request_failed(21, "tag user not enough")
-        
+
         # 检测分数是否足够 扣分
         if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
             return request_failed(10, "score not enough")
         else:
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
-        
+
         for cur_tag_user in task.current_tag_user_list:
             if cur_tag_user in invalid_tagger:
                 # 这个标注方需要重新分发
