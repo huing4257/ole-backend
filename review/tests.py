@@ -131,5 +131,32 @@ class ReviewTests(TestCase):
     def test_review_reject(self):
         task_id = self.login_create_task()
         self.client.post(f"/task/distribute/{task_id}")
-        res = self.client.post(f"/review/accept/{task_id}/2")
+        res = self.client.post(f"/review/refuse/{task_id}/2")
         self.assertEqual(res.status_code, 200)
+
+    def test_download_task_not_finish(self):
+        task_id = self.login_create_task()
+        self.client.post(f"/task/distribute/{task_id}")
+        # receiver id = 2
+        res = self.client.get(f"/review/download/{task_id}")
+        self.assertJSONEqual(res.content, {"code": 25, "message": "review not finish", "data": {}})
+        self.assertEqual(res.status_code, 400)
+
+    # def test_download_task_success(self):
+    #     task_id = self.login_create_task()
+    #     user_id = 2
+    #     self.client.post(f"/task/distribute/{task_id}")
+    #     self.client.post(f"/review/accept/{task_id}/{user_id}")
+    #     # receiver id = 2
+    #     res = self.client.get(f"/review/download/{task_id}")
+    #     print(res.content)
+    #     self.assertEqual(res.status_code, 400)
+
+    # def test_download_task_user(self):
+    #     task_id = self.login_create_task()
+    #     self.client.post(f"/task/distribute/{task_id}")
+    #     self.client.post(f"/review/accept/{task_id}/{user_id}")
+
+    #     # receiver id = 2
+    #     res = self.client.get(f"/review/download/{task_id}/2")        
+    #     self.assertEqual(res.status_code, 200)
