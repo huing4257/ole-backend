@@ -86,6 +86,8 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             return request_failed(11, "task does not exist", status_code=400)
         elif task.publisher != user:
             return request_failed(12, "no permission to modify", status_code=400)
+        elif task.current_tag_user_list.count() != 0:
+            return request_failed(22, "task has been distributed")
         else:
             # 可以修改
             change_tasks(req, task)
