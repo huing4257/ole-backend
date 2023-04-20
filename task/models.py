@@ -1,5 +1,6 @@
 from django.db import models
 from user.models import User
+from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
 
 
@@ -47,7 +48,7 @@ class Question(models.Model):
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     tag_type = models.ManyToManyField(TagType, default=[])
 
-    def serialize(self, detail=False):
+    def serialize(self, detail=False, user_id: int = None):
         if detail:
             if self.data_type == "text":
                 data = TextData.objects.filter(id=int(self.data)).first().data.split('\n')
@@ -61,6 +62,11 @@ class Question(models.Model):
             "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
             "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
+        } if user_id is None else {
+            "q_id": self.q_id,
+            "data": data,
+            "result": self.result.filter(tag_user=user_id).first().serialize(),
+            "data_type": self.data_type,
         }
 
 
@@ -68,11 +74,15 @@ class Current_tag_user(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
     # todo 
     accepted_at = models.FloatField(null=True)
+    is_finished = models.BooleanField(default=False)
+    is_check_accepted = models.CharField(max_length=MAX_CHAR_LENGTH, default="none")
 
     def serialize(self):
         return {
             "tag_user": self.tag_user.serialize(),
             "accepted_at": self.accepted_at,
+            "is_finished": self.is_finished,
+            "is_check_accepted": self.is_check_accepted,
         }
 
 
@@ -105,6 +115,7 @@ class Task(models.Model):
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
     tag_type = models.ManyToManyField(TagType, default=[])
+    ans_list = models.ForeignKey(AnsList, on_delete=models.CASCADE, null=True)
 
     def serialize(self):
         return {
@@ -124,5 +135,6 @@ class Task(models.Model):
             "progress": [user.serialize() for user in self.progress.all()],
             "result_type": self.result_type,
             "accept_method": self.accept_method,
-            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
+            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()],
+            "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else []
         }

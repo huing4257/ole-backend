@@ -9,13 +9,14 @@ from utils.utils_check import CheckLogin
 
 # Create your views here.
 
-def upload_handler(image):
+def upload_handler(image, file_name=None):
     """
     用于处理图片上传
     返回值为 该图片在数据库中的唯一标识符
     前端使用时需要 api/{url}
     """
     img = Image(img_file=image)
+    img.filename = file_name
     img.save()
     return {"url": img.img_file.name}
 
@@ -50,7 +51,6 @@ def img_handler(req: HttpRequest, user: User, img_url):
     """
     处理图片的获取和删除
     """
-    img_url = "picbed/" + img_url
     if req.method == "GET":
         return get_img(req, img_url)
     elif req.method == "DELETE":

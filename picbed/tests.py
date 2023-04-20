@@ -50,40 +50,40 @@ class PicbedTests(TestCase):
     def test_get_image_success(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-        res = self.client.get(f"/{self.img_path}")
+        res = self.client.get(f"/picbed/{self.img_path}")
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, self.image_content)
 
     def test_get_image_pic_not_found(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-        res = self.client.get(f"/{self.img_path}/not_found")
+        res = self.client.get(f"/picbed/{self.img_path}/not_found")
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()['code'], 18)
 
     def test_get_image_not_logged_in(self):
-        res = self.client.get(f"/{self.img_path}")
+        res = self.client.get(f"/picbed/{self.img_path}")
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['message'], "not_logged_in")
 
     def test_del_image_success(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-        res = self.client.delete(f"/{self.img_path}")
+        res = self.client.delete(f"/picbed/{self.img_path}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['message'], "Succeed")
-        res = self.client.get(f"/{self.img_path}")
+        res = self.client.get(f"/picbed/{self.img_path}")
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()['code'], 18)
 
     def test_del_image_not_logged_in(self):
-        res = self.client.delete(f"/{self.img_path}")
+        res = self.client.delete(f"/picbed/{self.img_path}")
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['message'], "not_logged_in")
 
     def test_del_image_pic_not_found(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
-        res = self.client.delete(f"/{self.img_path}/not_found")
+        res = self.client.delete(f"/picbed/{self.img_path}/not_found")
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()['code'], 18)
