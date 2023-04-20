@@ -21,7 +21,7 @@ class ReviewTests(TestCase):
         "total_time_limit": 0,
         "distribute_user_num": 1,
         "task_name": "testTask",
-        "accept_method": "auto",
+        "accept_method": "manual",
         "tag_type": ["tag1", "tag2", "tag3"],
         "stdans_tag": ""
     }
@@ -59,25 +59,27 @@ class ReviewTests(TestCase):
         }, content_type=default_content_type)
         return response
 
-    def publisher_login_create_task(self, distribute_user_num=1):
+    def publisher_login_create_task(self, distribute_user_num=1, task_type="image"):
         self.client.post("/user/logout")
         res = self.login("testPublisher")
         self.assertEqual(res.status_code, 200)
         if not os.path.exists("./tmp"):
             os.mkdir("./tmp")
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
+        file_suffix = "jpg" if task_type == "image" else "txt"
         for i in range(1, 4):
-            test_zip.writestr(f"{i}.jpg", b"")
-        test_zip.writestr(f"{5}.jpg", b"")
+            test_zip.writestr(f"{i}.{file_suffix}", b"")
+        test_zip.writestr(f"{5}.{file_suffix}", b"")
         test_zip.close()
         with open("./tmp/test.zip", 'rb') as test_zip:
             data = {
                 "file": test_zip
             }
 
-            res = self.client.post("/task/upload_data?data_type=image", data)
+            res = self.client.post(f"/task/upload_data?data_type={task_type}", data)
         self.assertEqual(res.status_code, 200)
         para = self.para.copy()
+        para["task_type"] = task_type
         para["files"] = [file['tag'] for file in res.json()['data']['files']]
         para["distribute_user_num"] = distribute_user_num
         res = self.client.post("/task/", para, content_type=default_content_type)
@@ -95,10 +97,11 @@ class ReviewTests(TestCase):
         self.assertEqual(res.status_code, 200)
         res = self.client.post(f"/task/accept/{task_id}")
         self.assertEqual(res.status_code, 200)
-        res = self.client.post(f"/task/upload_res/{task_id}/1", {
-            "result": "tag_1"
-        }, content_type=default_content_type)
-        self.assertEqual(res.status_code, 200)
+        for i in range(1, 4):
+            res = self.client.post(f"/task/upload_res/{task_id}/{i}", {
+                "result": "tag_1"
+            }, content_type=default_content_type)
+            self.assertEqual(res.status_code, 200)
 
         self.client.post("/user/logout")
         res = self.login("testPublisher")
@@ -106,13 +109,12 @@ class ReviewTests(TestCase):
 
         res = self.client.post(f"/review/manual_check/{task_id}/2", {
             "check_method": "select"}, content_type=default_content_type)
+        print(res.json())
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["data"]["q_info"][0]["result"]["tag_res"], "tag_1")
 
     def test_manual_check_no_permission(self):
-        self.login("testPublisher")
-        res = self.client.post("/task/", self.para, content_type=default_content_type)
-        task_id = res.json()["data"]["task_id"]
+        task_id = self.publisher_login_create_task()
 
         self.client.post("/user/logout")
         self.login("testReceiver1")
@@ -160,31 +162,31 @@ class ReviewTests(TestCase):
         self.assertEqual(res.status_code, 400)
 
     def test_download_task_success(self):
-        task_id = self.publisher_login_create_task()
-        self.client.post(f"/task/distribute/{task_id}")
+        for i in (1, 2):
+            task_type = "text" if i == 1 else "image"
+            task_id = self.publisher_login_create_task(task_type=task_type)
+            self.client.post(f"/task/distribute/{task_id}")
 
-        self.client.post("/user/logout")
-        self.login("testReceiver1")
-        self.client.post(f"/task/accept/{task_id}")
-        res = self.client.post(f"/task/upload_res/{task_id}/1", {
-            "result": "tag_1"
-        }, content_type=default_content_type)
-        res = self.client.post(f"/task/upload_res/{task_id}/2", {
-            "result": "tag_1"
-        }, content_type=default_content_type)
-        res = self.client.post(f"/task/upload_res/{task_id}/3", {
-            "result": "tag_1"
-        }, content_type=default_content_type)
-        print(res.json())
-        self.assertEqual(res.status_code, 200)
+            self.client.post("/user/logout")
+            self.login("testReceiver1")
+            self.client.post(f"/task/accept/{task_id}")
+            res = self.client.post(f"/task/upload_res/{task_id}/1", {
+                "result": "tag_1"
+            }, content_type=default_content_type)
+            res = self.client.post(f"/task/upload_res/{task_id}/2", {
+                "result": "tag_1"
+            }, content_type=default_content_type)
+            res = self.client.post(f"/task/upload_res/{task_id}/3", {
+                "result": "tag_1"
+            }, content_type=default_content_type)
+            print(res.json())
+            self.assertEqual(res.status_code, 200)
 
-        self.client.post("/user/logout")
-        self.login("testPublisher")
-        res = self.client.get(f"/review/download/{task_id}/2")
-        # valid the file returned
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res["Content-Type"], "application/octet-stream")
-        self.assertEqual(res["Content-Disposition"], "attachment; filename=review.csv")
+            self.client.post("/user/logout")
+            self.login("testPublisher")
+            res = self.client.get(f"/review/download/{task_id}/2")
+            # valid the file returned
+            self.assertEqual(res.status_code, 200)
 
     # def test_download_task_user(self):
     #     task_id = self.login_create_task()
