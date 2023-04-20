@@ -1,3 +1,5 @@
+import os
+
 from django.test import TestCase
 import bcrypt
 from user.models import User
@@ -20,7 +22,6 @@ class ReviewTests(TestCase):
         "distribute_user_num": 1,
         "task_name": "testTask",
         "accept_method": "auto",
-        "files": [1],
         "tag_type": ["tag1", "tag2", "tag3"],
         "stdans_tag": ""
     }
@@ -62,15 +63,22 @@ class ReviewTests(TestCase):
         self.client.post("/user/logout")
         res = self.login("testPublisher")
         self.assertEqual(res.status_code, 200)
-        image_content = b'\xff\x00\x00' * 100 * 100
-        zipped_file = zipfile.ZipFile("test.zip", "w")
-        zipped_file.writestr("1.jpg", image_content)
-        zipped_file.close()
-        res = self.client.post("/task/upload_data?data_type=image", {
-            "file": SimpleUploadedFile("test.zip", open("test.zip", "rb").read())
-        })
-        assert res.status_code == 200
+        if not os.path.exists("./tmp"):
+            os.mkdir("./tmp")
+        test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
+        for i in range(1, 4):
+            test_zip.writestr(f"{i}.jpg", b"")
+        test_zip.writestr(f"{5}.jpg", b"")
+        test_zip.close()
+        with open("./tmp/test.zip", 'rb') as test_zip:
+            data = {
+                "file": test_zip
+            }
+
+            res = self.client.post("/task/upload_data?data_type=image", data)
+        self.assertEqual(res.status_code, 200)
         para = self.para.copy()
+        para["files"] = [file['tag'] for file in res.json()['data']['files']]
         para["distribute_user_num"] = distribute_user_num
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
@@ -161,6 +169,13 @@ class ReviewTests(TestCase):
         res = self.client.post(f"/task/upload_res/{task_id}/1", {
             "result": "tag_1"
         }, content_type=default_content_type)
+        res = self.client.post(f"/task/upload_res/{task_id}/2", {
+            "result": "tag_1"
+        }, content_type=default_content_type)
+        res = self.client.post(f"/task/upload_res/{task_id}/3", {
+            "result": "tag_1"
+        }, content_type=default_content_type)
+        print(res.json())
         self.assertEqual(res.status_code, 200)
 
         self.client.post("/user/logout")
@@ -170,7 +185,6 @@ class ReviewTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res["Content-Type"], "application/octet-stream")
         self.assertEqual(res["Content-Disposition"], "attachment; filename=review.csv")
-
 
     # def test_download_task_user(self):
     #     task_id = self.login_create_task()
