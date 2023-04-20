@@ -1,5 +1,4 @@
 import json
-import secrets
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 import zipfile
@@ -10,11 +9,13 @@ from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from user.models import User, BanUser
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
+from review.models import AnsList
+from django.core.cache import cache
 
 
 # Create your views here.
-def require_tasks(req: HttpRequest):
-    task = Task.objects.create()
+
+def task_modify_util(req: HttpRequest, task: Task):
     body = json.loads(req.body.decode("utf-8"))
     task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
     task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
@@ -29,7 +30,34 @@ def require_tasks(req: HttpRequest):
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
     # 构建这个task的questions，把数据绑定到每个上
     file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    # print(file_list)
+    return body, file_list
+
+
+def require_tasks(req: HttpRequest):
+    task = Task.objects.create()
+    return change_tasks(req, task)
+
+
+@CheckLogin
+def create_task(req: HttpRequest, user: User):
+    if req.method == 'POST':
+        task: Task = require_tasks(req)
+        if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
+            return request_failed(10, "score not enough", status_code=400)
+        task.publisher = user
+        task.save()
+        return request_success({"task_id": task.task_id})
+    else:
+        return BAD_METHOD
+
+
+def change_tasks(req: HttpRequest, task: Task):
+    body, file_list = task_modify_util(req, task)
     tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+    if body["stdans_tag"] != "":
+        ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
+        task.ans_list = ans_list
     task.q_num = len(file_list)
     tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
     task.tag_type.set(tag_type_list)
@@ -43,42 +71,6 @@ def require_tasks(req: HttpRequest):
 
 
 @CheckLogin
-def create_task(req: HttpRequest, user: User):
-    if req.method == 'POST':
-        task: Task = require_tasks(req)
-        if user.score < task.reward_per_q * task.distribute_user_num:
-            return request_failed(10, "score not enough", status_code=400)
-        task.publisher = user
-        task.save()
-        return request_success({"task_id": task.task_id})
-    else:
-        return BAD_METHOD
-
-
-def change_tasks(req: HttpRequest, task: Task):
-    body = json.loads(req.body.decode("utf-8"))
-    task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
-    task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
-    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
-                                err_code=9)
-    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
-                                    err_code=9)
-    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
-                                    err_code=9)
-    task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
-    task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
-    task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
-    # 构建这个task的questions，把数据绑定到每个上
-    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
-    task.q_num = len(file_list)
-    for q_id, f_id in enumerate(file_list):
-        question = Question(q_id=q_id + 1, data=f_id, data_type=task.task_type)
-        question.save()
-        task.questions.add(question)
-    return task
-
-
-@CheckLogin
 @CheckRequire
 def task_ops(req: HttpRequest, user: User, task_id: any):
     task_id = require({"task_id": task_id}, "task_id", "int", err_msg="Bad param [task_id]", err_code=-1)
@@ -86,11 +78,15 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
     if req.method == 'PUT':
         task = Task.objects.filter(task_id=task_id).first()
         if task is None:
-            return request_failed(11, "task does not exist", status_code=400)
+            return request_failed(11, "task does not exist", status_code=404)
         elif task.publisher != user:
             return request_failed(12, "no permission to modify", status_code=400)
+        elif task.current_tag_user_list.count() != 0:
+            return request_failed(22, "task has been distributed")
         else:
             # 可以修改
+            task.questions.set([])
+            task.save()
             change_tasks(req, task)
             if user.score < task.reward_per_q * task.distribute_user_num:
                 return request_failed(10, "score not enough", status_code=400)
@@ -102,7 +98,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
     elif req.method == 'DELETE':
         task = Task.objects.filter(task_id=task_id).first()
         if task is None:
-            return request_failed(11, "task does not exist", status_code=400)
+            return request_failed(11, "task does not exist", status_code=404)
         elif task.publisher != user:
             return request_failed(12, "no permission to delete", status_code=403)
         else:
@@ -112,7 +108,11 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(11, "task does not exist", 404)
-        response = request_success(task.serialize())
+        ret_data = task.serialize()
+        if user.user_type == "tag":
+            curr_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+            ret_data['accepted_time'] = curr_user.accepted_at
+        response = request_success(ret_data)
         response.set_cookie("user_type", user.user_type)
         return response
     else:
@@ -136,18 +136,30 @@ def get_my_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
         if user.user_type == "demand":
             published_list = Task.objects.filter(publisher=user).all()
-            task_list = []
+            distribute_list = []
+            undistribute_list = []
             for element in published_list:
-                task_list.append(element.serialize())
-            return request_success(task_list)
+                if element.current_tag_user_list.count():
+                    distribute_list.append(element.serialize())
+                else:
+                    undistribute_list.append(element.serialize())
+            distribute_list.reverse()
+            return request_success(undistribute_list + distribute_list)
         elif user.user_type == "tag":
             all_tasks: list = Task.objects.all()
-            distributed_list: list = list()
+            unfinish_list = []
+            finish_list = []
             for element in all_tasks:
                 for current_tag_user in element.current_tag_user_list.all():
                     if user == current_tag_user.tag_user:
-                        distributed_list.append(element.serialize())
-            return request_success(distributed_list)
+                        if current_tag_user.accepted_at and current_tag_user.accepted_at == -1:
+                            continue
+                        if current_tag_user.is_finished:
+                            finish_list.append(element.serialize())
+                        else:
+                            unfinish_list.append(element.serialize())
+            finish_list.reverse()
+            return request_success(unfinish_list + finish_list)
         else:
             return request_failed(12, "no task of admin")
     else:
@@ -200,10 +212,11 @@ def upload_data(req: HttpRequest, user: User):
                 data = zfile.read(f"{i}.jpg")
                 data_file = SimpleUploadedFile(f"{i}.jpg", data, content_type='image/jpeg')
                 img_data = Image(img_file=data_file)
+                img_data.filename = filename
                 img_data.save()
                 img_datas.append({
                     "filename": filename,
-                    "tag": str(img_data.img_file.name),
+                    "tag": str(f"picbed/{img_data.img_file.name}"),
                 })
             if not flag:
                 return_data = {
@@ -225,7 +238,8 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         body = json.loads(req.body.decode("utf-8"))
         result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         task: Task = Task.objects.filter(task_id=task_id).first()
-        # 处理result            # 上传的是第q_id个问题的结果
+        # 处理result
+        # 上传的是第q_id个问题的结果
         result = Result.objects.create(
             tag_user=user,
             tag_res=result,
@@ -242,6 +256,24 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
             else:
                 # 最后一个题已经做完了，就把progress设为0
                 progress.q_id = 0
+                curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+                curr_tag_user.is_finished = True
+
+                # 开始自动审核
+                if task.accept_method == "auto":
+                    curr_tag_user.is_check_accepted = "pass"
+                    ans_list = task.ans_list
+                    questions = task.questions.all()
+                    for ans in ans_list.ans_list.all():
+                        q_id = int(ans.filename.split('.')[0])
+                        question = questions.filter(q_id=q_id).first()
+                        result = question.result.all().filter(tag_user=user).first()
+                        if result.tag_res != ans.std_ans:
+                            curr_tag_user.is_check_accepted = "fail"
+                    if curr_tag_user.is_check_accepted == "pass":
+                        user.score += task.reward_per_q * task.q_num
+                        user.save()
+                curr_tag_user.save()
             progress.save()
         else:
             # 这个用户还没做过这个题目，创建
@@ -262,10 +294,10 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         # 找到task 和 question
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(11, "task does not exist")
+            return request_failed(11, "task does not exist", 404)
         question = task.questions.filter(q_id=q_id).first()
         if not question:
-            return request_failed(13, "question does not exist")
+            return request_failed(13, "question does not exist", 404)
         release_user_id = task.publisher.user_id
         user_type: str = user.user_type
         if user_type == "demand":
@@ -289,32 +321,63 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         return BAD_METHOD
 
 
+def pre_distribute(task_id: int, user: User):
+    # 获取当前被分发到的user_id
+    user_id = cache.get('current_user_id')
+    if user_id is None:
+        user_id = 1
+        cache.set('current_user_id', user_id)
+    task = Task.objects.filter(task_id=task_id).first()
+    if not task:
+        return user_id, task, request_failed(14, "task not created", 404)
+    if task.publisher != user:
+        return user_id, task, request_failed(15, "no distribute permission")
+    return user_id, task, None
+
+
 # 分发任务
 @CheckLogin
 def distribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
-        task = Task.objects.filter(task_id=task_id).first()
-        if not task:
-            return request_failed(14, "task not created")
-        if task.publisher != user:
-            return request_failed(15, "no distribute permission")
+        user_id, task, err = pre_distribute(task_id, user)
+        if err is not None:
+            return err
         if task.current_tag_user_list.count() != 0:
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
-        tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
+        tag_users = User.objects.filter(user_type="tag").all()
         # 设定的分发用户数比可分发的用户数多
         if task.distribute_user_num > tag_users.count() - BanUser.objects.count():
             return request_failed(21, "tag user not enough")
+
+        # 检测分数是否足够 扣分
+        if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
+            return request_failed(10, "score not enough")
+        else:
+            user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
+            user.save()
+
         current_tag_user_num = 0  # 当前被分发到的用户数
-        for tag_user in tag_users:
-            # 检测是否在被封禁用户列表中
-            if BanUser.objects.filter(ban_user=tag_user).exists():
-                continue
+        while current_tag_user_num < task.distribute_user_num:
+            if user_id >= tag_users[len(tag_users) - 1].user_id:
+                tag_user = tag_users[0]
+                user_id = tag_user.user_id
+                # 检测是否在被封禁用户列表中
+                if BanUser.objects.filter(ban_user=tag_user).exists():
+                    continue
+            else:
+                user_id += 1
+                tag_user = tag_users.filter(user_id=user_id).first()
+                while not tag_user:
+                    user_id += 1
+                    tag_user = tag_users.filter(user_id=user_id).first()
+                # 检测是否被封禁
+                if BanUser.objects.filter(ban_user=tag_user).exists():
+                    continue
+            cache.set('current_user_id', user_id)
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
-            if current_tag_user_num >= task.distribute_user_num:
-                break
         task.save()
         return request_success()
 
@@ -324,34 +387,13 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
 def refuse_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         task = Task.objects.filter(task_id=task_id).first()
-        # 顺序分发(根据标注方的信用分从高到低分发)，找到所有的用户
-        if task.current_tag_user_list.filter(tag_user=user).exists():
-            tag_users = User.objects.filter(user_type="tag").order_by("-credit_score")
-            if tag_users.count() > BanUser.objects.all().count() + task.past_tag_user_list.count() + \
-                    task.current_tag_user_list.count():
-                for tag_user in tag_users:
-                    # 检测是否在被封禁用户列表中
-                    if BanUser.objects.filter(ban_user=tag_user).exists():
-                        continue
-                    # 检测是否在过去被分发到的用户列表
-                    if task.past_tag_user_list.contains(tag_user):
-                        continue
-                    # 检测是否在现在的用户列表
-                    if task.current_tag_user_list.filter(tag_user=tag_user).exists():
-                        continue
-                    # tag_user 是新的标注用户，替换到user
-                    target: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
-                    target.tag_user = tag_user
-                    target.accepted_at = get_timestamp()
-                    task.past_tag_user_list.add(user)
-                    task.save()
-                    return request_success()
-            else:
-                # 没有合适的用户
-                return request_failed(17, "available user not enough")
-        else:
-            # no permission to accept
+        if not task.current_tag_user_list.filter(tag_user=user).exists():
             return request_failed(18, "no permission to accept")
+        current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+        current_tag_user.accepted_at = -1
+        current_tag_user.save()
+        task.save()
+        return request_success()
     else:
         return BAD_METHOD
 
@@ -399,7 +441,7 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(14, "task not created", 400)
+            return request_failed(14, "task not created", 404)
         # 没有分发
         if task.current_tag_user_list.count() == 0:
             return request_failed(22, "task not distributed", 400)
@@ -417,7 +459,7 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
-            return request_failed(14, "task not created", 400)
+            return request_failed(14, "task not created", 404)
         if task.current_tag_user_list.count() == 0:
             return request_success({"is_distributed": False})
         else:
@@ -426,54 +468,59 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
         return BAD_METHOD
 
 
-# 需求方人工审核
+# 分发任务
 @CheckLogin
-def manual_check(req: HttpRequest, user: User, task_id: int):
+def redistribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
-        task: Task = Task.objects.filter(task_id=task_id).first()
-        if not task:
-            return request_failed(14, "task not created", 400)
-        if user != task.publisher:
-            return request_failed(16, "no permissions")
-        if task.current_tag_user_list.count() == 0:
-            return request_failed(24, "task not distributed")
-        q_list = []
-        body = json.loads(req.body.decode("utf-8"))
-        check_method = require(body, "check_method", err_msg="Missing or error type of [check_method]")
-        if check_method == "select":  # 随机抽取任务总题数的1/10
-            q_all_list = task.questions.all()
-            q_num = len(q_all_list)  # 总题数
-            # 如果总数过高，则不按比例抽取，固定抽取100道题
-            check_num = q_num // 10 if q_num <= 1000 else 100
-            q_list = secrets.SystemRandom().sample(q_all_list, check_num)
-        else:  # 全量审核
-            q_list = task.questions.all().order_by("q_id")
-        return_data = {}
-        q_info = []
-        tag_user_list = []
-        for q in q_list:
-            q_dict = q.serialize(True)
-            q_info.append(q_dict)
-        return_data["q_info"] = q_info
-        for current_tag_user in task.current_tag_user_list.all():
-            status = "tagging"
-            accepted_at = 0
-            if not hasattr(current_tag_user, "accepted_at"):
-                status = "not accept"
+        user_id, task, err = pre_distribute(task_id, user)
+        if err is not None:
+            return err
+
+        current_tagger_list = task.current_tag_user_list.all()
+        for current_tagger in current_tagger_list:
+            if current_tagger.accepted_at is None:
+                continue
+            if current_tagger.accepted_at == -1:
+                task.past_tag_user_list.add(current_tagger.tag_user)
+                task.current_tag_user_list.remove(current_tagger)
+                continue
+            if current_tagger.is_finished:
+                continue
+            if task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+                task.past_tag_user_list.add(current_tagger.tag_user)
+                task.current_tag_user_list.remove(current_tagger)
+        task.save()
+        tag_users = User.objects.filter(user_type="tag").all()
+        invalid_num = task.past_tag_user_list.count()
+        for ban_user in BanUser.objects.all():
+            if not task.past_tag_user_list.filter(user=ban_user.ban_user).exists():
+                invalid_num += 1
+        if task.distribute_user_num > tag_users.count() - invalid_num:
+            return request_failed(21, "tag user not enough")
+        current_tag_user_num = task.current_tag_user_list.count()
+        while current_tag_user_num < task.distribute_user_num:
+            if user_id >= tag_users[len(tag_users) - 1].user_id:
+                tag_user = tag_users[0]
+                user_id = tag_user.user_id
+
             else:
-                accepted_at = current_tag_user.accepted_at
-            tag_user = current_tag_user.tag_user
-            progress = task.progress.filter(tag_user=tag_user).first()
-            q_id = progress.q_id
-            if q_id == len(q_list):
-                status = "tagged"
-            tag_user_list.append({
-                "tag_user_id": tag_user.user_id,
-                "status": status,
-                "q_id": q_id,
-                "accepted_at": accepted_at
-            })
-        return_data["tag_user_list"] = tag_user_list
-        return request_success(return_data)
+                user_id += 1
+                tag_user = tag_users.filter(user_id=user_id).first()
+                while not tag_user:
+                    user_id += 1
+                    tag_user = tag_users.filter(user_id=user_id).first()
+            # 检测是否在被封禁用户列表中
+            if BanUser.objects.filter(ban_user=tag_user).exists():
+                continue
+            if task.current_tag_user_list.filter(tag_user=tag_user).exists():
+                continue
+            if task.past_tag_user_list.filter(user_id=tag_user.user_id).exists():
+                continue
+            cache.set('current_user_id', user_id)
+            current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+            task.current_tag_user_list.add(current_tag_user)
+            current_tag_user_num += 1
+        task.save()
+        return request_success()
     else:
         return BAD_METHOD

@@ -90,14 +90,9 @@ def user_info(req: HttpRequest, _user: User, user_id: any):
         if not user:
             return request_failed(8, "user does not exist", 404)
         if user == _user:
-            return request_success({k: v for k, v in user.serialize().items() if k != "password"})
+            return request_success(user.serialize(private=True))
         else:
-            return request_success({k: v for k, v in user.serialize().items()
-                                    if k not in ["password",
-                                                 "invite_code",
-                                                 "bank_account",
-                                                 "account_balance",
-                                                 "vip_expire_time"]})
+            return request_success(user.serialize())
     else:
         return BAD_METHOD
 

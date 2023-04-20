@@ -13,7 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
+# from django.contrib import admin
 from django.middleware.csrf import get_token
 from django.urls import path
 from django.urls.conf import include
@@ -22,8 +22,8 @@ from utils.utils_request import request_success
 
 urlpatterns = [
     path('get_csrf_token/', lambda req: request_success({'csrf_token': get_token(req)})),
-    path('admin/', admin.site.urls),
     path('user/', include('user.urls')),
     path('task/', include('task.urls')),
     path('picbed/', include('picbed.urls')),
+    path('review/', include('review.urls')),
 ]

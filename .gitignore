@@ -9,3 +9,4 @@ xunit-reports/
 .pytest_cache/
 
 config/
+data/

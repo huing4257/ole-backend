@@ -10,14 +10,15 @@ DATABASES = {
         'PASSWORD': 'testrootpwd',
         'HOST': 'mysql',
         'PORT': 3306,
+        'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
 # 本地调试用
 # from pathlib import Path
-
+#
 # BASE_DIR = Path(__file__).resolve().parent.parent
-
-
+#
+#
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
