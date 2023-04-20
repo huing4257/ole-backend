@@ -363,8 +363,8 @@ class TaskTests(TestCase):
 
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
         for i in range(1, 3):
-            test_zip.write(f"./{i}.txt")
-        test_zip.write(f"./{5}.txt")
+            test_zip.write(f"./tmp/{i}.txt")
+        test_zip.write(f"./tmp/{5}.txt")
         test_zip.close()
         with open("./tmp/test.zip", 'rb') as test_zip:
             data = {
