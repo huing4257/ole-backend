@@ -109,7 +109,7 @@ class ReviewTests(TestCase):
 
         res = self.client.post(f"/review/manual_check/{task_id}/2", {
             "check_method": "select"}, content_type=default_content_type)
-        print(res.json())
+        # print(res.json())
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["data"]["q_info"][0]["result"]["tag_res"], "tag_1")
 
@@ -170,28 +170,30 @@ class ReviewTests(TestCase):
             self.client.post("/user/logout")
             self.login("testReceiver1")
             self.client.post(f"/task/accept/{task_id}")
-            res = self.client.post(f"/task/upload_res/{task_id}/1", {
-                "result": "tag_1"
-            }, content_type=default_content_type)
-            res = self.client.post(f"/task/upload_res/{task_id}/2", {
-                "result": "tag_1"
-            }, content_type=default_content_type)
-            res = self.client.post(f"/task/upload_res/{task_id}/3", {
-                "result": "tag_1"
-            }, content_type=default_content_type)
-            print(res.json())
-            self.assertEqual(res.status_code, 200)
+            for j in range(1, 4):
+                res = self.client.post(f"/task/upload_res/{task_id}/{j}", {
+                    "result": "tag_1"
+                }, content_type=default_content_type)
+                self.assertEqual(res.status_code, 200)
 
             self.client.post("/user/logout")
             self.login("testPublisher")
+
             res = self.client.get(f"/review/download/{task_id}/2")
-            # valid the file returned
             self.assertEqual(res.status_code, 200)
 
-    # def test_download_task_user(self):
-    #     task_id = self.login_create_task()
-    #     self.client.post(f"/task/distribute/{task_id}")
-    #     self.client.post(f"/review/accept/{task_id}/{user_id}")
+            res = self.client.post(f"/review/manual_check/{task_id}/2", {
+                "check_method": "select"}, content_type=default_content_type)
+            self.assertEqual(res.status_code, 200)
+
+            res = self.client.post(f"/review/accept/{task_id}/2")
+            res = self.client.get(f"/review/download/{task_id}")
+            self.assertEqual(res.status_code, 200)
+
+    def test_download_task_user(self):
+        task_id = self.publisher_login_create_task()
+        self.client.post(f"/task/distribute/{task_id}")
+        self.client.post(f"/review/accept/{task_id}/{2}")
 
     #     # receiver id = 2
     #     res = self.client.get(f"/review/download/{task_id}/2")        
