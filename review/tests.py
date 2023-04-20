@@ -4,6 +4,7 @@ from user.models import User
 from review.models import AnsList
 from django.core.files.uploadedfile import SimpleUploadedFile
 import datetime
+import zipfile
 
 default_content_type = "application/json"
 
@@ -57,9 +58,18 @@ class ReviewTests(TestCase):
         }, content_type=default_content_type)
         return response
 
-    def login_create_task(self, distribute_user_num=1):
+    def publisher_login_create_task(self, distribute_user_num=1):
+        self.client.post("/user/logout")
         res = self.login("testPublisher")
         self.assertEqual(res.status_code, 200)
+        image_content = b'\xff\x00\x00' * 100 * 100
+        zipped_file = zipfile.ZipFile("test.zip", "w")
+        zipped_file.writestr("1.jpg", image_content)
+        zipped_file.close()
+        res = self.client.post("/task/upload_data?data_type=image", {
+            "file": SimpleUploadedFile("test.zip", open("test.zip", "rb").read())
+        })
+        assert res.status_code == 200
         para = self.para.copy()
         para["distribute_user_num"] = distribute_user_num
         res = self.client.post("/task/", para, content_type=default_content_type)
@@ -68,7 +78,7 @@ class ReviewTests(TestCase):
         return task_id
 
     def test_manual_check_success(self):
-        task_id = self.login_create_task()
+        task_id = self.publisher_login_create_task()
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 200)
 
@@ -105,7 +115,7 @@ class ReviewTests(TestCase):
         self.assertEqual(res.json()["code"], 16)
 
     def test_upload_stdans_success(self):
-        self.login_create_task()
+        self.publisher_login_create_task()
         with open("a.csv", "w") as f:
             f.write("1.txt,tag_1_1")
         file = SimpleUploadedFile("a.csv", open("a.csv", "rb").read())
@@ -117,39 +127,50 @@ class ReviewTests(TestCase):
         self.assertTrue(AnsList.objects.filter(id=int(ans_id)).exists())
 
     def test_review_accept(self):
-        task_id = self.login_create_task()
+        task_id = self.publisher_login_create_task()
         self.client.post(f"/task/distribute/{task_id}")
         res = self.client.post(f"/review/accept/{task_id}/2")
         self.assertEqual(res.status_code, 200)
 
     def test_review_acc_not_distributed(self):
-        task_id = self.login_create_task()
+        task_id = self.publisher_login_create_task()
         res = self.client.post(f"/review/accept/{task_id}/2")
         self.assertEqual(res.status_code, 400)
 
     def test_review_reject(self):
-        task_id = self.login_create_task()
+        task_id = self.publisher_login_create_task()
         self.client.post(f"/task/distribute/{task_id}")
         res = self.client.post(f"/review/refuse/{task_id}/2")
         self.assertEqual(res.status_code, 200)
 
     def test_download_task_not_finish(self):
-        task_id = self.login_create_task()
+        task_id = self.publisher_login_create_task()
         self.client.post(f"/task/distribute/{task_id}")
         # receiver id = 2
         res = self.client.get(f"/review/download/{task_id}")
         self.assertJSONEqual(res.content, {"code": 25, "message": "review not finish", "data": {}})
         self.assertEqual(res.status_code, 400)
 
-    # def test_download_task_success(self):
-    #     task_id = self.login_create_task()
-    #     user_id = 2
-    #     self.client.post(f"/task/distribute/{task_id}")
-    #     self.client.post(f"/review/accept/{task_id}/{user_id}")
-    #     # receiver id = 2
-    #     res = self.client.get(f"/review/download/{task_id}")
-    #     print(res.content)
-    #     self.assertEqual(res.status_code, 400)
+    def test_download_task_success(self):
+        task_id = self.publisher_login_create_task()
+        self.client.post(f"/task/distribute/{task_id}")
+
+        self.client.post("/user/logout")
+        self.login("testReceiver1")
+        self.client.post(f"/task/accept/{task_id}")
+        res = self.client.post(f"/task/upload_res/{task_id}/1", {
+            "result": "tag_1"
+        }, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+
+        self.client.post("/user/logout")
+        self.login("testPublisher")
+        res = self.client.get(f"/review/download/{task_id}/2")
+        # valid the file returned
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res["Content-Type"], "application/octet-stream")
+        self.assertEqual(res["Content-Disposition"], "attachment; filename=review.csv")
+
 
     # def test_download_task_user(self):
     #     task_id = self.login_create_task()
