@@ -187,14 +187,8 @@ class ReviewTests(TestCase):
             self.assertEqual(res.status_code, 200)
 
             res = self.client.post(f"/review/accept/{task_id}/2")
-            res = self.client.get(f"/review/download/{task_id}")
             self.assertEqual(res.status_code, 200)
-
-    def test_download_task_user(self):
-        task_id = self.publisher_login_create_task()
-        self.client.post(f"/task/distribute/{task_id}")
-        self.client.post(f"/review/accept/{task_id}/{2}")
-
-    #     # receiver id = 2
-    #     res = self.client.get(f"/review/download/{task_id}/2")        
-    #     self.assertEqual(res.status_code, 200)
+            res = self.client.get(f"/review/download/{task_id}?type=all")
+            self.assertEqual(res.status_code, 200)
+            res = self.client.get(f"/review/download/{task_id}?type=merged")
+            self.assertEqual(res.status_code, 200)
