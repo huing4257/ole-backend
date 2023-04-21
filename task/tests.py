@@ -355,16 +355,10 @@ class TaskTests(TestCase):
         # open file
         if not os.path.exists("./tmp"):
             os.mkdir("./tmp")
-        for i in range(1, 3):
-            with open(f"./tmp/{i}.txt", 'w', encoding="utf-8") as f:
-                f.write("test")
-        with open("./tmp/5.txt", 'w', encoding="utf-8") as f:
-            f.write("test")
-
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
         for i in range(1, 3):
-            test_zip.write(f"./tmp/{i}.txt")
-        test_zip.write(f"./tmp/{5}.txt")
+            test_zip.writestr(f"{i}.txt", "test".encode('utf-8'))
+        test_zip.writestr(f"{5}.txt", "test".encode('utf-8'))
         test_zip.close()
         with open("./tmp/test.zip", 'rb') as test_zip:
             data = {
@@ -386,16 +380,10 @@ class TaskTests(TestCase):
         # open file
         if not os.path.exists("./tmp"):
             os.mkdir("./tmp")
-        for i in range(1, 3):
-            with open(f"./tmp/{i}.jpg", 'wb') as f:
-                f.write(b"")
-        with open("./tmp/5.jpg", 'wb') as f:
-            f.write(b"")
-
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
         for i in range(1, 3):
-            test_zip.write(f"./tmp/{i}.jpg")
-        test_zip.write(f"./tmp/{5}.jpg")
+            test_zip.writestr(f"{i}.jpg", b"")
+        test_zip.writestr(f"{5}.jpg", b"")
         test_zip.close()
         with open("./tmp/test.zip", 'rb') as test_zip:
             data = {
