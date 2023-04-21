@@ -25,7 +25,7 @@ build:
   services:
     - name: mysql:5.7
       alias: mysql
-  image: python:3.9
+  image: python:3.10
   stage: test
   before_script:
     - pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
@@ -33,7 +33,6 @@ build:
 unit-test:
   extends: .test
   script:
-    - python3 manage.py makemigrations
     - python3 manage.py migrate
     - bash test.sh
   after_script:
