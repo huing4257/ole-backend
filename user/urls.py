@@ -9,6 +9,6 @@ urlpatterns = [
     path('modifypassword', views.modify_password),
     path('ban_user/<int:user_id>', views.ban_user),
     path('get_all_users', views.get_all_users),   
-    path('getvip',views.getvip),
+    path('getvip', views.getvip),
     path('check_user/<int:user_id>', views.check_user),
 ]

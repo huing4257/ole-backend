@@ -8,31 +8,12 @@ from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from user.models import User, BanUser
-from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
+from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType, Category
 from review.models import AnsList
 from django.core.cache import cache
 
 
 # Create your views here.
-
-def task_modify_util(req: HttpRequest, task: Task):
-    body = json.loads(req.body.decode("utf-8"))
-    task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
-    task.task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
-    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
-                                err_code=9)
-    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
-                                    err_code=9)
-    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
-                                    err_code=9)
-    task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
-    task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
-    task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
-    # 构建这个task的questions，把数据绑定到每个上
-    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
-    # print(file_list)
-    return body, file_list
-
 
 @CheckLogin
 def create_task(req: HttpRequest, user: User):
@@ -48,8 +29,25 @@ def create_task(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
+# 用于从请求体中读取数据修改任务信息的函数
 def change_tasks(req: HttpRequest, task: Task):
-    body, file_list = task_modify_util(req, task)
+    body = json.loads(req.body.decode("utf-8"))
+    # 捕获任务样式中的内容并分割成词
+    task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
+    for _category in task_style.split(' '):
+        if _category:
+            category = Category.objects.create(category=_category)
+            task.task_style.add(category)
+    # 修改
+    task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
+    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error", err_code=9)
+    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error", err_code=9)
+    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error", err_code=9)
+    task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
+    task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
+    task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
+    # 构建这个task的questions，把数据绑定到每个上
+    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
     tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
     if body["stdans_tag"] != "":
         ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
@@ -63,6 +61,7 @@ def change_tasks(req: HttpRequest, task: Task):
             question.tag_type.add(tag_type)
         question.save()
         task.questions.add(question)
+    task.save()
     return task
 
 
@@ -82,6 +81,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         else:
             # 可以修改
             task.questions.set([])
+            task.task_style.set([])
             task.save()
             change_tasks(req, task)
             if user.score < task.reward_per_q * task.distribute_user_num:
@@ -102,6 +102,8 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             return request_success()
     elif req.method == 'GET':
         task = Task.objects.filter(task_id=task_id).first()
+        # for category in task.task_style.all():
+        #     print(category.category)
         if not task:
             return request_failed(11, "task does not exist", 404)
         ret_data = task.serialize()

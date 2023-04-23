@@ -108,7 +108,7 @@ class Progress(models.Model):
 
 class Task(models.Model):
     task_type = models.CharField(max_length=20)
-    task_style = models.ManyToManyField(Category, default=[]) #  用任务样式作为给任务分类的依据
+    task_style = models.ManyToManyField(Category, default=[])  # 用任务样式作为给任务分类的依据
     reward_per_q = models.IntegerField(default=0)
     time_limit_per_q = models.IntegerField(default=0)
     total_time_limit = models.IntegerField(default=0)
