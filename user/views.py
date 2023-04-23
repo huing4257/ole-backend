@@ -125,6 +125,7 @@ def ban_user(req: HttpRequest, user: User, user_id: int):
             return request_success()
     else:
         return BAD_METHOD
+    
 
 @CheckRequire
 @CheckLogin
@@ -176,6 +177,7 @@ def get_all_users(req: HttpRequest, user: User):
     else:
         return BAD_METHOD        
     
+
 @CheckLogin
 @CheckRequire
 def getvip(req: HttpRequest, user: User):
@@ -213,10 +215,20 @@ def getvip(req: HttpRequest, user: User):
             else:
                 return request_failed(5, "score not enough")            
         else:
-            return(1005, "invalid request")
+            return (1005, "invalid request")
     else:
         return BAD_METHOD
+    
 
 @CheckLogin
 def check_user(req: HttpRequest, user: User, user_id: int):
-    pass
+    if req.method == "POST":
+        if user.user_type != "admin":
+            return request_failed(19, "no permission")
+        else:
+            target_user = User.objects.filter(user_id=user_id).first()
+            target_user.is_checked = True
+            target_user.save()
+            return request_success()
+    else:
+        return BAD_METHOD        
