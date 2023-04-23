@@ -15,6 +15,8 @@ class User(models.Model):
     account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)
+    is_checked = models.BooleanField(default=False)
+    is_banned = models.BooleanField(default=False)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
@@ -32,6 +34,8 @@ class User(models.Model):
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
+            "is_checked": self.is_checked,
+            "is_banned": self.is_banned,
         } if private else {
             "user_id": self.user_id,
             "user_name": self.user_name,

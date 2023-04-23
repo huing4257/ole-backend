@@ -38,6 +38,15 @@ class TagType(models.Model):
         return {
             "type_name": self.type_name,
         }
+    
+
+class Category(models.Model):
+    category = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "category": self.category,
+        }
 
 
 class Question(models.Model):
@@ -116,6 +125,9 @@ class Task(models.Model):
     accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
     tag_type = models.ManyToManyField(TagType, default=[])
     ans_list = models.ForeignKey(AnsList, on_delete=models.CASCADE, null=True)
+    categories = models.ManyToManyField(Category, default=[])
+    agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hand_out_task", null=True)
+    check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="fail")
 
     def serialize(self):
         return {
@@ -136,5 +148,8 @@ class Task(models.Model):
             "result_type": self.result_type,
             "accept_method": self.accept_method,
             "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()],
-            "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else []
+            "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else [],
+            "categories": [category.category for category in self.categories.all()],
+            "agent": self.agent.serialize() if self.agent else None,
+            "check_result": self.check_result,
         }
