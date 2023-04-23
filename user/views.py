@@ -112,3 +112,111 @@ def modify_password(req: HttpRequest, user: User):
             return request_failed(4, "wrong password")
     else:
         return BAD_METHOD
+
+
+@CheckLogin
+def ban_user(req: HttpRequest, user: User, user_id: int):
+    if req.method == "POST":
+        if user.user_type != "admin":
+            return request_failed(19, "no permission")
+        else:
+            to_ban_user = User.objects.filter(user_id=user_id).first()
+            to_ban_user.is_banned = True
+            return request_success()
+    else:
+        return BAD_METHOD
+
+@CheckRequire
+@CheckLogin
+def get_all_users(req: HttpRequest, user: User):
+    if req.method == "GET":
+        type = req.GET.get("type")
+        if type == "all":
+            if user.user_type != "admin":
+                return request_failed(19, "no permission")
+            else:
+                # 查看所有的用户
+                user_list: list = list()
+                for usr in User.objects.all():
+                    user_list.append(
+                        {
+                            "user_id": usr.user_id,
+                            "user_name": usr.user_name,
+                            "score": usr.score,
+                            "membership_level": usr.membership_level,
+                            "credit_score": usr.credit_score,
+                            "vip_expire_time": usr.vip_expire_time,
+                            "is_checked": usr.is_checked,
+                            "is_banned": usr.is_banned
+                        }
+                    )
+                return request_success(user_list)
+        elif type == "tag":
+            if user.user_type != "admin" and user.user_type != "agent":
+                return request_failed(19, "no permission")
+            else:
+                user_list: list = list()
+                # 查看所有的标注方
+                for usr in User.objects.filter(user_type="tag").all():
+                    user_list.append(
+                        {
+                            "user_id": usr.user_id,
+                            "user_name": usr.user_name,
+                            "score": usr.score,
+                            "membership_level": usr.membership_level,
+                            "credit_score": usr.credit_score,
+                            "vip_expire_time": usr.vip_expire_time,
+                            "is_checked": usr.is_checked,
+                            "is_banned": usr.is_banned
+                        }
+                    )
+                return request_success(user_list)                
+        else:
+            return request_failed(1005, "invalid request")
+    else:
+        return BAD_METHOD        
+    
+@CheckLogin
+@CheckRequire
+def getvip(req: HttpRequest, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        package_type = require(body, "package_type", "string", err_msg="username format error", err_code=2)
+        if user.membership_level >= 1:
+            # already vip
+            return request_failed(6, "already vip")
+        if package_type == "month":
+            if user.score >= 100:
+                user.score -= 100
+                user.membership_level = 1
+                user.vip_expire_time = get_timestamp() + 15
+                user.save()
+                return request_success()
+            else:
+                return request_failed(5, "score not enough")
+        elif package_type == "season":
+            if user.score >= 250:
+                user.score -= 250
+                user.membership_level = 2
+                user.vip_expire_time = get_timestamp() + 30
+                user.save()
+                return request_success()
+            else:
+                return request_failed(5, "score not enough")
+        elif package_type == "year":
+            if user.score >= 600:
+                user.score -= 600
+                user.membership_level = 3
+                user.vip_expire_time = get_timestamp() + 60
+                user.save()
+                return request_success()
+            else:
+                return request_failed(5, "score not enough")            
+        else:
+            return(1005, "invalid request")
+    else:
+        return BAD_METHOD
+
+@CheckLogin
+def check_user(req: HttpRequest, user: User, user_id: int):
+    pass
