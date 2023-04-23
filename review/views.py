@@ -40,6 +40,7 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
         if check_method == "select":  # 随机抽取任务总题数的1/10
             q_all_list = list(task.questions.all())
             q_num = len(q_all_list)  # 总题数
+            # print(q_num)
             # 如果总数过高，则不按比例抽取，固定抽取100道题，总数过低全抽
             check_num = 100 if q_num > 1000 else q_num // 10 if q_num > 100 else min(q_num, 10)
             q_list: list[Question] = secrets.SystemRandom().sample(q_all_list, check_num)

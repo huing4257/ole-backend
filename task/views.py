@@ -34,15 +34,11 @@ def task_modify_util(req: HttpRequest, task: Task):
     return body, file_list
 
 
-def require_tasks(req: HttpRequest):
-    task = Task.objects.create()
-    return change_tasks(req, task)
-
-
 @CheckLogin
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
-        task: Task = require_tasks(req)
+        task = Task.objects.create()
+        task = change_tasks(req, task)
         if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
             return request_failed(10, "score not enough", status_code=400)
         task.publisher = user

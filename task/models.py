@@ -127,7 +127,7 @@ class Task(models.Model):
     ans_list = models.ForeignKey(AnsList, on_delete=models.CASCADE, null=True)
     categories = models.ManyToManyField(Category, default=[])
     agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hand_out_task", null=True)
-    check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="fail")
+    check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
 
     def serialize(self):
         return {
