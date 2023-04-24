@@ -40,9 +40,12 @@ def change_tasks(req: HttpRequest, task: Task):
             task.task_style.add(category)
     # 修改
     task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
-    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error", err_code=9)
-    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error", err_code=9)
-    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error", err_code=9)
+    task.reward_per_q = require(body, "reward_per_q", "int", err_msg="time limit or reward score format error",
+                                err_code=9)
+    task.time_limit_per_q = require(body, "time_limit_per_q", "int", err_msg="time limit or reward score format error",
+                                    err_code=9)
+    task.total_time_limit = require(body, "total_time_limit", "int", err_msg="time limit or reward score format error",
+                                    err_code=9)
     task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
     task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
@@ -518,6 +521,29 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
+        task.save()
+        return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+def distribute_to_user(req: HttpRequest, user: User, task_id: int, user_id: int):
+    if req.method == "POST":
+        if user.user_type != "agent":
+            return request_failed(19, "no permission")
+        task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(14, "task not created", 404)
+        if task.current_tag_user_list.count() >= task.distribute_user_num:
+            return request_failed(20, "The tasks have all been distributed")
+        if task.past_tag_user_list.filter(user_id=user_id).exists():
+            return request_failed(24, "user is distributed before")  # remains to be modified
+        if task.current_tag_user_list.filter(tag_user=User.objects.filter(user_id=user_id).first()).exists():
+            return request_failed(25, "user has been distributed")  # remains to be modified
+
+        cur_tag_user = Current_tag_user.objects.create(tag_user=User.objects.filter(user_id=user_id).first())
+        task.current_tag_user_list.add(cur_tag_user)
         task.save()
         return request_success()
     else:
