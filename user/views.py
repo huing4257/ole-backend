@@ -125,7 +125,7 @@ def ban_user(req: HttpRequest, user: User, user_id: int):
             return request_success()
     else:
         return BAD_METHOD
-    
+
 
 @CheckRequire
 @CheckLogin
@@ -171,12 +171,12 @@ def get_all_users(req: HttpRequest, user: User):
                             "is_banned": usr.is_banned
                         }
                     )
-                return request_success(user_list)                
+                return request_success(user_list)
         else:
             return request_failed(1005, "invalid request")
     else:
-        return BAD_METHOD        
-    
+        return BAD_METHOD
+
 
 @CheckLogin
 @CheckRequire
@@ -213,12 +213,12 @@ def getvip(req: HttpRequest, user: User):
                 user.save()
                 return request_success()
             else:
-                return request_failed(5, "score not enough")            
+                return request_failed(5, "score not enough")
         else:
             return (1005, "invalid request")
     else:
         return BAD_METHOD
-    
+
 
 @CheckLogin
 def check_user(req: HttpRequest, user: User, user_id: int):
@@ -231,4 +231,22 @@ def check_user(req: HttpRequest, user: User, user_id: int):
             target_user.save()
             return request_success()
     else:
-        return BAD_METHOD        
+        return BAD_METHOD
+
+
+@CheckLogin
+def get_agent_list(req: HttpRequest, user: User):
+    if req.method == "GET":
+        if user.user_type != "agent":
+            return request_failed(19, "no permission")
+        else:
+            agent_list = list()
+            for agent in User.objects.filter(user_type="agent").all():
+                agent_list.append(
+                    {
+                        "user_id": agent.user_id,
+                    }
+                )
+            return request_success(agent_list)
+    else:
+        return BAD_METHOD
