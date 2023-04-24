@@ -4,7 +4,7 @@ from utils.utils_require import MAX_CHAR_LENGTH
 
 # Create your models here.
 class Category(models.Model):
-    category = models.CharField(max_length=MAX_CHAR_LENGTH)
+    category = models.CharField(unique=True, max_length=MAX_CHAR_LENGTH)
 
     def serialize(self):
         return {

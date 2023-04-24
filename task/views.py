@@ -7,7 +7,7 @@ from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
-from user.models import User
+from user.models import User, Category, UserCategory
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType, Category
 from review.models import AnsList
 from django.core.cache import cache
@@ -36,7 +36,7 @@ def change_tasks(req: HttpRequest, task: Task):
     task_style = require(body, "task_style", "string", err_msg="Missing or error type of [taskStyle]")
     for _category in task_style.split(' '):
         if _category:
-            category = Category.objects.create(category=_category)
+            category, created = Category.objects.get_or_create(category=_category)
             task.task_style.add(category)
     # 修改
     task.task_type = require(body, "task_type", "string", err_msg="Missing or error type of [taskType]")
@@ -49,6 +49,7 @@ def change_tasks(req: HttpRequest, task: Task):
     task.distribute_user_num = require(body, "distribute_user_num", "int", err_msg="distribute user num format error")
     task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
+    task.strategy = require(body, "strategy", "string", err_msg="Missing or error type of [strategy]")
     # 构建这个task的questions，把数据绑定到每个上
     file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
     tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
@@ -412,6 +413,10 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
                     current_tag_user.accepted_at = get_timestamp()
                     current_tag_user.save()
             task.save()
+            for category in task.task_style.all():
+                user_category, created = UserCategory.objects.get_or_create(user=user, category=category)
+                user_category.count += 1
+                user_category.save()
             return request_success(task.serialize())
         else:
             # no permission to accept
