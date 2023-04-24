@@ -169,6 +169,8 @@ class UserTests(TestCase):
                 "user_name": "testUser",
                 "user_type": "admin",
                 "score": 0,
+                'is_banned': False,
+                'is_checked': False,
                 "membership_level": 0,
                 "invite_code": "testInviteCode",
                 "credit_score": 100,
