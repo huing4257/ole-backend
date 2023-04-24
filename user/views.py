@@ -1,4 +1,6 @@
 import json
+import random
+import string
 from django.http import HttpRequest
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require, CheckRequire
@@ -8,6 +10,9 @@ from user.models import User, UserToken
 import bcrypt
 
 
+# 将待注册的用户名和密码作为请求体，后端首先比对是否有重复的用户名，再验证用户名和密码的合法性。若均合法，
+# 则判断邀请码是否为空，若不为空则查询该邀请码，若存在则给邀请方奖励积分，否则返回错误响应；若邀请码为空
+# 则跳过这步。最后将加密后的密码、用户名以及生成的不重复邀请码和不重复银行账户一起存储。
 @CheckRequire
 def register(req: HttpRequest):
     if req.method == "POST":
@@ -20,8 +25,18 @@ def register(req: HttpRequest):
             password = require(body, "password", "string", err_msg="username format error", err_code=3)
             user_type = require(body, "user_type", "string", err_msg="Missing or error type of [userType]")
             assert user_type in ["admin", "demand", "tag"], "Invalid userType"
+            invite_code = require(body, "invite_code", "string", err_msg="username format error", err_code=4)
+            if invite_code:
+                inviter = User.objects.filter(invite_code=invite_code).first()
+                if inviter:
+                    inviter.score += 2
+                    inviter.save()
+                else:
+                    return request_failed(92, "wrong invite code")
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-            user = User(user_name=user_name, password=hashed_password, user_type=user_type)
+            # 生成8位验证码
+            ran_str = ''.join(random.sample(string.ascii_letters + string.digits, 8))
+            user = User(user_name=user_name, password=hashed_password, user_type=user_type, invite_code=ran_str)
             user.save()
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
