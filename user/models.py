@@ -63,6 +63,8 @@ class User(models.Model):
             "membership_level": self.membership_level,
             "credit_score": self.credit_score,
             "grow_value": self.grow_value,
+            "is_checked": self.is_checked,
+            "is_banned": self.is_banned,
         }
 
     def __str__(self) -> str:

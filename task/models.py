@@ -149,6 +149,6 @@ class Task(models.Model):
             "task_type": self.task_type,
             "task_style": " ".join([tag.category for tag in self.task_style.all()]),
             "accept_method": self.accept_method,
-            "publisher": self.publisher.user_name,
+            "publisher": self.publisher.serialize(),
             "check_result": self.check_result,
         }

@@ -11,6 +11,7 @@ def CheckLogin(check_fn):
             response = request_failed(1001, "not_logged_in", 401)
             response.delete_cookie('token')
             response.delete_cookie('userId')
+            response.delete_cookie('user_type')
             return response
         else:
             user = UserToken.objects.get(token=req.COOKIES['token']).user
