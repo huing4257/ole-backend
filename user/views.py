@@ -163,7 +163,8 @@ def get_all_users(req: HttpRequest, user: User):
                             "credit_score": usr.credit_score,
                             "vip_expire_time": usr.vip_expire_time,
                             "is_checked": usr.is_checked,
-                            "is_banned": usr.is_banned
+                            "is_banned": usr.is_banned,
+                            "user_type": usr.user_type,
                         }
                     )
                 return request_success(user_list)
