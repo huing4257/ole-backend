@@ -123,7 +123,7 @@ class Task(models.Model):
     def serialize(self, short=False):
         return {
             "task_type": self.task_type,
-            "task_style": [category.category for category in self.task_style.all()],
+            "task_style": " ".join([tag.category for tag in self.task_style.all()]),
             "reward_per_q": self.reward_per_q,
             "time_limit_per_q": self.time_limit_per_q,
             "total_time_limit": self.total_time_limit,
@@ -147,7 +147,7 @@ class Task(models.Model):
             "task_id": self.task_id,
             "task_name": self.task_name,
             "task_type": self.task_type,
-            "task_style": [category.category for category in self.task_style.all()],
+            "task_style": " ".join([tag.category for tag in self.task_style.all()]),
             "accept_method": self.accept_method,
             "publisher": self.publisher.user_name,
         }

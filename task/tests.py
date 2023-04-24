@@ -5,7 +5,7 @@ import zipfile
 from django.test import TestCase
 
 from review.models import AnsList, AnsData
-from user.models import User
+from user.models import User, Category
 from task.models import Question, Current_tag_user, Task, TextData, TagType
 import bcrypt
 import datetime
@@ -107,6 +107,13 @@ class TaskTests(TestCase):
             )
         tag_type_list = TagType.objects.all()
 
+        category_list = ["category1", "category2", "category3"]
+        for category in category_list:
+            Category.objects.create(
+                category=category
+            )
+        category_type_list = Category.objects.all()
+
         self.task = Task.objects.create(
             task_type="text",
             reward_per_q=0,
@@ -119,6 +126,7 @@ class TaskTests(TestCase):
             q_num=3,
         )
         self.task.tag_type.set(tag_type_list)
+        self.task.task_style.set(category_type_list)
         question1 = Question.objects.create(
             q_id=1,
             data="1",
