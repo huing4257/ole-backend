@@ -88,6 +88,17 @@ class TaskTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
+        User.objects.create(
+            user_id=6,
+            user_name="testAgent",
+            password=hashed_password,
+            user_type="agent",
+            score=100,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+
+        )
 
         tag_list = ["tag1", "tag2", "tag3"]
         for tag in tag_list:
@@ -661,4 +672,24 @@ class TaskTests(TestCase):
         self.task.distribute_user_num = 2
         self.task.save()
         res = self.client.post("/task/redistribute/1")
+        self.assertEqual(res.status_code, 200)
+
+    def test_to_agent(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 4}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 19)
+
+        res = self.client.post(f"/task/to_agent/114514", {"agent_id": 6}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 14)
+
+        res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 6}, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)

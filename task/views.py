@@ -529,20 +529,22 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
 
 @CheckLogin
 @CheckRequire
-def to_agent(req: HttpRequest, _user: User, task_id: int):
+def to_agent(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
-        body = req.body.decode("utf-8")
+        body = json.loads(req.body.decode("utf-8"))
         agent_id = require(body, "agent_id", "int", err_msg="invalid request", err_code=1005)
         agent = User.objects.filter(user_id=agent_id).first()
         if not agent:
-            return request_failed(8, "agent not created", 404)
+            return request_failed(8, "user does not exist", 404)
         if agent.user_type != "agent":
             return request_failed(19, "no permission")
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 404)
+        if task.publisher != user:
+            return request_failed(19, "no permission")
         task.agent = agent
-
+        return request_success()
     else:
         return BAD_METHOD
 
