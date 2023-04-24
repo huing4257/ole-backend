@@ -150,7 +150,7 @@ def get_all_users(req: HttpRequest, user: User):
         type = req.GET.get("type")
         if type == "all":
             if user.user_type != "admin":
-                return request_failed(19, "no permission")
+                return request_failed(1006, "no permission")
             else:
                 # 查看所有的用户
                 user_list: list = list()
@@ -171,7 +171,7 @@ def get_all_users(req: HttpRequest, user: User):
                 return request_success(user_list)
         elif type == "tag":
             if user.user_type != "admin" and user.user_type != "agent":
-                return request_failed(19, "no permission")
+                return request_failed(1006, "no permission")
             else:
                 user_list: list = list()
                 # 查看所有的标注方
@@ -241,7 +241,7 @@ def getvip(req: HttpRequest, user: User):
 def check_user(req: HttpRequest, user: User, user_id: int):
     if req.method == "POST":
         if user.user_type != "admin":
-            return request_failed(19, "no permission")
+            return request_failed(1006, "no permission")
         else:
             target_user = User.objects.filter(user_id=user_id).first()
             target_user.is_checked = True
@@ -255,7 +255,7 @@ def check_user(req: HttpRequest, user: User, user_id: int):
 def get_agent_list(req: HttpRequest, user: User):
     if req.method == "GET":
         if user.user_type != "demand":
-            return request_failed(19, "no permission")
+            return request_failed(1006, "no permission")
         agent_list = list()
         for agent in User.objects.filter(user_type="agent").all():
             agent_list.append(agent.user_id)

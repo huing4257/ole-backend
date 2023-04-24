@@ -121,8 +121,10 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
 
 
 @CheckLogin
-def get_all_tasks(req: HttpRequest, _user: User):
+def get_all_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
+        if user.user_type != "admin":
+            return request_failed(1006, "no permission", status_code=400)
         tasks = Task.objects.all()
         task_list: list = list()
         for element in tasks:
@@ -431,7 +433,7 @@ def get_progress(req: HttpRequest, user: User, task_id: int):
                 # 这个用户还没做过这个题目
                 return request_success({"q_id": 1})
         else:
-            return request_failed(19, "no access permission")
+            return request_failed(1006, "no access permission")
     else:
         return BAD_METHOD
 
@@ -537,12 +539,12 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
         if not agent:
             return request_failed(8, "user does not exist", 404)
         if agent.user_type != "agent":
-            return request_failed(19, "no permission")
+            return request_failed(1006, "no permission")
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 404)
         if task.publisher != user:
-            return request_failed(19, "no permission")
+            return request_failed(1006, "no permission")
         task.agent = agent
         task.save()
         return request_success()
@@ -554,7 +556,7 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
 def distribute_to_user(req: HttpRequest, user: User, task_id: int, user_id: int):
     if req.method == "POST":
         if user.user_type != "agent":
-            return request_failed(19, "no permission")
+            return request_failed(1006, "no permission")
         task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 404)

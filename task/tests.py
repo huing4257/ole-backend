@@ -573,7 +573,7 @@ class TaskTests(TestCase):
                          content_type=default_content_type)
         res = self.client.get("/task/progress/1", content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json()["code"], 19)
+        self.assertEqual(res.json()["code"], 1006)
 
     def test_is_accepted_success(self):
         self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
@@ -685,7 +685,7 @@ class TaskTests(TestCase):
 
         res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 4}, content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json()["code"], 19)
+        self.assertEqual(res.json()["code"], 1006)
 
         res = self.client.post(f"/task/to_agent/114514", {"agent_id": 6}, content_type=default_content_type)
         self.assertEqual(res.status_code, 404)
