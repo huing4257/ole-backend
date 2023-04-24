@@ -693,6 +693,8 @@ class TaskTests(TestCase):
 
         res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 6}, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
+        task = Task.objects.get(task_id=task_id)
+        self.assertEqual(task.agent.user_id, 6)
 
     def test_distribute_to_user(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},

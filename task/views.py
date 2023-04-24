@@ -544,6 +544,7 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
         if task.publisher != user:
             return request_failed(19, "no permission")
         task.agent = agent
+        task.save()
         return request_success()
     else:
         return BAD_METHOD
