@@ -29,7 +29,25 @@ class UserTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
-        )        
+        )
+        User.objects.create(
+            user_id=3,
+            user_name="testDemand",
+            password=hashed_password,  # store hashed password as a string
+            user_type="demand",
+            score=0,
+            membership_level=0,
+            invite_code="testInviteCode",
+        )
+        User.objects.create(
+            user_id=4,
+            user_name="testAgent",
+            password=hashed_password,
+            user_type="agent",
+            score=0,
+            membership_level=0,
+            invite_code="testInviteCode",
+        )
 
     def post_login(self, user_name, password):
         payload = {
@@ -188,8 +206,6 @@ class UserTests(TestCase):
                 "account_balance": 100,
                 "grow_value": 0,
                 "vip_expire_time": datetime.datetime.max.timestamp(),
-                "is_checked": False,
-                "is_banned": False
             }   
         })
 
@@ -221,3 +237,9 @@ class UserTests(TestCase):
 
     def check_user(self):
         pass
+
+    def test_get_agent_list(self):
+        self.post_login("testDemand", "testPassword")
+        res = self.client.get("/user/get_agent_list")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["data"]["agent_list"], [4])

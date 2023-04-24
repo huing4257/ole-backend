@@ -237,16 +237,11 @@ def check_user(req: HttpRequest, user: User, user_id: int):
 @CheckLogin
 def get_agent_list(req: HttpRequest, user: User):
     if req.method == "GET":
-        if user.user_type != "agent":
+        if user.user_type != "demand":
             return request_failed(19, "no permission")
-        else:
-            agent_list = list()
-            for agent in User.objects.filter(user_type="agent").all():
-                agent_list.append(
-                    {
-                        "user_id": agent.user_id,
-                    }
-                )
-            return request_success(agent_list)
+        agent_list = list()
+        for agent in User.objects.filter(user_type="agent").all():
+            agent_list.append(agent.user_id)
+        return request_success({"agent_list": agent_list})
     else:
         return BAD_METHOD
