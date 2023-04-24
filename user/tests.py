@@ -20,6 +20,16 @@ class UserTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
+        User.objects.create(
+            user_id=2,
+            user_name="testTag",
+            password=hashed_password,  # store hashed password as a string
+            user_type="tag",
+            score=0,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )        
 
     def post_login(self, user_name, password):
         payload = {
@@ -177,6 +187,37 @@ class UserTests(TestCase):
                 "bank_account": "",
                 "account_balance": 100,
                 "grow_value": 0,
-                "vip_expire_time": datetime.datetime.max.timestamp()
-            }
+                "vip_expire_time": datetime.datetime.max.timestamp(),
+                "is_checked": False,
+                "is_banned": False
+            }   
         })
+
+    def test_ban_user(self):
+        user_name = "testUser"
+        password = "testPassword"
+        self.post_login(user_name, password)
+        res = self.client.post(f"/user/ban_user/{2}")
+        self.assertEqual(res.status_code, 200)
+        res2 = self.client.post("/user/logout")
+        self.assertEqual(res2.status_code, 200)
+        user_name = "testTag"
+        password = "testPassword"
+        self.post_login(user_name, password)
+        res3 = self.client.post(f"/user/ban_user/{2}")
+        self.assertEqual(res3.status_code, 400)
+
+    def get_all_user(self):
+        user_name = "testUser"
+        password = "testPassword"
+        self.post_login(user_name, password)
+        res = self.client.get("/user/get_all_users", {"type": "all"})
+        self.assertEqual(res.status_code, 400)
+        res2 = self.client.get("/user/get_all_users", {"type": "tag"})
+        self.assertEqual(res2.status_code, 400)        
+
+    def getvip(self):
+        pass
+
+    def check_user(self):
+        pass
