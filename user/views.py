@@ -135,8 +135,9 @@ def ban_user(req: HttpRequest, user: User, user_id: int):
         if user.user_type != "admin":
             return request_failed(19, "no permission")
         else:
-            to_ban_user = User.objects.filter(user_id=user_id).first()
+            to_ban_user: User = User.objects.filter(user_id=user_id).first()
             to_ban_user.is_banned = True
+            to_ban_user.save()
             return request_success()
     else:
         return BAD_METHOD
