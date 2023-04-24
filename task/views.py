@@ -7,7 +7,7 @@ from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
-from user.models import User, BanUser
+from user.models import User
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType, Category
 from review.models import AnsList
 from django.core.cache import cache
@@ -348,7 +348,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         # 顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").all()
         # 设定的分发用户数比可分发的用户数多
-        if task.distribute_user_num > tag_users.count() - BanUser.objects.count():
+        if task.distribute_user_num > tag_users.count() - User.objects.filter(is_banned=True).all().count():
             return request_failed(21, "tag user not enough")
 
         # 检测分数是否足够 扣分
@@ -364,7 +364,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                 tag_user = tag_users[0]
                 user_id = tag_user.user_id
                 # 检测是否在被封禁用户列表中
-                if BanUser.objects.filter(ban_user=tag_user).exists():
+                if tag_user.is_banned:
                     continue
             else:
                 user_id += 1
@@ -373,7 +373,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                     user_id += 1
                     tag_user = tag_users.filter(user_id=user_id).first()
                 # 检测是否被封禁
-                if BanUser.objects.filter(ban_user=tag_user).exists():
+                if tag_user.is_banned:
                     continue
             cache.set('current_user_id', user_id)
             current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
@@ -493,7 +493,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         task.save()
         tag_users = User.objects.filter(user_type="tag").all()
         invalid_num = task.past_tag_user_list.count()
-        for ban_user in BanUser.objects.all():
+        for ban_user in User.objects.filter(is_banned=True).all():
             if not task.past_tag_user_list.filter(user=ban_user.ban_user).exists():
                 invalid_num += 1
         if task.distribute_user_num > tag_users.count() - invalid_num:
@@ -511,7 +511,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                     user_id += 1
                     tag_user = tag_users.filter(user_id=user_id).first()
             # 检测是否在被封禁用户列表中
-            if BanUser.objects.filter(ban_user=tag_user).exists():
+            if tag_user.is_banned:
                 continue
             if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                 continue
