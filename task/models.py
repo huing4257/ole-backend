@@ -143,11 +143,12 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
-        } if short else {
+        } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,
             "task_type": self.task_type,
             "task_style": " ".join([tag.category for tag in self.task_style.all()]),
             "accept_method": self.accept_method,
             "publisher": self.publisher.user_name,
+            "check_result": self.check_result,
         }
