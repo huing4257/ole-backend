@@ -319,7 +319,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
 
     def test_get_all_tasks(self):
-        res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+        res = self.client.post("/user/login", {"user_name": "testAdmin", "password": "testPassword"},
                                content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         res = self.client.get("/task/get_all_tasks")
@@ -328,7 +328,7 @@ class TaskTests(TestCase):
         self.assertJSONEqual(res.content, {
             "code": 0,
             "message": "Succeed",
-            "data": [task.serialize() for task in tasks]
+            "data": [task.serialize(short=True) for task in tasks]
         })
 
     def test_get_my_tasks_publisher(self):
@@ -687,7 +687,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 1006)
 
-        res = self.client.post(f"/task/to_agent/114514", {"agent_id": 6}, content_type=default_content_type)
+        res = self.client.post("/task/to_agent/114514", {"agent_id": 6}, content_type=default_content_type)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()["code"], 14)
 
@@ -708,7 +708,7 @@ class TaskTests(TestCase):
 
         self.client.post("/user/logout")
         res = self.client.post("/user/login", {"user_name": "testAgent", "password": "testPassword"},
-                         content_type=default_content_type)
+                               content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
 
         res = self.client.post(f"/task/distribute_to_user/{task_id}/{2}", content_type=default_content_type)

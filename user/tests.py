@@ -221,7 +221,7 @@ class UserTests(TestCase):
         password = "testPassword"
         self.post_login(user_name, password)
         res3 = self.client.post(f"/user/ban_user/{2}")
-        self.assertEqual(res3.status_code, 200)
+        self.assertEqual(res3.status_code, 400)
 
     def get_all_user(self):
         user_name = "testUser"

@@ -120,7 +120,7 @@ class Task(models.Model):
     check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
     strategy = models.CharField(max_length=MAX_CHAR_LENGTH, default="order")
 
-    def serialize(self):
+    def serialize(self, short=False):
         return {
             "task_type": self.task_type,
             "task_style": [category.category for category in self.task_style.all()],
@@ -143,4 +143,11 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
+        } if short else {
+            "task_id": self.task_id,
+            "task_name": self.task_name,
+            "task_type": self.task_type,
+            "task_style": [category.category for category in self.task_style.all()],
+            "accept_method": self.accept_method,
+            "publisher": self.publisher.serialize(),
         }

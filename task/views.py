@@ -128,7 +128,7 @@ def get_all_tasks(req: HttpRequest, user: User):
         tasks = Task.objects.all()
         task_list: list = list()
         for element in tasks:
-            task_list.append(element.serialize())
+            task_list.append(element.serialize(short=True))
         return request_success(task_list)
     else:
         return BAD_METHOD
