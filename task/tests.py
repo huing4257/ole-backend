@@ -98,7 +98,6 @@ class TaskTests(TestCase):
 
         self.task = Task.objects.create(
             task_type="text",
-            task_style="",
             reward_per_q=0,
             time_limit_per_q=1,
             total_time_limit=1,
