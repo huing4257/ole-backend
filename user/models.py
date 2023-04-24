@@ -1,7 +1,26 @@
 from django.db import models
+from utils.utils_require import MAX_CHAR_LENGTH
 
 
 # Create your models here.
+class Category(models.Model):
+    category = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "category": self.category,
+        }
+
+
+class UserCategory(models.Model):
+    # 关联的用户
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    # 任务分类
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    # 接取该分类的任务的次数
+    count = models.IntegerField(default=0)
+
+
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
     user_name = models.CharField(max_length=200, unique=True)
@@ -17,6 +36,7 @@ class User(models.Model):
     vip_expire_time = models.FloatField(default=0)
     is_checked = models.BooleanField(default=False)
     is_banned = models.BooleanField(default=False)
+    categories = models.ManyToManyField(Category, through=UserCategory)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
@@ -55,5 +75,3 @@ class UserToken(models.Model):
 
     class Meta:
         db_table = 'user_token'
-
-

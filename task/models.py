@@ -1,5 +1,5 @@
 from django.db import models
-from user.models import User
+from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
 
@@ -37,15 +37,6 @@ class TagType(models.Model):
     def serialize(self):
         return {
             "type_name": self.type_name,
-        }
-    
-
-class Category(models.Model):
-    category = models.CharField(max_length=MAX_CHAR_LENGTH)
-
-    def serialize(self):
-        return {
-            "category": self.category,
         }
 
 
@@ -127,6 +118,7 @@ class Task(models.Model):
     ans_list = models.ForeignKey(AnsList, on_delete=models.CASCADE, null=True)
     agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hand_out_task", null=True)
     check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
+    strategy = models.CharField(max_length=MAX_CHAR_LENGTH, default="order")
 
     def serialize(self):
         return {
@@ -150,4 +142,5 @@ class Task(models.Model):
             "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else [],
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
+            "strategy": self.strategy,
         }
