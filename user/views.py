@@ -16,16 +16,16 @@ import bcrypt
 @CheckRequire
 def register(req: HttpRequest):
     if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
+        body: dict = json.loads(req.body.decode("utf-8"))
         user_name = require(body, "user_name", "string", err_msg="username format error", err_code=2)
         user = User.objects.filter(user_name=user_name).first()
         if user:
             return request_failed(1, "existing username")
         else:
-            password = require(body, "password", "string", err_msg="username format error", err_code=3)
+            password = require(body, "password", "string", err_msg="password format error", err_code=3)
             user_type = require(body, "user_type", "string", err_msg="Missing or error type of [userType]")
             assert user_type in ["admin", "demand", "tag"], "Invalid userType"
-            invite_code = require(body, "invite_code", "string", err_msg="username format error", err_code=4)
+            invite_code = body.get("invite_code", None)
             if invite_code:
                 inviter = User.objects.filter(invite_code=invite_code).first()
                 if inviter:
