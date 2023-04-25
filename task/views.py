@@ -8,7 +8,7 @@ from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from user.models import User, Category, UserCategory
-from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType, Category
+from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 from review.models import AnsList
 from django.core.cache import cache
 
