@@ -23,7 +23,8 @@ class ReviewTests(TestCase):
         "task_name": "testTask",
         "accept_method": "manual",
         "tag_type": ["tag1", "tag2", "tag3"],
-        "stdans_tag": ""
+        "stdans_tag": "",
+        "strategy": "order"
     }
 
     def setUp(self) -> None:
