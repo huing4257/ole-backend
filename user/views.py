@@ -44,16 +44,6 @@ def register(req: HttpRequest):
 @CheckRequire
 def login(req: HttpRequest):
     if req.method == "POST":
-        # 通过cookie判断是否已经登录
-        if "token" in req.COOKIES and UserToken.objects.filter(token=req.COOKIES["token"]).exists():
-            user = UserToken.objects.get(token=req.COOKIES["token"]).user
-            return_data = {
-                "user_id": user.user_id,
-                "user_name": user.user_name,
-                "user_type": user.user_type,
-            }
-            return request_success(return_data)
-
         body = json.loads(req.body.decode("utf-8"))
         username = require(body, "user_name", "string", err_msg="invalid request", err_code=1005)
         password = require(body, "password", "string", err_msg="invalid request", err_code=1005)
