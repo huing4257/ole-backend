@@ -423,6 +423,16 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         if acc_num >= 3:
             return request_failed(30, "accept limit")
         task = Task.objects.filter(task_id=task_id).first()
+        if task.strategy == "toall":
+            if task.current_tag_user_list.count() >= task.distribute_user_num:
+                return request_failed(31, "distribution completed")
+            else:
+                if task.current_tag_user_list.filter(tag_user=user).exists():
+                    return request_failed(32, "repeat accept")
+                curr_tag_user = Current_tag_user.objects.create(tag_user=user,accepted_at=get_timestamp())
+                task.current_tag_user_list.add(curr_tag_user)
+                task.save()
+                return request_success(task.serialize())
         if task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
             for current_tag_user in task.current_tag_user_list.all():
