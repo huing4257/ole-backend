@@ -173,8 +173,8 @@ def get_my_tasks(req: HttpRequest, user: User):
             for element in all_tasks:
                 task: Task = element
                 update_task_tagger_list(task)
-                is_all_distributed = task.current_tag_user_list.count() >= task.distribute_user_num
-                return_list.append(task.serialize().update({"is_all_distributed": is_all_distributed}))
+                current_tag_user_num = task.current_tag_user_list.count()
+                return_list.append(task.serialize(short=True).update({"current_tag_user_num": current_tag_user_num}))
             return request_success(return_list)
         else:
             return request_failed(12, "no task of admin")

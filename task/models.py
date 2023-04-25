@@ -151,4 +151,5 @@ class Task(models.Model):
             "accept_method": self.accept_method,
             "publisher": self.publisher.serialize(),
             "check_result": self.check_result,
+            "distribute_user_num": self.distribute_user_num,
         }
