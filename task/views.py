@@ -6,12 +6,12 @@ from picbed.models import Image
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
-from utils.utils_time import get_timestamp
+from utils.utils_time import get_timestamp, DAY
 from user.models import User, Category, UserCategory
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 from review.models import AnsList
 from django.core.cache import cache
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.db.models.functions import Coalesce
 
 
@@ -417,6 +417,11 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
 @CheckLogin
 def accept_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
+        # 计算一天之内接受的任务数目
+        acc_num = Current_tag_user.objects.filter(Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
+        print(acc_num)
+        if acc_num >= 3:
+            return request_failed(30, "accept limit")
         task = Task.objects.filter(task_id=task_id).first()
         if task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
