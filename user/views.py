@@ -34,8 +34,8 @@ def register(req: HttpRequest):
                 else:
                     return request_failed(92, "wrong invite code")
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-            # 生成8位验证码
-            ran_str = ''.join(secrets.SystemRandom().sample(string.ascii_letters + string.digits, 8))
+            # 生成8位邀请码
+            ran_str = ''.join(secrets.SystemRandom(user_name).sample(string.ascii_letters + string.digits, 8))
             user = User(user_name=user_name, password=hashed_password, user_type=user_type, invite_code=ran_str)
             user.save()
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
