@@ -112,9 +112,6 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         #     print(category.category)
         if not task:
             return request_failed(11, "task does not exist", 404)
-        # 任务没过审，直接报错
-        if task.check_result == "refuse":
-            return request_failed(33, "refused task")
         ret_data = task.serialize()
         if user.user_type == "tag":
             curr_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
@@ -257,9 +254,6 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         body = json.loads(req.body.decode("utf-8"))
         result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         task: Task = Task.objects.filter(task_id=task_id).first()
-        # 任务没过审，直接报错
-        if task.check_result == "refuse":
-            return request_failed(33, "refused task")
         # 处理result
         # 上传的是第q_id个问题的结果
         result = Result.objects.create(
@@ -354,6 +348,11 @@ def pre_distribute(task_id: int, user: User):
         return user_id, task, request_failed(14, "task not created", 404)
     if task.publisher != user:
         return user_id, task, request_failed(15, "no distribute permission")
+    # 任务没被审核通过
+    if task.check_result == "wait":
+        return user_id, task, request_failed(34, "task not checked")
+    if task.check_result == "refuse":
+        return user_id, task, request_failed(33, "refused task")
     return user_id, task, None
 
 
