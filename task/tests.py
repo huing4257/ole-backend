@@ -25,7 +25,8 @@ class TaskTests(TestCase):
         "accept_method": "auto",
         "files": [1, 2, 3, 4],
         "tag_type": ["tag1", "tag2", "tag3"],
-        "stdans_tag": ""
+        "stdans_tag": "",
+        "strategy": "order"
     }
 
     def setUp(self) -> None:
