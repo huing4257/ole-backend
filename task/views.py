@@ -164,6 +164,15 @@ def get_my_tasks(req: HttpRequest, user: User):
                             unfinish_list.append(element.serialize())
             finish_list.reverse()
             return request_success(unfinish_list + finish_list)
+        elif user.user_type == "agent":
+            all_tasks = user.hand_out_task.all()
+            return_list = list()
+            for element in all_tasks:
+                task: Task = element
+                update_task_tagger_list(task)
+                is_all_distributed = task.current_tag_user_list.count() >= task.distribute_user_num
+                return_list.append(task.serialize().update({"is_all_distributed": is_all_distributed}))
+            return request_success(return_list)
         else:
             return request_failed(12, "no task of admin")
     else:
@@ -484,20 +493,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         if err is not None:
             return err
 
-        current_tagger_list = task.current_tag_user_list.all()
-        for current_tagger in current_tagger_list:
-            if current_tagger.accepted_at is None:
-                continue
-            if current_tagger.accepted_at == -1:
-                task.past_tag_user_list.add(current_tagger.tag_user)
-                task.current_tag_user_list.remove(current_tagger)
-                continue
-            if current_tagger.is_finished:
-                continue
-            if task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
-                task.past_tag_user_list.add(current_tagger.tag_user)
-                task.current_tag_user_list.remove(current_tagger)
-        task.save()
+        update_task_tagger_list(task)
         tag_users = User.objects.filter(user_type="tag").all()
         invalid_num = task.past_tag_user_list.count()
         for ban_user in User.objects.filter(is_banned=True).all():
@@ -532,6 +528,23 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         return request_success()
     else:
         return BAD_METHOD
+
+
+def update_task_tagger_list(task):
+    current_tagger_list = task.current_tag_user_list.all()
+    for current_tagger in current_tagger_list:
+        if current_tagger.accepted_at is None:
+            continue
+        if current_tagger.accepted_at == -1:
+            task.past_tag_user_list.add(current_tagger.tag_user)
+            task.current_tag_user_list.remove(current_tagger)
+            continue
+        if current_tagger.is_finished:
+            continue
+        if task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+            task.past_tag_user_list.add(current_tagger.tag_user)
+            task.current_tag_user_list.remove(current_tagger)
+    task.save()
 
 
 @CheckLogin
