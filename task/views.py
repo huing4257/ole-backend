@@ -11,6 +11,8 @@ from user.models import User, Category, UserCategory
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 from review.models import AnsList
 from django.core.cache import cache
+from django.db.models import Count
+from django.db.models.functions import Coalesce
 
 
 # Create your views here.
@@ -113,7 +115,8 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         ret_data = task.serialize()
         if user.user_type == "tag":
             curr_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
-            ret_data['accepted_time'] = curr_user.accepted_at
+            if curr_user:
+                ret_data['accepted_time'] = curr_user.accepted_at
         response = request_success(ret_data)
         response.set_cookie("user_type", user.user_type)
         return response
@@ -589,5 +592,22 @@ def distribute_to_user(req: HttpRequest, user: User, task_id: int, user_id: int)
         task.current_tag_user_list.add(cur_tag_user)
         task.save()
         return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def get_free_tasks(req: HttpRequest, user: User):
+    if req.method == "GET":
+        if user.user_type != "tag":
+            return request_failed(1006, "no permission")
+        categories = user.categories.annotate(task_count=Count('task')).order_by('-task_count')
+        tasks = Task.objects.filter(strategy="toall", task_style__in=categories).\
+            distinct().annotate(count=Coalesce('task_style__usercategory__count', 0)).order_by('-count')
+        left_tasks = Task.objects.filter(strategy="toall").exclude(task_style__in=categories)
+        return_list = [element.serialize() for element in tasks] +\
+            [element.serialize() for element in left_tasks]
+        return request_success(return_list)
     else:
         return BAD_METHOD
