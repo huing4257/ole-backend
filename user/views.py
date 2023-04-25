@@ -75,6 +75,7 @@ def login(req: HttpRequest):
                 user_token = UserToken(user=user, token=token)
                 user_token.save()
                 response.set_cookie("token", token, max_age=604800)
+                print(token)
                 response.set_cookie("userId", user.user_id, max_age=604800)
                 response.set_cookie("user_type", user.user_type, max_age=604800)
                 return response

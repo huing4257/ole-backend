@@ -429,7 +429,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             else:
                 if task.current_tag_user_list.filter(tag_user=user).exists():
                     return request_failed(32, "repeat accept")
-                curr_tag_user = Current_tag_user.objects.create(tag_user=user,accepted_at=get_timestamp())
+                curr_tag_user = Current_tag_user.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
                 task.save()
                 return request_success(task.serialize())
@@ -624,5 +624,22 @@ def get_free_tasks(req: HttpRequest, user: User):
         return_list = [element.serialize() for element in tasks] +\
             [element.serialize() for element in left_tasks]
         return request_success(return_list)
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def check_task(req: HttpRequest, user: User, task_id: int):
+    if req.method == "POST":
+        if user.user_type != "admin":
+            print(user.user_id)
+            return request_failed(16, "no permission")
+        body = json.loads(req.body.decode("utf-8"))
+        check_result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
+        task = Task.objects.filter(task_id=task_id).first()
+        task.check_result = check_result
+        task.save()
+        return request_success()
     else:
         return BAD_METHOD
