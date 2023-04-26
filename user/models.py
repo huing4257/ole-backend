@@ -1,7 +1,26 @@
 from django.db import models
+from utils.utils_require import MAX_CHAR_LENGTH
 
 
 # Create your models here.
+class Category(models.Model):
+    category = models.CharField(unique=True, max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "category": self.category,
+        }
+
+
+class UserCategory(models.Model):
+    # 关联的用户
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    # 任务分类
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    # 接取该分类的任务的次数
+    count = models.IntegerField(default=0)
+
+
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
     user_name = models.CharField(max_length=200, unique=True)
@@ -15,6 +34,9 @@ class User(models.Model):
     account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)
+    is_checked = models.BooleanField(default=False)
+    is_banned = models.BooleanField(default=False)
+    categories = models.ManyToManyField(Category, through=UserCategory)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
@@ -32,6 +54,8 @@ class User(models.Model):
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
+            "is_checked": self.is_checked,
+            "is_banned": self.is_banned,
         } if private else {
             "user_id": self.user_id,
             "user_name": self.user_name,
@@ -39,6 +63,8 @@ class User(models.Model):
             "membership_level": self.membership_level,
             "credit_score": self.credit_score,
             "grow_value": self.grow_value,
+            "is_checked": self.is_checked,
+            "is_banned": self.is_banned,
         }
 
     def __str__(self) -> str:
@@ -51,14 +77,3 @@ class UserToken(models.Model):
 
     class Meta:
         db_table = 'user_token'
-
-
-class BanUser(models.Model):
-    ban_user = models.ForeignKey(User, on_delete=models.CASCADE)
-    release_time = models.FloatField(default=0)
-
-    def serialize(self):
-        return {
-            "ban_user": self.ban_user,
-            "release_time": self.release_time
-        }

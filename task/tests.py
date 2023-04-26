@@ -5,12 +5,18 @@ import zipfile
 from django.test import TestCase
 
 from review.models import AnsList, AnsData
-from user.models import User
+from user.models import User, Category
 from task.models import Question, Current_tag_user, Task, TextData, TagType
 import bcrypt
 import datetime
 
 default_content_type = "application/json"
+
+
+def set_task_checked(task_id):
+    task = Task.objects.get(task_id=task_id)
+    task.check_result = "accept"
+    task.save()
 
 
 class TaskTests(TestCase):
@@ -25,7 +31,8 @@ class TaskTests(TestCase):
         "accept_method": "auto",
         "files": [1, 2, 3, 4],
         "tag_type": ["tag1", "tag2", "tag3"],
-        "stdans_tag": ""
+        "stdans_tag": "",
+        "strategy": "order"
     }
 
     def setUp(self) -> None:
@@ -40,6 +47,7 @@ class TaskTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
+            is_checked=True
         )
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
@@ -88,6 +96,17 @@ class TaskTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
+        User.objects.create(
+            user_id=6,
+            user_name="testAgent",
+            password=hashed_password,
+            user_type="agent",
+            score=100,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+
+        )
 
         tag_list = ["tag1", "tag2", "tag3"]
         for tag in tag_list:
@@ -96,9 +115,15 @@ class TaskTests(TestCase):
             )
         tag_type_list = TagType.objects.all()
 
+        category_list = ["category1", "category2", "category3"]
+        for category in category_list:
+            Category.objects.create(
+                category=category
+            )
+        category_type_list = Category.objects.all()
+
         self.task = Task.objects.create(
             task_type="text",
-            task_style="",
             reward_per_q=0,
             time_limit_per_q=1,
             total_time_limit=1,
@@ -109,6 +134,7 @@ class TaskTests(TestCase):
             q_num=3,
         )
         self.task.tag_type.set(tag_type_list)
+        self.task.task_style.set(category_type_list)
         question1 = Question.objects.create(
             q_id=1,
             data="1",
@@ -309,7 +335,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
 
     def test_get_all_tasks(self):
-        res = self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+        res = self.client.post("/user/login", {"user_name": "testAdmin", "password": "testPassword"},
                                content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         res = self.client.get("/task/get_all_tasks")
@@ -318,7 +344,7 @@ class TaskTests(TestCase):
         self.assertJSONEqual(res.content, {
             "code": 0,
             "message": "Succeed",
-            "data": [task.serialize() for task in tasks]
+            "data": [task.serialize(short=True) for task in tasks]
         })
 
     def test_get_my_tasks_publisher(self):
@@ -462,6 +488,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
 
+        set_task_checked(task_id)
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
@@ -488,6 +515,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
 
+        set_task_checked(task_id)
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 21)
@@ -507,8 +535,11 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
 
+        set_task_checked(task_id1)
         res = self.client.post(f"/task/distribute/{task_id1}")
         self.assertEqual(res.status_code, 200)
+
+        set_task_checked(task_id)
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 10)
@@ -563,7 +594,7 @@ class TaskTests(TestCase):
                          content_type=default_content_type)
         res = self.client.get("/task/progress/1", content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
-        self.assertEqual(res.json()["code"], 19)
+        self.assertEqual(res.json()["code"], 1006)
 
     def test_is_accepted_success(self):
         self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
@@ -593,6 +624,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 22)
 
+        set_task_checked(task_id)
         self.client.post(f"/task/distribute/{task_id}")
         res = self.client.get(f"/task/is_accepted/{task_id}", content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
@@ -625,6 +657,7 @@ class TaskTests(TestCase):
     def test_redistribute(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
+        set_task_checked(1)
 
         res = self.client.post("/task/redistribute/114514")
         self.assertEqual(res.status_code, 404)
@@ -635,31 +668,79 @@ class TaskTests(TestCase):
 
         self.task.current_tag_user_list.first().accept_at = 1
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.current_tag_user_list.first().is_finished = True
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.current_tag_user_list.first().accept_at = -1
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.current_tag_user_list.first().accept_at = None
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.distribute_user_num = 114514
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 21)
 
         self.task.distribute_user_num = 2
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
+
+    def test_to_agent(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 4}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.json()["code"], 1006)
+
+        res = self.client.post("/task/to_agent/114514", {"agent_id": 6}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()["code"], 14)
+
+        res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 6}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task = Task.objects.get(task_id=task_id)
+        self.assertEqual(task.agent.user_id, 6)
+
+    def test_distribute_to_user(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        para = self.para.copy()
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        task_id = res.json()['data']['task_id']
+
+        res = self.client.post(f"/task/to_agent/{task_id}", {"agent_id": 6}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+
+        self.client.post("/user/logout")
+        res = self.client.post("/user/login", {"user_name": "testAgent", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+
+        res = self.client.post(f"/task/distribute_to_user/{task_id}/{2}", content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        user = User.objects.get(user_id=2)
+        self.assertTrue(Task.objects.get(task_id=task_id).current_tag_user_list.filter(tag_user=user).exists())

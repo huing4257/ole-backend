@@ -1,5 +1,5 @@
 from django.db import models
-from user.models import User
+from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
 
@@ -99,7 +99,7 @@ class Progress(models.Model):
 
 class Task(models.Model):
     task_type = models.CharField(max_length=20)
-    task_style = models.CharField(max_length=MAX_CHAR_LENGTH)
+    task_style = models.ManyToManyField(Category, default=[])  # 用任务样式作为给任务分类的依据
     reward_per_q = models.IntegerField(default=0)
     time_limit_per_q = models.IntegerField(default=0)
     total_time_limit = models.IntegerField(default=0)
@@ -116,11 +116,14 @@ class Task(models.Model):
     accept_method = models.CharField(max_length=MAX_CHAR_LENGTH, default="manual")
     tag_type = models.ManyToManyField(TagType, default=[])
     ans_list = models.ForeignKey(AnsList, on_delete=models.CASCADE, null=True)
+    agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hand_out_task", null=True)
+    check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
+    strategy = models.CharField(max_length=MAX_CHAR_LENGTH, default="order")  # 分发策略
 
-    def serialize(self):
+    def serialize(self, short=False):
         return {
             "task_type": self.task_type,
-            "task_style": self.task_style,
+            "task_style": " ".join([tag.category for tag in self.task_style.all()]),
             "reward_per_q": self.reward_per_q,
             "time_limit_per_q": self.time_limit_per_q,
             "total_time_limit": self.total_time_limit,
@@ -136,5 +139,17 @@ class Task(models.Model):
             "result_type": self.result_type,
             "accept_method": self.accept_method,
             "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()],
-            "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else []
+            "ans_list": [ansdata.serialize() for ansdata in self.ans_list.ans_list.all()] if self.ans_list else [],
+            "agent": self.agent.serialize() if self.agent else None,
+            "check_result": self.check_result,
+            "strategy": self.strategy,
+        } if not short else {
+            "task_id": self.task_id,
+            "task_name": self.task_name,
+            "task_type": self.task_type,
+            "task_style": " ".join([tag.category for tag in self.task_style.all()]),
+            "accept_method": self.accept_method,
+            "publisher": self.publisher.serialize(),
+            "check_result": self.check_result,
+            "distribute_user_num": self.distribute_user_num,
         }
