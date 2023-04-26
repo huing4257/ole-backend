@@ -188,6 +188,7 @@ def get_all_users(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
+# 给vip用户增加成长值，并更新vip等级
 def add_grow_value(user: User, add: int):
     if user.membership_level == 0:
         return
@@ -212,7 +213,7 @@ def getvip(req: HttpRequest, user: User):
             if user.score >= 100:
                 user.score -= 100
                 user.membership_level = 1
-                add_grow_value(user, 100)
+                add_grow_value(user, 0)
                 user.vip_expire_time = get_timestamp() + 15
                 user.save()
                 return request_success()
@@ -222,7 +223,7 @@ def getvip(req: HttpRequest, user: User):
             if user.score >= 250:
                 user.score -= 250
                 user.membership_level = 1
-                add_grow_value(user, 250)
+                add_grow_value(user, 0)
                 user.vip_expire_time = get_timestamp() + 30
                 user.save()
                 return request_success()
@@ -232,7 +233,7 @@ def getvip(req: HttpRequest, user: User):
             if user.score >= 600:
                 user.score -= 600
                 user.membership_level = 1
-                add_grow_value(user, 600)
+                add_grow_value(user, 0)
                 user.vip_expire_time = get_timestamp() + 60
                 user.save()
                 return request_success()
@@ -279,6 +280,7 @@ def recharge(req: HttpRequest, user: User):
         amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
         if user.account_balance < amount:
             return request_failed(5, "balance not enough")
+        add_grow_value(user, amount*10)
         user.account_balance -= amount
         user.score += amount * 10
         user.save()
@@ -286,3 +288,18 @@ def recharge(req: HttpRequest, user: User):
     else:
         return BAD_METHOD
 
+
+@CheckLogin
+@CheckRequire
+def withdraw(req: HttpRequest, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
+        if user.score < amount * 10:
+            return request_failed(5, "score not enough")
+        user.account_balance += amount
+        user.score -= amount * 10
+        user.save()
+        return request_success()
+    else:
+        return BAD_METHOD
