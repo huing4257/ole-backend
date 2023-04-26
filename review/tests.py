@@ -2,6 +2,8 @@ import os
 
 from django.test import TestCase
 import bcrypt
+
+from task.models import Task
 from user.models import User
 from review.models import AnsList
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -39,6 +41,7 @@ class ReviewTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
+            is_checked=True,
         )
         test_publisher.save()
         test_receiver1 = User.objects.create(
@@ -86,6 +89,9 @@ class ReviewTests(TestCase):
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         task_id = res.json()["data"]["task_id"]
+        task = Task.objects.get(task_id=task_id)
+        task.check_result = "accept"
+        task.save()
         return task_id
 
     def test_manual_check_success(self):
@@ -110,7 +116,7 @@ class ReviewTests(TestCase):
 
         res = self.client.post(f"/review/manual_check/{task_id}/2", {
             "check_method": "select"}, content_type=default_content_type)
-        # print(res.json())
+        print(res.json())
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["data"]["q_info"][0]["result"]["tag_res"], "tag_1")
 

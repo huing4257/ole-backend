@@ -219,6 +219,11 @@ class UserTests(TestCase):
         self.assertEqual(res2.status_code, 200)
         user_name = "testTag"
         password = "testPassword"
+        res = self.post_login(user_name, password)
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(res.content, {"code": 1007, "message": "user is banned", "data": {}})
+
+        user_name = "testDemand"
         self.post_login(user_name, password)
         res3 = self.client.post(f"/user/ban_user/{2}")
         self.assertEqual(res3.status_code, 400)

@@ -13,6 +13,12 @@ import datetime
 default_content_type = "application/json"
 
 
+def set_task_checked(task_id):
+    task = Task.objects.get(task_id=task_id)
+    task.check_result = "accept"
+    task.save()
+
+
 class TaskTests(TestCase):
     para = {
         "task_type": "image",
@@ -41,6 +47,7 @@ class TaskTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
+            is_checked=True
         )
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
@@ -481,6 +488,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
 
+        set_task_checked(task_id)
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
@@ -507,6 +515,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
 
+        set_task_checked(task_id)
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 21)
@@ -526,8 +535,11 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         task_id = res.json()['data']['task_id']
 
+        set_task_checked(task_id1)
         res = self.client.post(f"/task/distribute/{task_id1}")
         self.assertEqual(res.status_code, 200)
+
+        set_task_checked(task_id)
         res = self.client.post(f"/task/distribute/{task_id}")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 10)
@@ -612,6 +624,7 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()["code"], 22)
 
+        set_task_checked(task_id)
         self.client.post(f"/task/distribute/{task_id}")
         res = self.client.get(f"/task/is_accepted/{task_id}", content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
@@ -644,6 +657,7 @@ class TaskTests(TestCase):
     def test_redistribute(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
+        set_task_checked(1)
 
         res = self.client.post("/task/redistribute/114514")
         self.assertEqual(res.status_code, 404)
@@ -654,32 +668,38 @@ class TaskTests(TestCase):
 
         self.task.current_tag_user_list.first().accept_at = 1
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.current_tag_user_list.first().is_finished = True
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.current_tag_user_list.first().accept_at = -1
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.current_tag_user_list.first().accept_at = None
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
         self.task.distribute_user_num = 114514
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 400)
         self.assertEqual(res.json()['code'], 21)
 
         self.task.distribute_user_num = 2
         self.task.save()
+        set_task_checked(1)
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
