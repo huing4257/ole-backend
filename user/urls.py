@@ -12,4 +12,5 @@ urlpatterns = [
     path('getvip', views.getvip),
     path('check_user/<int:user_id>', views.check_user),
     path('get_agent_list', views.get_agent_list),
+    path('recharge', views.recharge),
 ]

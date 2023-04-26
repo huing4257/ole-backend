@@ -269,3 +269,20 @@ def get_agent_list(req: HttpRequest, user: User):
         return request_success({"agent_list": agent_list})
     else:
         return BAD_METHOD
+    
+
+@CheckLogin
+@CheckRequire
+def recharge(req: HttpRequest, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
+        if user.account_balance < amount:
+            return request_failed(5, "balance not enough")
+        user.account_balance -= amount
+        user.score += amount * 10
+        user.save()
+        return request_success()
+    else:
+        return BAD_METHOD
+
