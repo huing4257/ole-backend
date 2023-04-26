@@ -178,7 +178,9 @@ def get_my_tasks(req: HttpRequest, user: User):
                 task: Task = element
                 update_task_tagger_list(task)
                 current_tag_user_num = task.current_tag_user_list.count()
-                return_list.append(task.serialize(short=True).update({"current_tag_user_num": current_tag_user_num}))
+                ret_task = task.serialize(short=True)
+                ret_task.update({"current_tag_user_num": current_tag_user_num})
+                return_list.append(ret_task)
             return request_success(return_list)
         else:
             return request_failed(12, "no task of admin")
