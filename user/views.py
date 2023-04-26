@@ -280,7 +280,7 @@ def recharge(req: HttpRequest, user: User):
         amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
         if user.account_balance < amount:
             return request_failed(5, "balance not enough")
-        add_grow_value(user, amount*10)
+        add_grow_value(user, amount * 10)
         user.account_balance -= amount
         user.score += amount * 10
         user.save()
