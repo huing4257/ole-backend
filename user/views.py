@@ -52,6 +52,8 @@ def login(req: HttpRequest):
             return request_failed(4, "wrong username or password", 400)
         else:
             if bcrypt.checkpw(password.encode('utf-8'), user.password):
+                if user.is_banned:
+                    return request_failed(1007, "user is banned", 400)
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,

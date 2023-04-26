@@ -15,6 +15,12 @@ def CheckLogin(check_fn):
             return response
         else:
             user = UserToken.objects.get(token=req.COOKIES['token']).user
+            if user.is_banned:
+                response = request_failed(1007, "user is banned", 400)
+                response.delete_cookie('token')
+                response.delete_cookie('userId')
+                response.delete_cookie('user_type')
+                return response
             return check_fn(req, user, *args, **kwargs)
 
     return wrap
@@ -30,5 +36,5 @@ def CheckUser(check_fn):
                 return request_failed(35, "user not checked")
         else:
             return check_fn(req, user, *args, **kwargs)
-    
+
     return wrap
