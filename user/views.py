@@ -250,8 +250,8 @@ def get_agent_list(req: HttpRequest, user: User):
         if user.user_type != "demand":
             return request_failed(1006, "no permission")
         agent_list = list()
-        for agent in User.objects.filter(user_type="agent").all():
-            agent_list.append(agent.user_id)
+        for agent in User.objects.filter(user_type="agent", is_banned=False).all():
+            agent_list.append(agent.serialize())
         return request_success({"agent_list": agent_list})
     else:
         return BAD_METHOD
