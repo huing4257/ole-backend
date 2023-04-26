@@ -473,7 +473,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
 def get_progress(req: HttpRequest, user: User, task_id: int):
     if req.method == "GET":
         task = Task.objects.filter(task_id=task_id).first()
-        if task.current_tag_user_list.filter(tag_user=user).exists():
+        if task.strategy == "toall" or task.current_tag_user_list.filter(tag_user=user).exists():
             if task.progress.filter(tag_user=user).first():
                 # 已经做过这个题目
                 qid = task.progress.filter(tag_user=user).first().q_id
@@ -495,7 +495,7 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         if not task:
             return request_failed(14, "task not created", 404)
         # 没有分发
-        if task.current_tag_user_list.count() == 0:
+        if task.strategy != "toall" and task.current_tag_user_list.count() == 0:
             return request_failed(22, "task not distributed", 400)
         for current_tag_user in task.current_tag_user_list.all():
             if current_tag_user.tag_user == user and current_tag_user.accepted_at:
@@ -641,8 +641,10 @@ def get_free_tasks(req: HttpRequest, user: User):
         tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories). \
             distinct().annotate(count=Coalesce('task_style__usercategory__count', 0)).order_by('-count')
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
-        return_list = [element.serialize() for element in tasks] + \
-                      [element.serialize() for element in left_tasks]
+        return_list = [element.serialize() for element in tasks if
+                       element.current_tag_user_list.count() < element.distribute_user_num] + \
+                      [element.serialize() for element in left_tasks if
+                       element.current_tag_user_list.count() < element.distribute_user_num]
         return request_success(return_list)
     else:
         return BAD_METHOD
