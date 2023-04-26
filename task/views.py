@@ -8,6 +8,7 @@ from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp, DAY
 from user.models import User, Category, UserCategory
+from user.views import add_grow_value
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 from review.models import AnsList
 from django.core.cache import cache
@@ -295,6 +296,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                             curr_tag_user.is_check_accepted = "fail"
                     if curr_tag_user.is_check_accepted == "pass":
                         user.score += task.reward_per_q * task.q_num
+                        add_grow_value(user, 10)
                         user.save()
                 curr_tag_user.save()
             progress.save()
@@ -386,7 +388,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         else:
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
-
+        add_grow_value(user, 10)
         current_tag_user_num = 0  # 当前被分发到的用户数
         while current_tag_user_num < task.distribute_user_num:
             if user_id >= tag_users[len(tag_users) - 1].user_id:

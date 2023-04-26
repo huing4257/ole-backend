@@ -8,6 +8,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from picbed.models import Image
 from task.models import Task, Question, Current_tag_user, TextData, Result, TagType
 from user.models import User
+from user.views import add_grow_value
 from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
@@ -87,6 +88,7 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "pass"
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
+        add_grow_value(curr_tag_user.tag_user, 10)
         curr_tag_user.tag_user.save()
         curr_tag_user.save()
         return request_success()

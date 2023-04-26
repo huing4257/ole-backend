@@ -188,6 +188,17 @@ def get_all_users(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
+def add_grow_value(user: User, add: int):
+    if user.membership_level == 0:
+        return
+    user.grow_value += add
+    if user.grow_value >= 100:
+        user.membership_level = 2
+    if user.grow_value >= 1000:
+        user.membership_level = 3
+    user.save()
+
+
 @CheckLogin
 @CheckRequire
 def getvip(req: HttpRequest, user: User):
@@ -201,6 +212,7 @@ def getvip(req: HttpRequest, user: User):
             if user.score >= 100:
                 user.score -= 100
                 user.membership_level = 1
+                add_grow_value(user, 100)
                 user.vip_expire_time = get_timestamp() + 15
                 user.save()
                 return request_success()
@@ -209,7 +221,8 @@ def getvip(req: HttpRequest, user: User):
         elif package_type == "season":
             if user.score >= 250:
                 user.score -= 250
-                user.membership_level = 2
+                user.membership_level = 1
+                add_grow_value(user, 250)
                 user.vip_expire_time = get_timestamp() + 30
                 user.save()
                 return request_success()
@@ -218,7 +231,8 @@ def getvip(req: HttpRequest, user: User):
         elif package_type == "year":
             if user.score >= 600:
                 user.score -= 600
-                user.membership_level = 3
+                user.membership_level = 1
+                add_grow_value(user, 600)
                 user.vip_expire_time = get_timestamp() + 60
                 user.save()
                 return request_success()
