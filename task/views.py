@@ -430,7 +430,8 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
 def accept_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         # 计算一天之内接受的任务数目
-        acc_num = Current_tag_user.objects.filter(Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
+        acc_num = Current_tag_user.objects.filter(
+            Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
         print(acc_num)
         if acc_num >= 3:
             return request_failed(30, "accept limit")
@@ -507,6 +508,8 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 404)
+        if task.agent:
+            return request_success({"is_distributed": True})
         if task.current_tag_user_list.count() == 0:
             return request_success({"is_distributed": False})
         else:
@@ -631,11 +634,11 @@ def get_free_tasks(req: HttpRequest, user: User):
         if user.user_type != "tag":
             return request_failed(1006, "no permission")
         categories = user.categories.annotate(task_count=Count('task')).order_by('-task_count')
-        tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories).\
+        tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories). \
             distinct().annotate(count=Coalesce('task_style__usercategory__count', 0)).order_by('-count')
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
-        return_list = [element.serialize() for element in tasks] +\
-            [element.serialize() for element in left_tasks]
+        return_list = [element.serialize() for element in tasks] + \
+                      [element.serialize() for element in left_tasks]
         return request_success(return_list)
     else:
         return BAD_METHOD
