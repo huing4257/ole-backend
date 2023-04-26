@@ -24,7 +24,7 @@ def register(req: HttpRequest):
         else:
             password = require(body, "password", "string", err_msg="password format error", err_code=3)
             user_type = require(body, "user_type", "string", err_msg="Missing or error type of [userType]")
-            assert user_type in ["admin", "demand", "tag"], "Invalid userType"
+            assert user_type in ["admin", "demand", "tag", "agent"], "Invalid userType"
             invite_code = body.get("invite_code", None)
             if invite_code:
                 inviter = User.objects.filter(invite_code=invite_code).first()
