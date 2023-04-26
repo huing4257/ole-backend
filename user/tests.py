@@ -15,7 +15,7 @@ class UserTests(TestCase):
             user_name="testUser",
             password=hashed_password,  # store hashed password as a string
             user_type="admin",
-            score=0,
+            score=1000,
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
@@ -35,7 +35,7 @@ class UserTests(TestCase):
             user_name="testDemand",
             password=hashed_password,  # store hashed password as a string
             user_type="demand",
-            score=0,
+            score=1000,
             membership_level=0,
             invite_code="testInviteCode",
         )
@@ -196,7 +196,7 @@ class UserTests(TestCase):
                 "user_id": 1,
                 "user_name": "testUser",
                 "user_type": "admin",
-                "score": 0,
+                "score": 1000,
                 'is_banned': False,
                 'is_checked': False,
                 "membership_level": 0,
@@ -228,7 +228,7 @@ class UserTests(TestCase):
         res3 = self.client.post(f"/user/ban_user/{2}")
         self.assertEqual(res3.status_code, 400)
 
-    def get_all_user(self):
+    def test_get_all_user(self):
         user_name = "testUser"
         password = "testPassword"
         self.post_login(user_name, password)
@@ -237,16 +237,34 @@ class UserTests(TestCase):
         res2 = self.client.get("/user/get_all_users", {"type": "tag"})
         self.assertEqual(res2.status_code, 200)        
 
-    def getvip(self):
-        self.post_login("testTag", "testPassword")
-        res = self.client.post("/user/getvip", {"package_typr": "month"}, content_type=default_content_type)
-        self.assertEqual(res.status_code, 200)
-        res2 = self.client.post("/user/getvip", {"package_typr": "season"}, content_type=default_content_type)
-        self.assertEqual(res2.status_code, 200)
-        res3 = self.client.post("/user/getvip", {"package_typr": "year"}, content_type=default_content_type)
-        self.assertEqual(res3.status_code, 200)        
+    def test_getvip_not_enough(self):
+        self.post_login("testAgent", "testPassword")
+        res = self.client.post("/user/getvip", {"package_type": "month"}, content_type=default_content_type)
+        self.assertJSONEqual(res.content, {"code": 5, "message": "score not enough", "data": {}})
+        res3 = self.client.post("/user/getvip", {"package_type": "season"}, content_type=default_content_type)
+        self.assertJSONEqual(res3.content, {"code": 5, "message": "score not enough", "data": {}})
+        res6 = self.client.post("/user/getvip", {"package_type": "year"}, content_type=default_content_type)
+        self.assertJSONEqual(res6.content, {"code": 5, "message": "score not enough", "data": {}})
 
-    def check_user(self):
+    def test_getvip_score_success(self):
+        self.post_login("testTag", "testPassword")
+        res = self.client.post("/user/getvip", {"package_type": "month"}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res2 = self.client.post("/user/logout")
+        self.assertEqual(res2.status_code, 200)
+        
+        self.post_login("testUser", "testPassword")
+        res3 = self.client.post("/user/getvip", {"package_type": "season"}, content_type=default_content_type)
+        self.assertEqual(res3.status_code, 200)
+        res4 = self.client.post("/user/logout")
+        self.assertEqual(res4.status_code, 200)
+
+        res5 = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res5.status_code, 200)
+        res6 = self.client.post("/user/getvip", {"package_type": "year"}, content_type=default_content_type)
+        self.assertEqual(res6.status_code, 200)   
+
+    def test_check_user(self):
         self.post_login("testUser", "testPassword")
         res = self.client.post(f"/user/check_user/{2}", {"package_typr": "month"}, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)       
