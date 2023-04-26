@@ -17,4 +17,8 @@ urlpatterns = [
     path('is_accepted/<task_id>', views.is_accepted),
     path('is_distributed/<task_id>', views.is_distributed),
     path('redistribute/<int:task_id>', views.redistribute_task),
+    path('to_agent/<int:task_id>', views.to_agent),
+    path('distribute_to_user/<int:task_id>/<int:user_id>', views.distribute_to_user),
+    path('get_free_tasks', views.get_free_tasks),
+    path('check_task/<int:task_id>', views.check_task),
 ]

@@ -3,11 +3,12 @@ import json
 import secrets
 import io
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from picbed.models import Image
 from task.models import Task, Question, Current_tag_user, TextData, Result, TagType
 from user.models import User
+from user.views import add_grow_value
 from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
@@ -16,15 +17,15 @@ from utils.utils_require import CheckRequire, require
 
 # Create your views here.
 
-def check_task(task_id: int, user: User):
+def check_task(task_id: int, user: User) -> tuple[Task | None, JsonResponse | None]:
     task: Task = Task.objects.filter(task_id=task_id).first()
     if not task:
-        return False, request_failed(14, "task not created", 400)
+        return None, request_failed(14, "task not created", 400)
     if user != task.publisher:
-        return False, request_failed(16, "no permissions")
+        return None, request_failed(16, "no permissions")
     if task.current_tag_user_list.count() == 0:
-        return False, request_failed(24, "task not distributed")
-    return True, task
+        return None, request_failed(24, "task not distributed")
+    return task, None
 
 
 # 需求方人工审核
@@ -32,15 +33,15 @@ def check_task(task_id: int, user: User):
 @CheckRequire
 def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
     if req.method == "POST":
-        check_passed, task = check_task(task_id, user)
-        if not check_passed:
-            return task
-        task: Task = task
+        task, err = check_task(task_id, user)
+        if err is not None:
+            return err
         body = json.loads(req.body.decode("utf-8"))
         check_method = require(body, "check_method", err_msg="Missing or error type of [check_method]")
         if check_method == "select":  # 随机抽取任务总题数的1/10
             q_all_list = list(task.questions.all())
             q_num = len(q_all_list)  # 总题数
+            # print(q_num)
             # 如果总数过高，则不按比例抽取，固定抽取100道题，总数过低全抽
             check_num = 100 if q_num > 1000 else q_num // 10 if q_num > 100 else min(q_num, 10)
             q_list: list[Question] = secrets.SystemRandom().sample(q_all_list, check_num)
@@ -81,13 +82,13 @@ def upload_stdans(req: HttpRequest, user: User):
 @CheckRequire
 def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
     if req.method == "POST":
-        check_passed, task = check_task(task_id, user)
-        if not check_passed:
-            return task
-        task: Task = task
+        task, err = check_task(task_id, user)
+        if err is not None:
+            return err
         curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "pass"
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
+        add_grow_value(curr_tag_user.tag_user, 10)
         curr_tag_user.tag_user.save()
         curr_tag_user.save()
         return request_success()
@@ -99,10 +100,9 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
 @CheckRequire
 def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
     if req.method == "POST":
-        check_passed, task = check_task(task_id, user)
-        if not check_passed:
-            return task
-        task: Task = task
+        task, err = check_task(task_id, user)
+        if err is not None:
+            return err
         curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "fail"
         curr_tag_user.save()
@@ -116,10 +116,9 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
 def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
     if req.method == "GET":
         type = req.GET.get("type")
-        check_passed, task = check_task(task_id, user)
-        if not check_passed:
-            return task
-        task: Task = task
+        task, err = check_task(task_id, user)
+        if err is not None:
+            return err
         file_name = "result.csv"
         response = HttpResponse(content_type="application/octet-stream")
         response["Content-Disposition"] = f'attachment; filename={file_name}'
