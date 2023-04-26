@@ -3,7 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpRequest
 import zipfile
 from picbed.models import Image
-from utils.utils_check import CheckLogin
+from utils.utils_check import CheckLogin, CheckUser
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp, DAY
@@ -18,6 +18,7 @@ from django.db.models.functions import Coalesce
 # Create your views here.
 
 @CheckLogin
+@CheckUser
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
         task = Task.objects.create()
@@ -72,6 +73,7 @@ def change_tasks(req: HttpRequest, task: Task):
 
 
 @CheckLogin
+@CheckUser
 @CheckRequire
 def task_ops(req: HttpRequest, user: User, task_id: any):
     task_id = require({"task_id": task_id}, "task_id", "int", err_msg="Bad param [task_id]", err_code=-1)
@@ -125,6 +127,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
 
 
 @CheckLogin
+@CheckUser
 def get_all_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
         if user.user_type != "admin":
@@ -139,6 +142,7 @@ def get_all_tasks(req: HttpRequest, user: User):
 
 
 @CheckLogin
+@CheckUser
 def get_my_tasks(req: HttpRequest, user: User):
     if req.method == 'GET':
         if user.user_type == "demand":
@@ -183,6 +187,7 @@ def get_my_tasks(req: HttpRequest, user: User):
 
 
 @CheckLogin
+@CheckUser
 @CheckRequire
 def upload_data(req: HttpRequest, user: User):
     # 上传一个压缩包，根目录下有 x.txt/x.jpg x为连续自然数字
@@ -305,6 +310,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
 
 
 @CheckLogin
+@CheckUser
 def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "GET":
         # 找到task 和 question
@@ -358,6 +364,7 @@ def pre_distribute(task_id: int, user: User):
 
 # 分发任务
 @CheckLogin
+@CheckUser
 def distribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         user_id, task, err = pre_distribute(task_id, user)
@@ -510,6 +517,7 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
 
 # 分发任务
 @CheckLogin
+@CheckUser
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         user_id, task, err = pre_distribute(task_id, user)
@@ -623,9 +631,9 @@ def get_free_tasks(req: HttpRequest, user: User):
         if user.user_type != "tag":
             return request_failed(1006, "no permission")
         categories = user.categories.annotate(task_count=Count('task')).order_by('-task_count')
-        tasks = Task.objects.filter(strategy="toall", task_style__in=categories).\
+        tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories).\
             distinct().annotate(count=Coalesce('task_style__usercategory__count', 0)).order_by('-count')
-        left_tasks = Task.objects.filter(strategy="toall").exclude(task_style__in=categories)
+        left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
         return_list = [element.serialize() for element in tasks] +\
             [element.serialize() for element in left_tasks]
         return request_success(return_list)
@@ -638,7 +646,6 @@ def get_free_tasks(req: HttpRequest, user: User):
 def check_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         if user.user_type != "admin":
-            print(user.user_id)
             return request_failed(16, "no permission")
         body = json.loads(req.body.decode("utf-8"))
         check_result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
