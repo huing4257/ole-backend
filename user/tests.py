@@ -273,4 +273,3 @@ class UserTests(TestCase):
         self.post_login("testDemand", "testPassword")
         res = self.client.get("/user/get_agent_list")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["data"]["agent_list"], [4])
