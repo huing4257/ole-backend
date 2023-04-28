@@ -264,6 +264,15 @@ class UserTests(TestCase):
         res6 = self.client.post("/user/getvip", {"package_type": "year"}, content_type=default_content_type)
         self.assertEqual(res6.status_code, 200)   
 
+    def test_getvip_score_renewal(self):
+        self.post_login("testTag", "testPassword")
+        res = self.client.post("/user/getvip", {"package_type": "month"}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res3 = self.client.post("/user/getvip", {"package_type": "season"}, content_type=default_content_type)
+        self.assertEqual(res3.status_code, 200)
+        res6 = self.client.post("/user/getvip", {"package_type": "year"}, content_type=default_content_type)
+        self.assertEqual(res6.status_code, 200)         
+
     def test_check_user(self):
         self.post_login("testUser", "testPassword")
         res = self.client.post(f"/user/check_user/{2}", {"package_typr": "month"}, content_type=default_content_type)
