@@ -12,8 +12,7 @@ from user.views import add_grow_value
 from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
 from review.models import AnsList
 from django.core.cache import cache
-from django.db.models import Count, Q
-from django.db.models.functions import Coalesce
+from django.db.models import Q, IntegerField, Value
 
 
 # Create your views here.
@@ -437,7 +436,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         acc_num = Current_tag_user.objects.filter(
             Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
         print(acc_num)
-        if acc_num >= 3:
+        if acc_num >= 10:
             return request_failed(30, "accept limit")
         task = Task.objects.filter(task_id=task_id).first()
         if task.strategy == "toall":
@@ -449,7 +448,6 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
                 curr_tag_user = Current_tag_user.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
                 task.save()
-                return request_success(task.serialize())
         if task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
             for current_tag_user in task.current_tag_user_list.all():
@@ -637,9 +635,20 @@ def get_free_tasks(req: HttpRequest, user: User):
     if req.method == "GET":
         if user.user_type != "tag":
             return request_failed(1006, "no permission")
-        categories = user.categories.annotate(task_count=Count('task')).order_by('-task_count')
+        usercategories = UserCategory.objects.filter(user=user).all()
+        categories = user.categories.all()
         tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories). \
-            distinct().annotate(count=Coalesce('task_style__usercategory__count', 0)).order_by('-count')
+            distinct().annotate(my_count=Value(0, output_field=IntegerField()))
+        for task in tasks:
+            for category in task.task_style.all():
+                usercategory = usercategories.filter(category=category).first()
+                if usercategory:
+                    task.my_count += usercategory.count
+        tasks = list(tasks)
+        tasks.sort(key=lambda task: -task.my_count)
+        # print("自己的category和count",[{i.category.category ,i.count} for i in usercategories])
+        # for task in tasks:
+        #     print([i.category for i in task.task_style.all()],f'and my_count {task.my_count}')
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
         return_list = [element.serialize() for element in tasks if
                        element.current_tag_user_list.count() < element.distribute_user_num] + \
