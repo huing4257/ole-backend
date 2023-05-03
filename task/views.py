@@ -436,7 +436,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         acc_num = Current_tag_user.objects.filter(
             Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
         print(acc_num)
-        if acc_num >= 10:
+        if acc_num >= user.credit_score / 10:
             return request_failed(30, "accept limit")
         task = Task.objects.filter(task_id=task_id).first()
         if task.strategy == "toall":
