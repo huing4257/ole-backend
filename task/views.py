@@ -14,6 +14,8 @@ from review.models import AnsList
 from django.core.cache import cache
 from django.db.models import Q, IntegerField, Value
 
+from video.models import Video
+
 
 # Create your views here.
 
@@ -234,7 +236,7 @@ def upload_data(req: HttpRequest, user: User):
                     break
                 data = zfile.read(f"{i}.jpg")
                 data_file = SimpleUploadedFile(f"{i}.jpg", data, content_type='image/jpeg')
-                img_data = Image(img_file=data_file)
+                img_data = Image(img_file=data_file, filename=filename)
                 img_data.filename = filename
                 img_data.save()
                 img_datas.append({
@@ -249,6 +251,34 @@ def upload_data(req: HttpRequest, user: User):
                 }
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(img_datas)
+        elif data_type == 'video':
+            zfile = require(req.FILES, 'file', 'file')
+            zfile = zipfile.ZipFile(zfile)
+            vid_datas = []
+            flag = True
+            i = 1
+            for i in range(1, 1 + len(zfile.namelist())):
+                filename = f"{i}.mp4"
+                if filename not in zfile.namelist():
+                    flag = False
+                    break
+                data = zfile.read(f"{i}.mp4")
+                data_file = SimpleUploadedFile(f"{i}.mp4", data, content_type='video/mp4')
+                vid_data = Video(video_file=data_file, filename=filename)
+                vid_data.filename = filename
+                vid_data.save()
+                vid_datas.append({
+                    "filename": filename,
+                    "tag": str(f"video/{vid_data.video_file.name}"),
+                })
+            if not flag:
+                return_data = {
+                    "files": vid_datas,
+                    "upload_num": len(zfile.namelist()),
+                    "legal_num": i - 1,
+                }
+                return request_failed(20, "file sequence interrupt", 200, data=return_data)
+            return request_success(vid_datas)
         return request_success()
     else:
         return BAD_METHOD
