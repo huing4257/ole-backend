@@ -279,6 +279,34 @@ def upload_data(req: HttpRequest, user: User):
                 }
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(vid_datas)
+        elif data_type == 'audio':
+            zfile = require(req.FILES, 'file', 'file')
+            zfile = zipfile.ZipFile(zfile)
+            aud_datas = []
+            flag = True
+            i = 1
+            for i in range(1, 1 + len(zfile.namelist())):
+                filename = f"{i}.mp4"
+                if filename not in zfile.namelist():
+                    flag = False
+                    break
+                data = zfile.read(f"{i}.mp3")
+                data_file = SimpleUploadedFile(f"{i}.mp3", data, content_type='audio/mpeg')
+                aud_data = Video(video_file=data_file, filename=filename)
+                aud_data.filename = filename
+                aud_data.save()
+                aud_datas.append({
+                    "filename": filename,
+                    "tag": str(f"video/{aud_data.video_file.name}"),
+                })
+            if not flag:
+                return_data = {
+                    "files": aud_datas,
+                    "upload_num": len(zfile.namelist()),
+                    "legal_num": i - 1,
+                }
+                return request_failed(20, "file sequence interrupt", 200, data=return_data)
+            return request_success(aud_datas)
         return request_success()
     else:
         return BAD_METHOD
