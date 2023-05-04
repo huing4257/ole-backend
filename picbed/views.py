@@ -23,7 +23,10 @@ def upload_handler(image, file_name=None):
 
 @CheckLogin
 def upload(req: HttpRequest, user: User):
-    return request_success(upload_handler(req.FILES['img']))
+    if req.method == "POST":
+        return request_success(upload_handler(req.FILES['img']))
+    else:
+        return BAD_METHOD
 
 
 def get_img(req: HttpRequest, img_url):
