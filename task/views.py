@@ -346,7 +346,7 @@ def upload_data(req: HttpRequest, user: User):
                     data = zfile.read(f"{i}.jpg")
                     audit_datas.append(create_image_data(data, f"{i}.jpg"))
                 elif f"{i}.mp4" in zfile.namelist():
-                    data = zfile.read(f"P{i}.mp4")
+                    data = zfile.read(f"{i}.mp4")
                     audit_datas.append(create_video_data(data, f"{i}.mp4"))
                 elif f"{i}.mp3" in zfile.namelist():
                     data = zfile.read(f"{i}.mp3")
