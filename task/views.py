@@ -498,7 +498,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             return request_failed(30, "accept limit")
         task = Task.objects.filter(task_id=task_id).first()
         if task.strategy == "toall":
-            if task.current_tag_user_list.count() >= task.distribute_user_num:
+            if task.current_tag_user_list.filter(accepted_at__gte=0).count() >= task.distribute_user_num:
                 return request_failed(31, "distribution completed")
             else:
                 if task.current_tag_user_list.filter(tag_user=user).exists():
