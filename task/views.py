@@ -286,7 +286,7 @@ def upload_data(req: HttpRequest, user: User):
             flag = True
             i = 1
             for i in range(1, 1 + len(zfile.namelist())):
-                filename = f"{i}.mp4"
+                filename = f"{i}.mp3"
                 if filename not in zfile.namelist():
                     flag = False
                     break
