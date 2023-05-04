@@ -372,13 +372,16 @@ def upload_data(req: HttpRequest, user: User):
 def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
-        result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
+        try:
+            result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
+        except KeyError:
+            result = require(body, "result", "list", err_msg="invalid request", err_code=1005)
         task: Task = Task.objects.filter(task_id=task_id).first()
         # 处理result
         # 上传的是第q_id个问题的结果
         result = Result.objects.create(
             tag_user=user,
-            tag_res=result,
+            tag_res=json.dumps(result),
         )
         quest: Question = task.questions.filter(q_id=q_id).first()
         quest.result.add(result)

@@ -1,3 +1,5 @@
+import json
+
 from django.db import models
 from user.models import User, Category
 from review.models import AnsList
@@ -27,7 +29,7 @@ class Result(models.Model):
     def serialize(self):
         return {
             "tag_user_id": self.tag_user.user_id,
-            "tag_res": self.tag_res
+            "tag_res": json.loads(self.tag_res)
         }
 
 
