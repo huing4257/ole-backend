@@ -286,7 +286,7 @@ def upload_data(req: HttpRequest, user: User):
             flag = True
             i = 1
             for i in range(1, 1 + len(zfile.namelist())):
-                filename = f"{i}.mp4"
+                filename = f"{i}.mp3"
                 if filename not in zfile.namelist():
                     flag = False
                     break
@@ -501,7 +501,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             if task.current_tag_user_list.filter(accepted_at__gte=0).count() >= task.distribute_user_num:
                 return request_failed(31, "distribution completed")
             else:
-                if task.current_tag_user_list.filter(tag_user=user).exists():
+                if task.current_tag_user_list.filter(tag_user=user, accepted_at__gte=0).exists():
                     return request_failed(32, "repeat accept")
                 curr_tag_user = Current_tag_user.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
