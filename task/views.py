@@ -64,8 +64,20 @@ def change_tasks(req: HttpRequest, task: Task):
     task.q_num = len(file_list)
     tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
     task.tag_type.set(tag_type_list)
-    for q_id, f_id in enumerate(file_list):
-        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=task.task_type)
+    for q_id, file in enumerate(file_list):
+        f_id = file['tag']
+        filename = file['filename']
+        if filename[-4:] == ".txt":
+            data_type = "text"
+        elif filename[-4:] == ".jpg":
+            data_type = "image"
+        elif filename[-4:] == ".mp4":
+            data_type = "video"
+        elif filename[-4:] == ".mp3":
+            data_type = "audio"
+        else:
+            data_type = "text"
+        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=data_type)
         for tag_type in tag_type_list:
             question.tag_type.add(tag_type)
         question.save()
@@ -190,6 +202,45 @@ def get_my_tasks(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
+def create_text_data(data, filename):
+    text_data = TextData(data=data, filename=filename)
+    text_data.save()
+    return {
+        "filename": filename,
+        "tag": str(text_data.id),
+    }
+
+
+def create_image_data(data, filename):
+    data_file = SimpleUploadedFile(filename, data, content_type='image/jpeg')
+    img_data = Image(img_file=data_file, filename=filename)
+    img_data.save()
+    return {
+        "filename": filename,
+        "tag": str(f"picbed/{img_data.img_file.name}"),
+    }
+
+
+def create_video_data(data, filename):
+    data_file = SimpleUploadedFile(filename, data, content_type='video/mp4')
+    vid_data = Video(video_file=data_file, filename=filename)
+    vid_data.save()
+    return {
+        "filename": filename,
+        "tag": str(f"video/{vid_data.video_file.name}"),
+    }
+
+
+def create_audio_data(data, filename):
+    data_file = SimpleUploadedFile(filename, data, content_type='audio/mpeg')
+    aud_data = Video(video_file=data_file, filename=filename)
+    aud_data.save()
+    return {
+        "filename": filename,
+        "tag": str(f"video/{aud_data.video_file.name}"),
+    }
+
+
 @CheckLogin
 @CheckUser
 @CheckRequire
@@ -209,12 +260,7 @@ def upload_data(req: HttpRequest, user: User):
                     flag = False
                     break
                 data = zfile.read(f"{i}.txt").decode('utf-8')
-                text_data = TextData(data=data, filename=filename)
-                text_data.save()
-                text_datas.append({
-                    "filename": filename,
-                    "tag": str(text_data.id),
-                })
+                text_datas.append(create_text_data(data, filename))
             if not flag:
                 return_data = {
                     "files": text_datas,
@@ -235,14 +281,7 @@ def upload_data(req: HttpRequest, user: User):
                     flag = False
                     break
                 data = zfile.read(f"{i}.jpg")
-                data_file = SimpleUploadedFile(f"{i}.jpg", data, content_type='image/jpeg')
-                img_data = Image(img_file=data_file, filename=filename)
-                img_data.filename = filename
-                img_data.save()
-                img_datas.append({
-                    "filename": filename,
-                    "tag": str(f"picbed/{img_data.img_file.name}"),
-                })
+                img_datas.append(create_image_data(data, filename))
             if not flag:
                 return_data = {
                     "files": img_datas,
@@ -263,14 +302,7 @@ def upload_data(req: HttpRequest, user: User):
                     flag = False
                     break
                 data = zfile.read(f"{i}.mp4")
-                data_file = SimpleUploadedFile(f"{i}.mp4", data, content_type='video/mp4')
-                vid_data = Video(video_file=data_file, filename=filename)
-                vid_data.filename = filename
-                vid_data.save()
-                vid_datas.append({
-                    "filename": filename,
-                    "tag": str(f"video/{vid_data.video_file.name}"),
-                })
+                vid_datas.append(create_video_data(data, filename))
             if not flag:
                 return_data = {
                     "files": vid_datas,
@@ -291,14 +323,7 @@ def upload_data(req: HttpRequest, user: User):
                     flag = False
                     break
                 data = zfile.read(f"{i}.mp3")
-                data_file = SimpleUploadedFile(f"{i}.mp3", data, content_type='audio/mpeg')
-                aud_data = Video(video_file=data_file, filename=filename)
-                aud_data.filename = filename
-                aud_data.save()
-                aud_datas.append({
-                    "filename": filename,
-                    "tag": str(f"video/{aud_data.video_file.name}"),
-                })
+                aud_datas.append(create_audio_data(data, filename))
             if not flag:
                 return_data = {
                     "files": aud_datas,
@@ -307,6 +332,36 @@ def upload_data(req: HttpRequest, user: User):
                 }
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(aud_datas)
+        elif data_type == 'verify':
+            zfile = require(req.FILES, 'file', 'file')
+            zfile = zipfile.ZipFile(zfile)
+            audit_datas = []
+            flag = True
+            i = 1
+            for i in range(1, 1 + len(zfile.namelist())):
+                if f"{i}.txt" in zfile.namelist():
+                    data = zfile.read(f"{i}.txt").decode('utf-8')
+                    audit_datas.append(create_text_data(data, f"{i}.txt"))
+                elif f"{i}.jpg" in zfile.namelist():
+                    data = zfile.read(f"{i}.jpg")
+                    audit_datas.append(create_image_data(data, f"{i}.jpg"))
+                elif f"{i}.mp4" in zfile.namelist():
+                    data = zfile.read(f"P{i}.mp4")
+                    audit_datas.append(create_video_data(data, f"{i}.mp4"))
+                elif f"{i}.mp3" in zfile.namelist():
+                    data = zfile.read(f"{i}.mp3")
+                    audit_datas.append(create_audio_data(data, f"{i}.mp3"))
+                else:
+                    flag = False
+                    break
+            if not flag:
+                return_data = {
+                    "files": audit_datas,
+                    "upload_num": len(zfile.namelist()),
+                    "legal_num": i - 1,
+                }
+                return request_failed(20, "file sequence interrupt", 200, data=return_data)
+            return request_success(audit_datas)
         return request_success()
     else:
         return BAD_METHOD
