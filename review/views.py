@@ -6,7 +6,7 @@ import io
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from picbed.models import Image
-from task.models import Task, Question, Current_tag_user, TextData, Result, TagType
+from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType
 from user.models import User
 from user.views import add_grow_value
 from review.models import AnsData, AnsList
@@ -85,7 +85,7 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         task, err = check_task(task_id, user)
         if err is not None:
             return err
-        curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
+        curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "pass"
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
         add_grow_value(curr_tag_user.tag_user, 10)
@@ -103,7 +103,7 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
         task, err = check_task(task_id, user)
         if err is not None:
             return err
-        curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
+        curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "fail"
         curr_tag_user.save()
         return request_success()
@@ -127,7 +127,7 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
         writer = csv.writer(response)
         questions: list[Question] = list(task.questions.all())
         if user_id is None:
-            all_users: list[Current_tag_user] = list(task.current_tag_user_list.all())
+            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.all())
             for tag_user in all_users:
                 if tag_user.is_check_accepted == "none":
                     return request_failed(25, "review not finish")

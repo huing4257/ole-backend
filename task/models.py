@@ -42,6 +42,15 @@ class TagType(models.Model):
         }
 
 
+class InputType(models.Model):
+    input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "input_tip": self.input_tip
+        }
+
+
 class Question(models.Model):
     q_id = models.BigIntegerField(null=False, default=1)
     data = models.CharField(max_length=MAX_CHAR_LENGTH)
@@ -72,7 +81,7 @@ class Question(models.Model):
         }
 
 
-class Current_tag_user(models.Model):
+class CurrentTagUser(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
     # todo 
     accepted_at = models.FloatField(null=True)
@@ -111,7 +120,7 @@ class Task(models.Model):
     q_num = models.IntegerField(default=0)
     task_name = models.CharField(max_length=24, default="task")
     questions = models.ManyToManyField(Question, default=[])
-    current_tag_user_list = models.ManyToManyField(Current_tag_user, default=[])
+    current_tag_user_list = models.ManyToManyField(CurrentTagUser, default=[])
     past_tag_user_list = models.ManyToManyField(User, default=[])
     progress = models.ManyToManyField(Progress, default=[])
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
@@ -121,6 +130,7 @@ class Task(models.Model):
     agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hand_out_task", null=True)
     check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
     strategy = models.CharField(max_length=MAX_CHAR_LENGTH, default="order")  # 分发策略
+    input_type = models.ManyToManyField(InputType, default=[])
 
     def serialize(self, short=False):
         return {
@@ -145,6 +155,7 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
+
         } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,

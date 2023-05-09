@@ -9,7 +9,7 @@ from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp, DAY
 from user.models import User, Category, UserCategory
 from user.views import add_grow_value
-from task.models import Task, Result, TextData, Question, Current_tag_user, Progress, TagType
+from task.models import Task, Result, TextData, Question, CurrentTagUser, Progress, TagType, InputType
 from review.models import AnsList
 from django.core.cache import cache
 from django.db.models import Q, IntegerField, Value
@@ -82,6 +82,12 @@ def change_tasks(req: HttpRequest, task: Task):
             question.tag_type.add(tag_type)
         question.save()
         task.questions.add(question)
+    # 获取 input_type list
+    input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
+    for input_type in input_type_list:
+        tmp_input_type = InputType(input_type)
+        tmp_input_type.save()
+        task.input_type.add(tmp_input_type)
     task.save()
     return task
 
@@ -130,7 +136,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             return request_failed(11, "task does not exist", 404)
         ret_data = task.serialize()
         if user.user_type == "tag":
-            curr_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+            curr_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
             if curr_user:
                 ret_data['accepted_time'] = curr_user.accepted_at
         response = request_success(ret_data)
@@ -395,7 +401,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
             else:
                 # 最后一个题已经做完了，就把progress设为0
                 progress.q_id = 0
-                curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+                curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
                 curr_tag_user.is_finished = True
 
                 # 开始自动审核
@@ -522,7 +528,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                 if tag_user.is_banned:
                     continue
             cache.set('current_user_id', user_id)
-            current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+            current_tag_user = CurrentTagUser.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
         task.save()
@@ -549,7 +555,7 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
 def accept_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         # 计算一天之内接受的任务数目
-        acc_num = Current_tag_user.objects.filter(
+        acc_num = CurrentTagUser.objects.filter(
             Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
         print(acc_num)
         if acc_num >= 10:
@@ -561,7 +567,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             else:
                 if task.current_tag_user_list.filter(tag_user=user, accepted_at__gte=0).exists():
                     return request_failed(32, "repeat accept")
-                curr_tag_user = Current_tag_user.objects.create(tag_user=user, accepted_at=get_timestamp())
+                curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
                 task.save()
         if task.current_tag_user_list.filter(tag_user=user).exists():
@@ -673,7 +679,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
             if task.past_tag_user_list.filter(user_id=tag_user.user_id).exists():
                 continue
             cache.set('current_user_id', user_id)
-            current_tag_user = Current_tag_user.objects.create(tag_user=tag_user)
+            current_tag_user = CurrentTagUser.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
             current_tag_user_num += 1
         task.save()
@@ -737,7 +743,7 @@ def distribute_to_user(req: HttpRequest, user: User, task_id: int, user_id: int)
         if task.current_tag_user_list.filter(tag_user=User.objects.filter(user_id=user_id).first()).exists():
             return request_failed(25, "user has been distributed")  # remains to be modified
 
-        cur_tag_user = Current_tag_user.objects.create(tag_user=User.objects.filter(user_id=user_id).first())
+        cur_tag_user = CurrentTagUser.objects.create(tag_user=User.objects.filter(user_id=user_id).first())
         task.current_tag_user_list.add(cur_tag_user)
         task.save()
         return request_success()
