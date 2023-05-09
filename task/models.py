@@ -148,7 +148,7 @@ class Task(models.Model):
     check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
     strategy = models.CharField(max_length=MAX_CHAR_LENGTH, default="order")  # 分发策略
     input_type = models.ManyToManyField(InputType, default=[])
-    cut_num = models.IntegerField(default=None)
+    cut_num = models.IntegerField(default=None, null=True)
 
     def serialize(self, short=False):
         return {
