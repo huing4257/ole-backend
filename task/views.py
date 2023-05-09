@@ -88,6 +88,7 @@ def change_tasks(req: HttpRequest, task: Task):
         tmp_input_type = InputType(input_type)
         tmp_input_type.save()
         task.input_type.add(tmp_input_type)
+    task.cut_num = require(body, "cut_num", 'int', err_msg="Missing or error type of [cut_num]")
     task.save()
     return task
 
