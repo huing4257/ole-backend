@@ -51,15 +51,28 @@ def change_tasks(req: HttpRequest, task: Task):
     task.task_name = require(body, "task_name", "string", err_msg="Missing or error type of [taskName]")
     task.accept_method = require(body, "accept_method", "string", err_msg="Missing or error type of [acceptMethod]")
     task.strategy = require(body, "strategy", "string", err_msg="Missing or error type of [strategy]")
-    # 构建这个task的questions，把数据绑定到每个上
-    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+
+    # 获取 input_type list
+    input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
+    input_type_obj_list = [InputType.objects.create(input_tip=input_tip) for input_tip in input_type_list]
+    task.input_type.set(input_type_obj_list)
+
+    # 获取 cut_num
+    task.cut_num = require(body, "cut_num", 'int', err_msg="Missing or error type of [cut_num]")
+
+    # 获取 tag_type list
     tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+    tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
+    task.tag_type.set(tag_type_obj_list)
+
+    # 获取 ans_list
     if body["stdans_tag"] != "":
         ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
         task.ans_list = ans_list
+
+    # 构建这个task的questions，把数据绑定到每个上
+    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
     task.q_num = len(file_list)
-    tag_type_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
-    task.tag_type.set(tag_type_list)
     for q_id, file in enumerate(file_list):
         f_id = file['tag']
         filename = file['filename']
@@ -74,17 +87,11 @@ def change_tasks(req: HttpRequest, task: Task):
         else:
             data_type = "text"
         question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=data_type)
-        for tag_type in tag_type_list:
-            question.tag_type.add(tag_type)
+        question.tag_type.set(tag_type_obj_list)
+        question.cut_num = task.cut_num
+        question.input_type.set(input_type_obj_list)
         question.save()
         task.questions.add(question)
-    # 获取 input_type list
-    input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
-    for input_type in input_type_list:
-        tmp_input_type = InputType(input_type)
-        tmp_input_type.save()
-        task.input_type.add(tmp_input_type)
-    task.cut_num = require(body, "cut_num", 'int', err_msg="Missing or error type of [cut_num]")
     task.save()
     return task
 

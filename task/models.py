@@ -22,14 +22,36 @@ class TextData(models.Model):
         }
 
 
+class InputType(models.Model):
+    input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "input_tip": self.input_tip
+        }
+
+
+class InputResult(models.Model):
+    input_type = models.ForeignKey(InputType, on_delete=models.CASCADE)
+    input_res = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "input_type": self.input_type.input_tip,
+            "input_res": self.input_res,
+        }
+
+
 class Result(models.Model):
     tag_user = models.ForeignKey('user.User', on_delete=models.CASCADE)
     tag_res = models.CharField(max_length=MAX_CHAR_LENGTH)
+    input_result = models.ManyToManyField(InputResult, default=[])
 
     def serialize(self):
         return {
             "tag_user_id": self.tag_user.user_id,
-            "tag_res": json.loads(self.tag_res)
+            "result": json.loads(self.tag_res),
+            "input_result": [input_res.serialize() for input_res in self.input_result.all()],
         }
 
 
@@ -42,15 +64,6 @@ class TagType(models.Model):
         }
 
 
-class InputType(models.Model):
-    input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
-
-    def serialize(self):
-        return {
-            "input_tip": self.input_tip
-        }
-
-
 class Question(models.Model):
     q_id = models.BigIntegerField(null=False, default=1)
     data = models.CharField(max_length=MAX_CHAR_LENGTH)
@@ -58,6 +71,8 @@ class Question(models.Model):
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     tag_type = models.ManyToManyField(TagType, default=[])
+    input_type = models.ManyToManyField(InputType, default=[])
+    cut_num = models.IntegerField(default=None)
 
     def serialize(self, detail=False, user_id: int = None):
         if detail:
@@ -72,7 +87,9 @@ class Question(models.Model):
             "data": data,
             "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
-            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
+            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()],
+            "input_type": [input_type.input_tip for input_type in self.input_type.all()],
+            "cut_num": self.cut_num,
         } if user_id is None else {
             "q_id": self.q_id,
             "data": data,

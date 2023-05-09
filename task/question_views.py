@@ -2,7 +2,7 @@ import json
 
 from django.http import HttpRequest
 
-from task.models import Task, Result, Question, Progress, CurrentTagUser
+from task.models import Task, Result, Question, Progress, CurrentTagUser, InputResult, InputType
 from user.models import User
 from user.views import add_grow_value
 from utils.utils_check import CheckLogin, CheckUser
@@ -15,16 +15,23 @@ from utils.utils_require import CheckRequire, require
 def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
+        task: Task = Task.objects.filter(task_id=task_id).first()
         try:
             result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         except KeyError:
             result = require(body, "result", "list", err_msg="invalid request", err_code=1005)
-        task: Task = Task.objects.filter(task_id=task_id).first()
+        input_result_list = require(body, "input_result", "list", err_msg="invalid request",
+                                    err_code=1005) if task.task_type == "self_define" else []
+        input_result_obj_list = [InputResult.objects.create(
+            input_type=InputType.objects.filter(input_tip=input_result['input_type']),
+            result=input_result['input_res']
+        ) for input_result in input_result_list]
         # 处理result
         # 上传的是第q_id个问题的结果
         result = Result.objects.create(
             tag_user=user,
             tag_res=json.dumps(result),
+            input_result=input_result_obj_list,
         )
         quest: Question = task.questions.filter(q_id=q_id).first()
         quest.result.add(result)
@@ -49,7 +56,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                     for ans in ans_list.ans_list.all():
                         q_id = int(ans.filename.split('.')[0])
                         question = questions.filter(q_id=q_id).first()
-                        result = question.result.all().filter(tag_user=user).first()
+                        result = question.input_res.all().filter(tag_user=user).first()
                         if result.tag_res != ans.std_ans:
                             curr_tag_user.is_check_accepted = "fail"
                     if curr_tag_user.is_check_accepted == "pass":
