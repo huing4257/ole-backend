@@ -72,7 +72,7 @@ class Question(models.Model):
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     tag_type = models.ManyToManyField(TagType, default=[])
     input_type = models.ManyToManyField(InputType, default=[])
-    cut_num = models.IntegerField(default=None)
+    cut_num = models.IntegerField(default=None, null=True)
 
     def serialize(self, detail=False, user_id: int = None):
         if detail:

@@ -86,7 +86,7 @@ def change_tasks(req: HttpRequest, task: Task):
             data_type = "audio"
         else:
             data_type = "text"
-        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=data_type)
+        question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=data_type, cut_num=task.cut_num)
         question.tag_type.set(tag_type_obj_list)
         question.cut_num = task.cut_num
         question.input_type.set(input_type_obj_list)
