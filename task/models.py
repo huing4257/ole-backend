@@ -131,7 +131,7 @@ class Task(models.Model):
     reward_per_q = models.IntegerField(default=0)
     time_limit_per_q = models.IntegerField(default=0)
     total_time_limit = models.IntegerField(default=0)
-    publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task", null=True)
+    publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task")
     task_id = models.AutoField(primary_key=True)
     distribute_user_num = models.IntegerField(default=0)
     q_num = models.IntegerField(default=0)
