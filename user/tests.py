@@ -19,6 +19,8 @@ class UserTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
+            bank_account="testBankAccount",
+            account_balance=100,
         )
         User.objects.create(
             user_id=2,
@@ -202,7 +204,7 @@ class UserTests(TestCase):
                 "membership_level": 0,
                 "invite_code": "testInviteCode",
                 "credit_score": 100,
-                "bank_account": "",
+                "bank_account": "testBankAccount",
                 "account_balance": 100,
                 "grow_value": 0,
                 "vip_expire_time": datetime.datetime.max.timestamp(),
@@ -273,3 +275,24 @@ class UserTests(TestCase):
         self.post_login("testDemand", "testPassword")
         res = self.client.get("/user/get_agent_list")
         self.assertEqual(res.status_code, 200)
+
+    def test_recharge(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/recharge", {"amount": 10}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        user = User.objects.filter(user_id=1).first()
+        self.assertEqual(user.account_balance, 90)
+        res = self.client.post("/user/recharge", {"amount": 1000}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+
+    def test_withdraw(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/withdraw", {"amount": 10}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        user = User.objects.filter(user_id=1).first()
+        self.assertEqual(user.account_balance, 110)
+        res = self.client.post("/user/recharge", {"amount": 1000}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)        
+
+
+        
