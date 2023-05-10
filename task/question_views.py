@@ -24,7 +24,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                                     err_code=1005) if task.task_type == "self_define" else []
         input_result_obj_list = [InputResult.objects.create(
             input_type=InputType.objects.filter(input_tip=input_result['input_type']).first(),
-            result=input_result['input_res']
+            input_res=input_result['input_res']
         ) for input_result in input_result_list]
         # 处理result
         # 上传的是第q_id个问题的结果
