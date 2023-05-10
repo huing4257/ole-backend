@@ -184,3 +184,19 @@ class Task(models.Model):
             "check_result": self.check_result,
             "distribute_user_num": self.distribute_user_num,
         }
+
+
+class ReportInfo(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    result = models.BooleanField(default=None, null=True)
+
+    def serialize(self):
+        return {
+            "task_id": self.task.task_id,
+            "task_type": self.task.task_type,
+            "task_name": self.task.task_name,
+            "user_id": self.user.user_id,
+            "user_name": self.user.user_name,
+            "credit_score": self.user.credit_score
+        }

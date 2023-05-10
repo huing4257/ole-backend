@@ -16,11 +16,28 @@ from user.models import User, UserToken, EmailVerify, BankCard
 import bcrypt
 
 
-# 将待注册的用户名和密码作为请求体，后端首先比对是否有重复的用户名，再验证用户名和密码的合法性。若均合法，
-# 则判断邀请码是否为空，若不为空则查询该邀请码，若存在则给邀请方奖励积分，否则返回错误响应；若邀请码为空
-# 则跳过这步。最后将加密后的密码、用户名以及生成的不重复邀请码和不重复银行账户一起存储。
-# @CheckRequire
+def check_email(email, verifycode):
+    """
+    检查邮箱验证码的正确性
+    """
+    email_obj: EmailVerify = EmailVerify.objects.filter(email=email, email_valid=verifycode).filter().first()
+    if email_obj is None:
+        return request_failed(46, "wrong email verify code"), None
+    if email_obj.email_valid_expire < datetime.datetime.now().replace(tzinfo=datetime.timezone.utc):
+        return request_failed(45, "email verify code expired"), None
+
+    if User.objects.filter(email__email=email).exists():
+        return request_failed(41, "email already bound"), None
+    return None, email_obj
+
+
+@CheckRequire
 def register(req: HttpRequest):
+    """
+    将待注册的用户名和密码作为请求体，后端首先比对是否有重复的用户名，再验证用户名和密码的合法性。若均合法，
+    则判断邀请码是否为空，若不为空则查询该邀请码，若存在则给邀请方奖励积分，否则返回错误响应；若邀请码为空
+    则跳过这步。最后将加密后的密码、用户名以及生成的不重复邀请码和不重复银行账户一起存储。
+    """
     if req.method == "POST":
         body: dict = json.loads(req.body.decode("utf-8"))
         user_name = require(body, "user_name", "string", err_msg="username format error", err_code=2)
@@ -42,13 +59,12 @@ def register(req: HttpRequest):
                 else:
                     return request_failed(92, "wrong invite code")
 
-            # 检查邮箱验证码的正确性
+            # 检查邮箱验证码
             email = require(body, "email", "string", err_msg="Missing or error type of [email]")
             verifycode = require(body, "verifycode", "string", err_msg="Missing or error type of [verifycode]")
-            email_obj: EmailVerify = EmailVerify.objects.filter(email=email, email_valid=verifycode).filter().first()
-            if email_obj is None or \
-                    email_obj.email_valid_expire < datetime.datetime.now().replace(tzinfo=datetime.timezone.utc):
-                return request_failed(40, "wrong email verify code")
+            email_verify_res, email_obj = check_email(email, verifycode)
+            if email_verify_res is not None:
+                return email_verify_res
 
             # 生成加密后的密码
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -56,7 +72,8 @@ def register(req: HttpRequest):
             # 生成8位邀请码
             ran_str = ''.join(secrets.SystemRandom(user_name).sample(string.ascii_letters + string.digits, 8))
 
-            user = User(user_name=user_name, password=hashed_password, user_type=user_type, invite_code=ran_str)
+            user = User(user_name=user_name, password=hashed_password, user_type=user_type, invite_code=ran_str,
+                        email=email_obj)
             user.save()
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
@@ -272,7 +289,11 @@ def send_verify_code(req):
 
         # 发送邮件失败
         if send_success == 0:
-            return request_failed(31, "send verify code failed")
+            return request_failed(40, "send verify code failed")
+
+        # 邮箱已被绑定
+        if User.objects.filter(email__email=email).exists():
+            return request_failed(41, "email already bound")
 
         # 更新数据库中 Verify Code & Expire Time
         email_obj: EmailVerify = EmailVerify.objects.filter(email=email).first()
@@ -310,6 +331,26 @@ def modify_bank_card(req, user: User):
         if card is None:
             card = BankCard.objects.create(card_id=card_id, card_balance=secrets.randbelow(114514))
         user.bank_account = card
+        user.save()
+        return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def change_email(req, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+
+        # 检查邮箱验证码
+        email = require(body, "newemail", "string", err_msg="Missing or error type of [newemail]")
+        verifycode = require(body, "verifycode", "string", err_msg="Missing or error type of [verifycode]")
+        email_verify_res, email_obj = check_email(email, verifycode)
+        if email_verify_res is not None:
+            return email_verify_res
+
+        user.email = email_obj
         user.save()
         return request_success()
     else:

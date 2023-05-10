@@ -31,7 +31,8 @@ class BankCard(models.Model):
 class EmailVerify(models.Model):
     email = models.EmailField()
     email_valid = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
-    email_valid_expire = models.DateTimeField(default=datetime.datetime.fromtimestamp(0))
+    email_valid_expire = models.DateTimeField(
+        default=datetime.datetime.fromtimestamp(0).replace(tzinfo=datetime.timezone.utc))
 
 
 class User(models.Model):
@@ -65,7 +66,7 @@ class User(models.Model):
             "membership_level": self.membership_level,
             "invite_code": self.invite_code,
             "credit_score": self.credit_score,
-            "bank_account": self.bank_account,
+            "bank_account": self.bank_account.card_id,
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
