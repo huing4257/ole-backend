@@ -461,8 +461,8 @@ class TaskTests(TestCase):
             os.mkdir("./tmp")
         test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
         for i in range(1, 3):
-            test_zip.writestr(f"{i}.mpeg", b"")
-        test_zip.writestr(f"{5}.mpeg", b"")
+            test_zip.writestr(f"{i}.mp3", b"")
+        test_zip.writestr(f"{5}.mp3", b"")
         test_zip.close()
         with open("./tmp/test.zip", 'rb') as test_zip:
             data = {
@@ -717,7 +717,6 @@ class TaskTests(TestCase):
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
-        print(self.task.current_tag_user_list)
         self.task.current_tag_user_list.first().accept_at = 1
         self.task.save()
         set_task_checked(1)
