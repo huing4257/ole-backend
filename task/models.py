@@ -1,3 +1,5 @@
+import json
+
 from django.db import models
 from user.models import User, Category
 from review.models import AnsList
@@ -20,14 +22,36 @@ class TextData(models.Model):
         }
 
 
+class InputType(models.Model):
+    input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "input_tip": self.input_tip
+        }
+
+
+class InputResult(models.Model):
+    input_type = models.ForeignKey(InputType, on_delete=models.CASCADE)
+    input_res = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "input_type": self.input_type.input_tip,
+            "input_res": self.input_res,
+        }
+
+
 class Result(models.Model):
     tag_user = models.ForeignKey('user.User', on_delete=models.CASCADE)
     tag_res = models.CharField(max_length=MAX_CHAR_LENGTH)
+    input_result = models.ManyToManyField(InputResult, default=[])
 
     def serialize(self):
         return {
             "tag_user_id": self.tag_user.user_id,
-            "tag_res": self.tag_res
+            "result": json.loads(self.tag_res),
+            "input_result": [input_res.serialize() for input_res in self.input_result.all()],
         }
 
 
@@ -47,6 +71,8 @@ class Question(models.Model):
     # 文字/图片/视频
     data_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     tag_type = models.ManyToManyField(TagType, default=[])
+    input_type = models.ManyToManyField(InputType, default=[])
+    cut_num = models.IntegerField(default=None, null=True)
 
     def serialize(self, detail=False, user_id: int = None):
         if detail:
@@ -61,7 +87,9 @@ class Question(models.Model):
             "data": data,
             "result": [result.serialize() for result in self.result.all()],
             "data_type": self.data_type,
-            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()]
+            "tag_type": [tag_type.type_name for tag_type in self.tag_type.all()],
+            "input_type": [input_type.input_tip for input_type in self.input_type.all()],
+            "cut_num": self.cut_num,
         } if user_id is None else {
             "q_id": self.q_id,
             "data": data,
@@ -70,7 +98,7 @@ class Question(models.Model):
         }
 
 
-class Current_tag_user(models.Model):
+class CurrentTagUser(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
     # todo 
     accepted_at = models.FloatField(null=True)
@@ -103,13 +131,13 @@ class Task(models.Model):
     reward_per_q = models.IntegerField(default=0)
     time_limit_per_q = models.IntegerField(default=0)
     total_time_limit = models.IntegerField(default=0)
-    publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task", null=True)
+    publisher = models.ForeignKey('user.User', on_delete=models.CASCADE, related_name="published_task")
     task_id = models.AutoField(primary_key=True)
     distribute_user_num = models.IntegerField(default=0)
     q_num = models.IntegerField(default=0)
     task_name = models.CharField(max_length=24, default="task")
     questions = models.ManyToManyField(Question, default=[])
-    current_tag_user_list = models.ManyToManyField(Current_tag_user, default=[])
+    current_tag_user_list = models.ManyToManyField(CurrentTagUser, default=[])
     past_tag_user_list = models.ManyToManyField(User, default=[])
     progress = models.ManyToManyField(Progress, default=[])
     result_type = models.CharField(max_length=MAX_CHAR_LENGTH)
@@ -119,6 +147,8 @@ class Task(models.Model):
     agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name="hand_out_task", null=True)
     check_result = models.CharField(max_length=MAX_CHAR_LENGTH, default="wait")
     strategy = models.CharField(max_length=MAX_CHAR_LENGTH, default="order")  # 分发策略
+    input_type = models.ManyToManyField(InputType, default=[])
+    cut_num = models.IntegerField(default=None, null=True)
 
     def serialize(self, short=False):
         return {
@@ -143,6 +173,7 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
+
         } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,

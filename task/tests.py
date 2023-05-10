@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from review.models import AnsList, AnsData
 from user.models import User, Category
-from task.models import Question, Current_tag_user, Task, TextData, TagType
+from task.models import Question, CurrentTagUser, Task, TextData, TagType
 import bcrypt
 import datetime
 
@@ -165,7 +165,7 @@ class TaskTests(TestCase):
             id=1,
         )
 
-        current_tag_user = Current_tag_user.objects.create(
+        current_tag_user = CurrentTagUser.objects.create(
             tag_user=test_receiver1,
             accepted_at=datetime.datetime.now().timestamp(),
         )
