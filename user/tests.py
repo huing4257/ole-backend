@@ -1,5 +1,5 @@
 from django.test import TestCase
-from user.models import User
+from user.models import User, EmailVerify
 import bcrypt
 import datetime
 
@@ -10,6 +10,11 @@ class UserTests(TestCase):
     def setUp(self):
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
+        EmailVerify.objects.create(
+            email="1234@asd.com",
+            email_valid="testValid",
+            email_valid_expire=datetime.date(2077, 12, 25)
+        )
         User.objects.create(
             user_id=1,
             user_name="testUser",
@@ -59,12 +64,14 @@ class UserTests(TestCase):
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/login", payload, content_type=default_content_type)
 
-    def post_register(self, user_name, password, user_type, invite_code):
+    def post_register(self, user_name, password, user_type, invite_code, email):
         payload = {
             "user_name": user_name,
             "password": password,
             "user_type": user_type,
             "invite_code": invite_code,
+            "email": email,
+            "verifycode": "testValid",
         }
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/register", payload, content_type=default_content_type)
@@ -126,7 +133,8 @@ class UserTests(TestCase):
         password: str = "newPassword"
         user_type: str = "admin"
         invite_code: str = "testInviteCode"
-        res = self.post_register(user_name, password, user_type, invite_code)
+        email: str = "1234@asd.com"
+        res = self.post_register(user_name, password, user_type, invite_code, email)
         self.assertEqual(res.status_code, 200)
 
     def test_register_failed(self):
@@ -134,7 +142,8 @@ class UserTests(TestCase):
         password: str = "newPassword"
         user_type: str = "admin"
         invite_code: str = "testInviteCode"
-        res = self.post_register(user_name, password, user_type, invite_code)
+        email: str = "1234@asd.com"
+        res = self.post_register(user_name, password, user_type, invite_code, email)
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(res.content, {"code": 1, "message": "existing username", "data": {}})
 
@@ -199,8 +208,6 @@ class UserTests(TestCase):
                 "user_name": "testUser",
                 "user_type": "admin",
                 "score": 1000,
-                'is_banned': False,
-                'is_checked': False,
                 "membership_level": 0,
                 "invite_code": "testInviteCode",
                 "credit_score": 100,
@@ -208,6 +215,10 @@ class UserTests(TestCase):
                 "account_balance": 100,
                 "grow_value": 0,
                 "vip_expire_time": datetime.datetime.max.timestamp(),
+                'is_banned': False,
+                'is_checked': False,
+                "email": "",
+                "tag_score": 0,
             }   
         })
 
