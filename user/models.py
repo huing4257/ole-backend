@@ -23,6 +23,11 @@ class UserCategory(models.Model):
     count = models.IntegerField(default=0)
 
 
+class BankCard(models.Model):
+    card_id = models.CharField(max_length=MAX_CHAR_LENGTH)
+    card_balance = models.IntegerField(default=0)
+
+
 class EmailVerify(models.Model):
     email = models.EmailField()
     email_valid = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
@@ -38,7 +43,7 @@ class User(models.Model):
     membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
     credit_score = models.IntegerField(default=100)
-    bank_account = models.CharField(max_length=20, default="")
+    bank_account = models.ForeignKey(BankCard, on_delete=models.CASCADE, null=True)
     account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)

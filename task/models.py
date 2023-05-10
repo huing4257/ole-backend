@@ -44,7 +44,7 @@ class InputResult(models.Model):
 
 class Result(models.Model):
     tag_user = models.ForeignKey('user.User', on_delete=models.CASCADE)
-    tag_res = models.CharField(max_length=MAX_CHAR_LENGTH)
+    tag_res = models.CharField(max_length=MAX_CHAR_LENGTH * 34)
     input_result = models.ManyToManyField(InputResult, default=[])
 
     def serialize(self):

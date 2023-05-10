@@ -12,7 +12,7 @@ from utils.utils_request import request_failed, request_success, BAD_METHOD, ret
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from utils.utils_check import CheckLogin
-from user.models import User, UserToken, EmailVerify
+from user.models import User, UserToken, EmailVerify, BankCard
 import bcrypt
 
 
@@ -296,5 +296,21 @@ def get_all_tag_score(req):
         ret_data = [return_field(user.serialize(), ["user_id", "user_name", "tag_score", "membership_level"])
                     for user in User.objects.filter(user_type="tag", is_banned=False)]
         return request_success(ret_data)
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def modify_bank_card(req, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        card_id = require(body, "bank_account", "string", err_msg="Missing or error type of [bank_account]")
+        card: BankCard = BankCard.objects.filter(card_id=card_id).first()
+        if card is None:
+            card = BankCard.objects.create(card_id=card_id, card_balance=secrets.randbelow(114514))
+        user.bank_account = card
+        user.save()
+        return request_success()
     else:
         return BAD_METHOD
