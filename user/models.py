@@ -23,10 +23,16 @@ class UserCategory(models.Model):
     count = models.IntegerField(default=0)
 
 
+class BankCard(models.Model):
+    card_id = models.CharField(max_length=MAX_CHAR_LENGTH)
+    card_balance = models.IntegerField(default=0)
+
+
 class EmailVerify(models.Model):
     email = models.EmailField()
     email_valid = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
-    email_valid_expire = models.DateTimeField(default=datetime.datetime.fromtimestamp(0))
+    email_valid_expire = models.DateTimeField(
+        default=datetime.datetime.fromtimestamp(0).replace(tzinfo=datetime.timezone.utc))
 
 
 class User(models.Model):
@@ -38,7 +44,7 @@ class User(models.Model):
     membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
     credit_score = models.IntegerField(default=100)
-    bank_account = models.CharField(max_length=20, default="")
+    bank_account = models.ForeignKey(BankCard, on_delete=models.CASCADE, null=True)
     account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)
@@ -60,7 +66,7 @@ class User(models.Model):
             "membership_level": self.membership_level,
             "invite_code": self.invite_code,
             "credit_score": self.credit_score,
-            "bank_account": self.bank_account,
+            "bank_account": self.bank_account.card_id if self.bank_account else "",
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,

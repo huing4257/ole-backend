@@ -16,5 +16,7 @@ urlpatterns = [
     path('recharge', vip_views.recharge),
     path('withdraw', views.withdraw),
     path('get_verifycode', views.send_verify_code),
-    path('get_all_tag_score',views.get_all_tag_score)
+    path('get_all_tag_score', views.get_all_tag_score),
+    path('modifybankaccount', views.modify_bank_card),
+    path('change_email',views.change_email)
 ]

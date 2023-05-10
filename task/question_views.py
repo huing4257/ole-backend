@@ -17,9 +17,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         body = json.loads(req.body.decode("utf-8"))
         task: Task = Task.objects.filter(task_id=task_id).first()
         try:
-            result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
-        except KeyError:
             result = require(body, "result", "list", err_msg="invalid request", err_code=1005)
+        except KeyError:
+            result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         input_result_list = require(body, "input_result", "list", err_msg="invalid request",
                                     err_code=1005) if task.task_type == "self_define" else []
         input_result_obj_list = [InputResult.objects.create(

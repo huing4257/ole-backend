@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('user', '0005_alter_category_category'),
     ]
@@ -24,6 +23,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='email_valid_expire',
-            field=models.DateTimeField(default=datetime.datetime(1970, 1, 1, 8, 0)),
+            field=models.DateTimeField(
+                default=datetime.datetime(1970, 1, 1, 0, 0).replace(tzinfo=datetime.timezone.utc)),
         ),
     ]
