@@ -67,6 +67,7 @@ class User(models.Model):
             "is_checked": self.is_checked,
             "is_banned": self.is_banned,
             "email": self.email.email if self.email else "",
+            "tag_score": self.tag_score,
         } if private else {
             "user_id": self.user_id,
             "user_name": self.user_name,
@@ -76,6 +77,7 @@ class User(models.Model):
             "grow_value": self.grow_value,
             "is_checked": self.is_checked,
             "is_banned": self.is_banned,
+            "tag_score": self.tag_score,
         }
 
     def __str__(self) -> str:

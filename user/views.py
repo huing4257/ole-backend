@@ -251,7 +251,7 @@ def withdraw(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
-# @CheckRequire
+@CheckRequire
 def send_verify_code(req):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
@@ -287,5 +287,14 @@ def send_verify_code(req):
 
         return request_success()
 
+    else:
+        return BAD_METHOD
+
+
+def get_all_tag_score(req):
+    if req.method == "GET":
+        ret_data = [return_field(user.serialize(), ["user_id", "user_name", "tag_score", "membership_level"])
+                    for user in User.objects.filter(user_type="tag", is_banned=False)]
+        return request_success(ret_data)
     else:
         return BAD_METHOD

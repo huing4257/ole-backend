@@ -15,5 +15,6 @@ urlpatterns = [
     path('get_agent_list', views.get_agent_list),
     path('recharge', vip_views.recharge),
     path('withdraw', views.withdraw),
-    path('get_verifycode', views.send_verify_code)
+    path('get_verifycode', views.send_verify_code),
+    path('get_all_tag_score',views.get_all_tag_score)
 ]
