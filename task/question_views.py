@@ -4,7 +4,7 @@ from django.http import HttpRequest
 
 from task.models import Task, Result, Question, Progress, CurrentTagUser, InputResult, InputType
 from user.models import User
-from user.views import add_grow_value
+from user.vip_views import add_grow_value
 from utils.utils_check import CheckLogin, CheckUser
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
@@ -24,7 +24,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                                     err_code=1005) if task.task_type == "self_define" else []
         input_result_obj_list = [InputResult.objects.create(
             input_type=InputType.objects.filter(input_tip=input_result['input_type']).first(),
-            result=input_result['input_res']
+            input_res=input_result['input_res']
         ) for input_result in input_result_list]
         # 处理result
         # 上传的是第q_id个问题的结果
@@ -61,7 +61,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                         if result.tag_res != ans.std_ans:
                             curr_tag_user.is_check_accepted = "fail"
                     if curr_tag_user.is_check_accepted == "pass":
+                        # 给标注方加分
                         user.score += task.reward_per_q * task.q_num
+                        user.tag_score += task.reward_per_q * task.q_num
                         add_grow_value(user, 10)
                         user.save()
                 curr_tag_user.save()

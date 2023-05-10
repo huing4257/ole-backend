@@ -1,3 +1,4 @@
+import time
 import zipfile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -58,9 +59,18 @@ def upload_data(req: HttpRequest, user: User):
     # 上传一个压缩包，根目录下有 x.txt/x.jpg x为连续自然数字
     if req.method == "POST":
         data_type = require(req.GET, "data_type")
+        zfile = require(req.FILES, 'file', 'file')
+        zfile_size = len(zfile) / 1_000_000
+        print(zfile_size)
+        if user.membership_level == 0:
+            time.sleep(zfile_size * 10)
+        elif user.membership_level == 1:
+            time.sleep(zfile_size * 7)
+        elif user.membership_level == 2:
+            time.sleep(zfile_size * 3)
+        zfile = zipfile.ZipFile(zfile)
         if data_type == 'text':
-            zfile = require(req.FILES, 'file', 'file')
-            zfile = zipfile.ZipFile(zfile)
+            zfile.infolist()
             text_datas = []
             flag = True
             i = 1
@@ -80,8 +90,6 @@ def upload_data(req: HttpRequest, user: User):
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(text_datas)
         elif data_type == 'image':
-            zfile = require(req.FILES, 'file', 'file')
-            zfile = zipfile.ZipFile(zfile)
             img_datas = []
             flag = True
             i = 1
@@ -101,8 +109,6 @@ def upload_data(req: HttpRequest, user: User):
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(img_datas)
         elif data_type == 'video':
-            zfile = require(req.FILES, 'file', 'file')
-            zfile = zipfile.ZipFile(zfile)
             vid_datas = []
             flag = True
             i = 1
@@ -122,8 +128,6 @@ def upload_data(req: HttpRequest, user: User):
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(vid_datas)
         elif data_type == 'audio':
-            zfile = require(req.FILES, 'file', 'file')
-            zfile = zipfile.ZipFile(zfile)
             aud_datas = []
             flag = True
             i = 1
@@ -143,8 +147,6 @@ def upload_data(req: HttpRequest, user: User):
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(aud_datas)
         elif data_type == 'verify':
-            zfile = require(req.FILES, 'file', 'file')
-            zfile = zipfile.ZipFile(zfile)
             audit_datas = []
             flag = True
             i = 1
@@ -172,6 +174,6 @@ def upload_data(req: HttpRequest, user: User):
                 }
                 return request_failed(20, "file sequence interrupt", 200, data=return_data)
             return request_success(audit_datas)
-        return request_success()
+        return request_failed(32, "data type error")
     else:
         return BAD_METHOD
