@@ -6,13 +6,14 @@ import io
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from picbed.models import Image
-from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType
+from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType, InputType
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
+from video.models import Video
 
 
 # Create your views here.
@@ -125,8 +126,9 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
         response["Content-Disposition"] = f'attachment; filename={file_name}'
         response["Access-Control-Expose-Headers"] = "Content-Disposition"
 
-        writer = csv.writer(response)
         questions: list[Question] = list(task.questions.all())
+        writer = csv.writer(response)
+        input_types: list[InputType] = list(task.input_type.all())
         if user_id is None:
             all_users: list[CurrentTagUser] = list(task.current_tag_user_list.all())
             for tag_user in all_users:
@@ -134,41 +136,32 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                     return request_failed(25, "review not finish")
             tags: list[TagType] = list(task.tag_type.all())
             if type == "all":
-                if task.task_type == "text":
-                    writer.writerow(["filename"] + [tag.type_name for tag in tags])
-                    for question in questions:
-                        text_data: TextData = TextData.objects.filter(id=question.data).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([text_data.filename] + res)
-                elif task.task_type == "image":
-                    writer.writerow(["filename"] + [tag.type_name for tag in tags])
-                    for question in questions:
-                        img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([img_data.filename] + res)
+                writer.writerow(["filename"] + [tag.type_name for tag in tags])
+                for question in questions:
+                    q_data = get_q_data(question)
+                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                    writer.writerow([q_data.filename] + res)
             else:
-                if task.task_type == "text":
-                    for question in questions:
-                        text_data: TextData = TextData.objects.filter(id=question.data).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([text_data.filename, tags[res.index(max(res))].type_name])
-                elif task.task_type == "image":
-                    for question in questions:
-                        img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([img_data.filename, tags[res.index(max(res))].type_name])
+                for question in questions:
+                    q_data = get_q_data(question)
+                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                    writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
         else:
-            if task.task_type == "text":
-                for question in questions:
-                    text_data: TextData = TextData.objects.filter(id=question.data).first()
-                    tag_res: Result = question.result.filter(tag_user=user_id).first()
-                    writer.writerow([text_data.filename, tag_res.tag_res])
-            elif task.task_type == "image":
-                for question in questions:
-                    img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-                    tag_res: Result = question.result.filter(tag_user=user_id).first()
-                    writer.writerow([img_data.filename, tag_res.tag_res])
+            for question in questions:
+                q_data = get_q_data(question)
+                tag_res: Result = question.result.filter(tag_user=user_id).first()
+                writer.writerow([q_data.filename, tag_res.tag_res])
 
         return response
     else:
         return BAD_METHOD
+
+
+def get_q_data(question):
+    if question.data_type == "text":
+        q_data: TextData = TextData.objects.filter(id=question.data).first()
+    elif question.data_type == "image":
+        q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
+    else:  # question.data_type in ["video", "audio"]:
+        q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
+    return q_data
