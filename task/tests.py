@@ -426,6 +426,54 @@ class TaskTests(TestCase):
             self.assertEqual(res2.json()["message"], "file sequence interrupt")
             self.assertEqual(len(res2.json()["data"]), 3)
 
+    def test_upload_video(self):
+        # 以需求方的身份登录
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        # open file
+        if not os.path.exists("./tmp"):
+            os.mkdir("./tmp")
+        test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
+        for i in range(1, 3):
+            test_zip.writestr(f"{i}.mp4", b"")
+        test_zip.writestr(f"{5}.mp4", b"")
+        test_zip.close()
+        with open("./tmp/test.zip", 'rb') as test_zip:
+            data = {
+                "file": test_zip
+            }
+
+            res2 = self.client.post("/task/upload_data?data_type=video", data)
+            self.assertEqual(res2.status_code, 200)
+            self.assertEqual(res2.json()["message"], "file sequence interrupt")
+            self.assertEqual(len(res2.json()["data"]), 3)   
+
+    def test_upload_audio(self):
+        # 以需求方的身份登录
+        res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                               content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        # open file
+        if not os.path.exists("./tmp"):
+            os.mkdir("./tmp")
+        test_zip = zipfile.ZipFile("./tmp/test.zip", 'w', zipfile.ZIP_DEFLATED)
+        for i in range(1, 3):
+            test_zip.writestr(f"{i}.mpeg", b"")
+        test_zip.writestr(f"{5}.mpeg", b"")
+        test_zip.close()
+        with open("./tmp/test.zip", 'rb') as test_zip:
+            data = {
+                "file": test_zip
+            }
+
+            res2 = self.client.post("/task/upload_data?data_type=audio", data)
+            self.assertEqual(res2.status_code, 200)
+            self.assertEqual(res2.json()["message"], "file sequence interrupt")
+            self.assertEqual(len(res2.json()["data"]), 3)                 
+
     def test_upload_result(self):
         self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
                          content_type=default_content_type)
@@ -669,6 +717,7 @@ class TaskTests(TestCase):
         res = self.client.post("/task/redistribute/1")
         self.assertEqual(res.status_code, 200)
 
+        print(self.task.current_tag_user_list)
         self.task.current_tag_user_list.first().accept_at = 1
         self.task.save()
         set_task_checked(1)
