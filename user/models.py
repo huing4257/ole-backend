@@ -46,6 +46,7 @@ class User(models.Model):
     is_banned = models.BooleanField(default=False)
     categories = models.ManyToManyField(Category, through=UserCategory)
     email = models.ForeignKey(EmailVerify, null=True, on_delete=models.CASCADE)
+    tag_score = models.IntegerField(default=0)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]

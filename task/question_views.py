@@ -61,7 +61,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                         if result.tag_res != ans.std_ans:
                             curr_tag_user.is_check_accepted = "fail"
                     if curr_tag_user.is_check_accepted == "pass":
+                        # 给标注方加分
                         user.score += task.reward_per_q * task.q_num
+                        user.tag_score += task.reward_per_q * task.q_num
                         add_grow_value(user, 10)
                         user.save()
                 curr_tag_user.save()

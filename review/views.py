@@ -87,6 +87,7 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
             return err
         curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "pass"
+        curr_tag_user.tag_user.tag_score += task.reward_per_q * task.q_num  # 给标注方加分
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
         add_grow_value(curr_tag_user.tag_user, 10)
         curr_tag_user.tag_user.save()
@@ -112,7 +113,7 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
 
 
 @CheckLogin
-# @CheckRequire
+@CheckRequire
 def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
     if req.method == "GET":
         type = req.GET.get("type")
