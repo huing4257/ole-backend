@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='task',
             name='cut_num',
-            field=models.IntegerField(default=None),
+            field=models.IntegerField(default=None, null=True),
         ),
     ]

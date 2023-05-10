@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='question',
             name='cut_num',
-            field=models.IntegerField(default=None),
+            field=models.IntegerField(default=None, null=True),
         ),
         migrations.AddField(
             model_name='question',

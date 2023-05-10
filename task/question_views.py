@@ -23,7 +23,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         input_result_list = require(body, "input_result", "list", err_msg="invalid request",
                                     err_code=1005) if task.task_type == "self_define" else []
         input_result_obj_list = [InputResult.objects.create(
-            input_type=InputType.objects.filter(input_tip=input_result['input_type']),
+            input_type=InputType.objects.filter(input_tip=input_result['input_type']).first(),
             result=input_result['input_res']
         ) for input_result in input_result_list]
         # 处理result
@@ -31,8 +31,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         result = Result.objects.create(
             tag_user=user,
             tag_res=json.dumps(result),
-            input_result=input_result_obj_list,
         )
+        result.input_result.set(input_result_obj_list)
+        result.save()
         quest: Question = task.questions.filter(q_id=q_id).first()
         quest.result.add(result)
         # 处理progress
