@@ -1,12 +1,18 @@
+import base64
+import datetime
 import json
 import string
 import secrets
+from pathlib import Path
+
+from django.core.mail import send_mail
 from django.http import HttpRequest
+
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from utils.utils_check import CheckLogin
-from user.models import User, UserToken
+from user.models import User, UserToken, EmailVerify
 import bcrypt
 
 
@@ -188,63 +194,6 @@ def get_all_users(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
-# 给vip用户增加成长值，并更新vip等级
-def add_grow_value(user: User, add: int):
-    if user.membership_level == 0:
-        return
-    user.grow_value += add
-    if user.grow_value >= 100:
-        user.membership_level = 2
-    if user.grow_value >= 1000:
-        user.membership_level = 3
-    user.save()
-
-
-@CheckLogin
-@CheckRequire
-def getvip(req: HttpRequest, user: User):
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        package_type = require(body, "package_type", "string", err_msg="username format error", err_code=2)
-        if user.membership_level >= 1:
-            # already vip
-            return request_failed(6, "already vip")
-        if package_type == "month":
-            if user.score >= 100:
-                user.score -= 100
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 15
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        elif package_type == "season":
-            if user.score >= 250:
-                user.score -= 250
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 30
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        elif package_type == "year":
-            if user.score >= 600:
-                user.score -= 600
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 60
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        else:
-            return (1005, "invalid request")
-    else:
-        return BAD_METHOD
-
-
 @CheckLogin
 def check_user(req: HttpRequest, user: User, user_id: int):
     if req.method == "POST":
@@ -270,23 +219,6 @@ def get_agent_list(req: HttpRequest, user: User):
         return request_success({"agent_list": agent_list})
     else:
         return BAD_METHOD
-    
-
-@CheckLogin
-@CheckRequire
-def recharge(req: HttpRequest, user: User):
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
-        if user.account_balance < amount:
-            return request_failed(5, "balance not enough")
-        add_grow_value(user, amount * 10)
-        user.account_balance -= amount
-        user.score += amount * 10
-        user.save()
-        return request_success()
-    else:
-        return BAD_METHOD
 
 
 @CheckLogin
@@ -301,5 +233,45 @@ def withdraw(req: HttpRequest, user: User):
         user.score -= amount * 10
         user.save()
         return request_success()
+    else:
+        return BAD_METHOD
+
+
+# @CheckRequire
+def send_verify_code(req):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        email = require(body, "email", "string", err_msg="Missing or error type of [email]")
+        with open(Path(__file__).resolve().parent / "imgs" / "blue_archive.png", "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode("utf-8")
+        valid_code = str(secrets.randbelow(999999)).zfill(6)
+        message = f"您的注册验证码是<br>" \
+                  f"<h1>{valid_code}</h1>" \
+                  f"验证码 5 分钟有效，过期请重新获取。<br><br>" \
+                  f"如果这不是您发起的请求，请忽略此邮件。<br>" \
+                  f'<img width=210px height=100px src="data:image/png ;base64,{img_base64}"/>'
+        send_success = send_mail("关注永雏塔菲喵 关注永雏塔菲谢谢喵",
+                                 f"",
+                                 "ole@blog.xial.moe",
+                                 [email],
+                                 html_message=message)
+
+        # 发送邮件失败
+        if send_success == 0:
+            return request_failed(31, "send verify code failed")
+
+        # 更新数据库中 Verify Code & Expire Time
+        email_obj: EmailVerify = EmailVerify.objects.filter(email=email).first()
+        if email_obj is None:
+            EmailVerify.objects.create(email=email,
+                                       email_valid=valid_code,
+                                       email_valid_expire=datetime.datetime.now() + datetime.timedelta(minutes=5))
+        else:
+            email_obj.email_valid = valid_code
+            email_obj.email_valid_expire = datetime.datetime.now() + datetime.timedelta(minutes=5)
+            email_obj.save()
+
+        return request_success()
+
     else:
         return BAD_METHOD

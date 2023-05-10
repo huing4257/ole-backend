@@ -4,7 +4,7 @@ from django.http import HttpRequest
 
 from task.models import Task, Result, Question, Progress, CurrentTagUser, InputResult, InputType
 from user.models import User
-from user.views import add_grow_value
+from user.vip_views import add_grow_value
 from utils.utils_check import CheckLogin, CheckUser
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
