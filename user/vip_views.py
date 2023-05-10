@@ -30,40 +30,67 @@ def getvip(req: HttpRequest, user: User):
         body = json.loads(req.body.decode("utf-8"))
         package_type = require(body, "package_type", "string", err_msg="username format error", err_code=2)
         if user.membership_level >= 1:
-            # already vip
-            return request_failed(6, "already vip")
-        if package_type == "month":
-            if user.score >= 100:
-                user.score -= 100
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 15
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        elif package_type == "season":
-            if user.score >= 250:
-                user.score -= 250
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 30
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        elif package_type == "year":
-            if user.score >= 600:
-                user.score -= 600
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 60
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
+            if package_type == "month":
+                if user.score >= 100:
+                    user.score -= 100
+                    user.membership_level = user.membership_level
+                    add_grow_value(user, 0)
+                    user.vip_expire_time = get_timestamp() + 15
+                    user.save()
+                    return request_success()
+                else:
+                    return request_failed(5, "score not enough")
+            elif package_type == "season":
+                if user.score >= 250:
+                    user.score -= 250
+                    user.membership_level = user.membership_level
+                    add_grow_value(user, 0)
+                    user.vip_expire_time = get_timestamp() + 30
+                    user.save()
+                    return request_success()
+                else:
+                    return request_failed(5, "score not enough")
+            elif package_type == "year":
+                if user.score >= 600:
+                    user.score -= 600
+                    user.membership_level = user.membership_level
+                    add_grow_value(user, 0)
+                    user.vip_expire_time = get_timestamp() + 60
+                    user.save()
+                    return request_success()
+                else:
+                    return request_failed(5, "score not enough")            
         else:
-            return (1005, "invalid request")
+            if package_type == "month":
+                if user.score >= 100:
+                    user.score -= 100
+                    user.membership_level = 1
+                    add_grow_value(user, 0)
+                    user.vip_expire_time = get_timestamp() + 15
+                    user.save()
+                    return request_success()
+                else:
+                    return request_failed(5, "score not enough")
+            elif package_type == "season":
+                if user.score >= 250:
+                    user.score -= 250
+                    user.membership_level = 1
+                    add_grow_value(user, 0)
+                    user.vip_expire_time = get_timestamp() + 30
+                    user.save()
+                    return request_success()
+                else:
+                    return request_failed(5, "score not enough")
+            elif package_type == "year":
+                if user.score >= 600:
+                    user.score -= 600
+                    user.membership_level = 1
+                    add_grow_value(user, 0)
+                    user.vip_expire_time = get_timestamp() + 60
+                    user.save()
+                    return request_success()
+                else:
+                    return request_failed(5, "score not enough")
     else:
         return BAD_METHOD
 
