@@ -2,6 +2,7 @@ import datetime
 
 from django.db import models
 from utils.utils_require import MAX_CHAR_LENGTH
+from utils.utils_time import get_timestamp
 
 
 # Create your models here.
@@ -58,6 +59,9 @@ class User(models.Model):
         indexes = [models.Index(fields=["user_name"])]
 
     def serialize(self, private: bool = False):
+        if self.vip_expire_time < get_timestamp():
+            self.membership_level = 0
+            self.save()
         return {
             "user_id": self.user_id,
             "user_name": self.user_name,

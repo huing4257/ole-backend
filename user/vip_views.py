@@ -34,8 +34,8 @@ def getvip(req: HttpRequest, user: User):
                 if user.score >= 100:
                     user.score -= 100
                     user.membership_level = user.membership_level
-                    add_grow_value(user, 0)
-                    user.vip_expire_time = get_timestamp() + 15
+                    add_grow_value(user, 5)
+                    user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 15
                     user.save()
                     return request_success()
                 else:
@@ -44,8 +44,8 @@ def getvip(req: HttpRequest, user: User):
                 if user.score >= 250:
                     user.score -= 250
                     user.membership_level = user.membership_level
-                    add_grow_value(user, 0)
-                    user.vip_expire_time = get_timestamp() + 30
+                    add_grow_value(user, 10)
+                    user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 30
                     user.save()
                     return request_success()
                 else:
@@ -54,19 +54,19 @@ def getvip(req: HttpRequest, user: User):
                 if user.score >= 600:
                     user.score -= 600
                     user.membership_level = user.membership_level
-                    add_grow_value(user, 0)
-                    user.vip_expire_time = get_timestamp() + 60
+                    add_grow_value(user, 15)
+                    user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 60
                     user.save()
                     return request_success()
                 else:
-                    return request_failed(5, "score not enough")            
+                    return request_failed(5, "score not enough")
         else:
             if package_type == "month":
                 if user.score >= 100:
                     user.score -= 100
                     user.membership_level = 1
-                    add_grow_value(user, 0)
-                    user.vip_expire_time = get_timestamp() + 15
+                    add_grow_value(user, 5)
+                    user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 15
                     user.save()
                     return request_success()
                 else:
@@ -75,8 +75,8 @@ def getvip(req: HttpRequest, user: User):
                 if user.score >= 250:
                     user.score -= 250
                     user.membership_level = 1
-                    add_grow_value(user, 0)
-                    user.vip_expire_time = get_timestamp() + 30
+                    add_grow_value(user, 10)
+                    user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 30
                     user.save()
                     return request_success()
                 else:
@@ -85,8 +85,8 @@ def getvip(req: HttpRequest, user: User):
                 if user.score >= 600:
                     user.score -= 600
                     user.membership_level = 1
-                    add_grow_value(user, 0)
-                    user.vip_expire_time = get_timestamp() + 60
+                    add_grow_value(user, 15)
+                    user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 60
                     user.save()
                     return request_success()
                 else:

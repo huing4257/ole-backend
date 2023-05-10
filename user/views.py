@@ -263,10 +263,10 @@ def withdraw(req: HttpRequest, user: User):
         amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
         if user.bank_account is None:
             return request_failed(37, "no bank card")
-        if user.score < amount * 10:
+        if user.score < amount * 15:
             return request_failed(5, "score not enough")
         user.bank_account.card_balance += amount
-        user.score -= amount * 10
+        user.score -= amount * 15
         user.save()
         return request_success()
     else:
