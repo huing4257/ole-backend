@@ -74,6 +74,10 @@ def login(req: HttpRequest):
             if bcrypt.checkpw(password.encode('utf-8'), user.password):
                 if user.is_banned:
                     return request_failed(1007, "user is banned", 400)
+                # 检查会员是否过期
+                if user.vip_expire_time < get_timestamp():
+                    user.membership_level = 0
+                    user.save()
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,
@@ -87,7 +91,6 @@ def login(req: HttpRequest):
                 user_token = UserToken(user=user, token=token)
                 user_token.save()
                 response.set_cookie("token", token, max_age=604800)
-                print(token)
                 response.set_cookie("userId", user.user_id, max_age=604800)
                 response.set_cookie("user_type", user.user_type, max_age=604800)
                 return response
