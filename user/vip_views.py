@@ -74,10 +74,13 @@ def recharge(req: HttpRequest, user: User):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
         amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
-        if user.account_balance < amount:
+        if user.bank_account is None:
+            return request_failed(37, "no bank card")
+        if user.bank_account.card_balance < amount:
             return request_failed(5, "balance not enough")
         add_grow_value(user, amount * 10)
-        user.account_balance -= amount
+        user.bank_account.card_balance -= amount
+        user.bank_account.save()
         user.score += amount * 10
         user.save()
         return request_success()

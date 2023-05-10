@@ -66,7 +66,7 @@ class User(models.Model):
             "membership_level": self.membership_level,
             "invite_code": self.invite_code,
             "credit_score": self.credit_score,
-            "bank_account": self.bank_account.card_id,
+            "bank_account": self.bank_account.card_id if self.bank_account else "",
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
