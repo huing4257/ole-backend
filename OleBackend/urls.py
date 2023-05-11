@@ -26,4 +26,5 @@ urlpatterns = [
     path('task/', include('task.urls')),
     path('picbed/', include('picbed.urls')),
     path('review/', include('review.urls')),
+    path('video/', include('video.urls')),
 ]

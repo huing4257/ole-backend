@@ -1,5 +1,8 @@
+import datetime
+
 from django.db import models
 from utils.utils_require import MAX_CHAR_LENGTH
+from utils.utils_time import get_timestamp
 
 
 # Create your models here.
@@ -21,6 +24,18 @@ class UserCategory(models.Model):
     count = models.IntegerField(default=0)
 
 
+class BankCard(models.Model):
+    card_id = models.CharField(max_length=MAX_CHAR_LENGTH)
+    card_balance = models.IntegerField(default=0)
+
+
+class EmailVerify(models.Model):
+    email = models.EmailField()
+    email_valid = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
+    email_valid_expire = models.DateTimeField(
+        default=datetime.datetime.fromtimestamp(0).replace(tzinfo=datetime.timezone.utc))
+
+
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
     user_name = models.CharField(max_length=200, unique=True)
@@ -30,18 +45,23 @@ class User(models.Model):
     membership_level = models.IntegerField(default=0)
     invite_code = models.CharField(max_length=20)
     credit_score = models.IntegerField(default=100)
-    bank_account = models.CharField(max_length=20, default="")
+    bank_account = models.ForeignKey(BankCard, on_delete=models.CASCADE, null=True)
     account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)
     is_checked = models.BooleanField(default=False)
     is_banned = models.BooleanField(default=False)
     categories = models.ManyToManyField(Category, through=UserCategory)
+    email = models.ForeignKey(EmailVerify, null=True, on_delete=models.CASCADE)
+    tag_score = models.IntegerField(default=0)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
 
     def serialize(self, private: bool = False):
+        if self.vip_expire_time < get_timestamp():
+            self.membership_level = 0
+            self.save()
         return {
             "user_id": self.user_id,
             "user_name": self.user_name,
@@ -50,12 +70,14 @@ class User(models.Model):
             "membership_level": self.membership_level,
             "invite_code": self.invite_code,
             "credit_score": self.credit_score,
-            "bank_account": self.bank_account,
+            "bank_account": self.bank_account.card_id if self.bank_account else "",
             "account_balance": self.account_balance,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
             "is_checked": self.is_checked,
             "is_banned": self.is_banned,
+            "email": self.email.email if self.email else "",
+            "tag_score": self.tag_score,
         } if private else {
             "user_id": self.user_id,
             "user_name": self.user_name,
@@ -65,6 +87,7 @@ class User(models.Model):
             "grow_value": self.grow_value,
             "is_checked": self.is_checked,
             "is_banned": self.is_banned,
+            "tag_score": self.tag_score,
         }
 
     def __str__(self) -> str:

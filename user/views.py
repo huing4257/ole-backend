@@ -1,20 +1,43 @@
+import base64
+import datetime
 import json
 import string
 import secrets
+from pathlib import Path
+
+from django.core.mail import send_mail
 from django.http import HttpRequest
+
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from utils.utils_check import CheckLogin
-from user.models import User, UserToken
+from user.models import User, UserToken, EmailVerify, BankCard
 import bcrypt
 
 
-# 将待注册的用户名和密码作为请求体，后端首先比对是否有重复的用户名，再验证用户名和密码的合法性。若均合法，
-# 则判断邀请码是否为空，若不为空则查询该邀请码，若存在则给邀请方奖励积分，否则返回错误响应；若邀请码为空
-# 则跳过这步。最后将加密后的密码、用户名以及生成的不重复邀请码和不重复银行账户一起存储。
+def check_email(email, verifycode):
+    """
+    检查邮箱验证码的正确性
+    """
+    email_obj: EmailVerify = EmailVerify.objects.filter(email=email, email_valid=verifycode).filter().first()
+    if email_obj is None:
+        return request_failed(46, "wrong email verify code"), None
+    if email_obj.email_valid_expire < datetime.datetime.now().replace(tzinfo=datetime.timezone.utc):
+        return request_failed(45, "email verify code expired"), None
+
+    if User.objects.filter(email__email=email).exists():
+        return request_failed(41, "email already bound"), None
+    return None, email_obj
+
+
 @CheckRequire
 def register(req: HttpRequest):
+    """
+    将待注册的用户名和密码作为请求体，后端首先比对是否有重复的用户名，再验证用户名和密码的合法性。若均合法，
+    则判断邀请码是否为空，若不为空则查询该邀请码，若存在则给邀请方奖励积分，否则返回错误响应；若邀请码为空
+    则跳过这步。最后将加密后的密码、用户名以及生成的不重复邀请码和不重复银行账户一起存储。
+    """
     if req.method == "POST":
         body: dict = json.loads(req.body.decode("utf-8"))
         user_name = require(body, "user_name", "string", err_msg="username format error", err_code=2)
@@ -25,6 +48,8 @@ def register(req: HttpRequest):
             password = require(body, "password", "string", err_msg="password format error", err_code=3)
             user_type = require(body, "user_type", "string", err_msg="Missing or error type of [userType]")
             assert user_type in ["admin", "demand", "tag", "agent"], "Invalid userType"
+
+            # 检查邀请码的正确性
             invite_code = body.get("invite_code", None)
             if invite_code:
                 inviter = User.objects.filter(invite_code=invite_code).first()
@@ -33,10 +58,22 @@ def register(req: HttpRequest):
                     inviter.save()
                 else:
                     return request_failed(92, "wrong invite code")
+
+            # 检查邮箱验证码
+            email = require(body, "email", "string", err_msg="Missing or error type of [email]")
+            verifycode = require(body, "verifycode", "string", err_msg="Missing or error type of [verifycode]")
+            email_verify_res, email_obj = check_email(email, verifycode)
+            if email_verify_res is not None:
+                return email_verify_res
+
+            # 生成加密后的密码
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
             # 生成8位邀请码
             ran_str = ''.join(secrets.SystemRandom(user_name).sample(string.ascii_letters + string.digits, 8))
-            user = User(user_name=user_name, password=hashed_password, user_type=user_type, invite_code=ran_str)
+
+            user = User(user_name=user_name, password=hashed_password, user_type=user_type, invite_code=ran_str,
+                        email=email_obj)
             user.save()
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
@@ -54,6 +91,10 @@ def login(req: HttpRequest):
             if bcrypt.checkpw(password.encode('utf-8'), user.password):
                 if user.is_banned:
                     return request_failed(1007, "user is banned", 400)
+                # 检查会员是否过期
+                if user.vip_expire_time < get_timestamp():
+                    user.membership_level = 0
+                    user.save()
                 return_data = {
                     "user_id": user.user_id,
                     "user_name": user.user_name,
@@ -67,7 +108,6 @@ def login(req: HttpRequest):
                 user_token = UserToken(user=user, token=token)
                 user_token.save()
                 response.set_cookie("token", token, max_age=604800)
-                print(token)
                 response.set_cookie("userId", user.user_id, max_age=604800)
                 response.set_cookie("user_type", user.user_type, max_age=604800)
                 return response
@@ -188,63 +228,6 @@ def get_all_users(req: HttpRequest, user: User):
         return BAD_METHOD
 
 
-# 给vip用户增加成长值，并更新vip等级
-def add_grow_value(user: User, add: int):
-    if user.membership_level == 0:
-        return
-    user.grow_value += add
-    if user.grow_value >= 100:
-        user.membership_level = 2
-    if user.grow_value >= 1000:
-        user.membership_level = 3
-    user.save()
-
-
-@CheckLogin
-@CheckRequire
-def getvip(req: HttpRequest, user: User):
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        package_type = require(body, "package_type", "string", err_msg="username format error", err_code=2)
-        if user.membership_level >= 1:
-            # already vip
-            return request_failed(6, "already vip")
-        if package_type == "month":
-            if user.score >= 100:
-                user.score -= 100
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 15
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        elif package_type == "season":
-            if user.score >= 250:
-                user.score -= 250
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 30
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        elif package_type == "year":
-            if user.score >= 600:
-                user.score -= 600
-                user.membership_level = 1
-                add_grow_value(user, 0)
-                user.vip_expire_time = get_timestamp() + 60
-                user.save()
-                return request_success()
-            else:
-                return request_failed(5, "score not enough")
-        else:
-            return (1005, "invalid request")
-    else:
-        return BAD_METHOD
-
-
 @CheckLogin
 def check_user(req: HttpRequest, user: User, user_id: int):
     if req.method == "POST":
@@ -270,23 +253,6 @@ def get_agent_list(req: HttpRequest, user: User):
         return request_success({"agent_list": agent_list})
     else:
         return BAD_METHOD
-    
-
-@CheckLogin
-@CheckRequire
-def recharge(req: HttpRequest, user: User):
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
-        if user.account_balance < amount:
-            return request_failed(5, "balance not enough")
-        add_grow_value(user, amount * 10)
-        user.account_balance -= amount
-        user.score += amount * 10
-        user.save()
-        return request_success()
-    else:
-        return BAD_METHOD
 
 
 @CheckLogin
@@ -295,10 +261,101 @@ def withdraw(req: HttpRequest, user: User):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
         amount = require(body, "amount", "int", err_msg="Missing or error type of [amount]")
-        if user.score < amount * 10:
+        if user.bank_account is None:
+            return request_failed(37, "no bank card")
+        if user.score < amount * 15:
             return request_failed(5, "score not enough")
-        user.account_balance += amount
-        user.score -= amount * 10
+        user.bank_account.card_balance += amount
+        user.score -= amount * 15
+        user.save()
+        return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckRequire
+def send_verify_code(req):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        email = require(body, "email", "string", err_msg="Missing or error type of [email]")
+        with open(Path(__file__).resolve().parent / "imgs" / "blue_archive.png", "rb") as f:
+            img_base64 = base64.b64encode(f.read()).decode("utf-8")
+        valid_code = str(secrets.randbelow(999999)).zfill(6)
+        message = f"您的注册验证码是<br>" \
+                  f"<h1>{valid_code}</h1>" \
+                  f"验证码 5 分钟有效，过期请重新获取。<br><br>" \
+                  f"如果这不是您发起的请求，请忽略此邮件。<br>" \
+                  f'<img width=210px height=100px src="data:image/png ;base64,{img_base64}"/>'
+        send_success = send_mail("关注永雏塔菲喵 关注永雏塔菲谢谢喵",
+                                 "",
+                                 "ole@blog.xial.moe",
+                                 [email],
+                                 html_message=message)
+
+        # 发送邮件失败
+        if send_success == 0:
+            return request_failed(40, "send verify code failed")
+
+        # 邮箱已被绑定
+        if User.objects.filter(email__email=email).exists():
+            return request_failed(41, "email already bound")
+
+        # 更新数据库中 Verify Code & Expire Time
+        email_obj: EmailVerify = EmailVerify.objects.filter(email=email).first()
+        if email_obj is None:
+            EmailVerify.objects.create(email=email,
+                                       email_valid=valid_code,
+                                       email_valid_expire=datetime.datetime.now() + datetime.timedelta(minutes=5))
+        else:
+            email_obj.email_valid = valid_code
+            email_obj.email_valid_expire = datetime.datetime.now() + datetime.timedelta(minutes=5)
+            email_obj.save()
+
+        return request_success()
+
+    else:
+        return BAD_METHOD
+
+
+def get_all_tag_score(req):
+    if req.method == "GET":
+        ret_data = [return_field(user.serialize(), ["user_id", "user_name", "tag_score", "membership_level"])
+                    for user in User.objects.filter(user_type="tag", is_banned=False)]
+        return request_success(ret_data)
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def modify_bank_card(req, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+        card_id = require(body, "bank_account", "string", err_msg="Missing or error type of [bank_account]")
+        card: BankCard = BankCard.objects.filter(card_id=card_id).first()
+        if card is None:
+            card = BankCard.objects.create(card_id=card_id, card_balance=secrets.randbelow(114514))
+        user.bank_account = card
+        user.save()
+        return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def change_email(req, user: User):
+    if req.method == "POST":
+        body = json.loads(req.body.decode("utf-8"))
+
+        # 检查邮箱验证码
+        email = require(body, "newemail", "string", err_msg="Missing or error type of [newemail]")
+        verifycode = require(body, "verifycode", "string", err_msg="Missing or error type of [verifycode]")
+        email_verify_res, email_obj = check_email(email, verifycode)
+        if email_verify_res is not None:
+            return email_verify_res
+
+        user.email = email_obj
         user.save()
         return request_success()
     else:

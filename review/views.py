@@ -6,13 +6,14 @@ import io
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from picbed.models import Image
-from task.models import Task, Question, Current_tag_user, TextData, Result, TagType
+from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType, ReportInfo
 from user.models import User
-from user.views import add_grow_value
+from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
+from video.models import Video
 
 
 # Create your views here.
@@ -21,17 +22,19 @@ def check_task(task_id: int, user: User) -> tuple[Task | None, JsonResponse | No
     task: Task = Task.objects.filter(task_id=task_id).first()
     if not task:
         return None, request_failed(14, "task not created", 400)
-    if user != task.publisher:
+    if user != task.publisher and user.user_type != "admin":
         return None, request_failed(16, "no permissions")
     if task.current_tag_user_list.count() == 0:
         return None, request_failed(24, "task not distributed")
     return task, None
 
 
-# 需求方人工审核
 @CheckLogin
 @CheckRequire
 def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
+    """
+    需求方人工审核
+    """
     if req.method == "POST":
         task, err = check_task(task_id, user)
         if err is not None:
@@ -41,7 +44,6 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
         if check_method == "select":  # 随机抽取任务总题数的1/10
             q_all_list = list(task.questions.all())
             q_num = len(q_all_list)  # 总题数
-            # print(q_num)
             # 如果总数过高，则不按比例抽取，固定抽取100道题，总数过低全抽
             check_num = 100 if q_num > 1000 else q_num // 10 if q_num > 100 else min(q_num, 10)
             q_list: list[Question] = secrets.SystemRandom().sample(q_all_list, check_num)
@@ -85,8 +87,9 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         task, err = check_task(task_id, user)
         if err is not None:
             return err
-        curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
+        curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "pass"
+        curr_tag_user.tag_user.tag_score += task.reward_per_q * task.q_num  # 给标注方加分
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
         add_grow_value(curr_tag_user.tag_user, 10)
         curr_tag_user.tag_user.save()
@@ -103,7 +106,7 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
         task, err = check_task(task_id, user)
         if err is not None:
             return err
-        curr_tag_user: Current_tag_user = task.current_tag_user_list.filter(tag_user=user_id).first()
+        curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
         curr_tag_user.is_check_accepted = "fail"
         curr_tag_user.save()
         return request_success()
@@ -112,7 +115,7 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
 
 
 @CheckLogin
-# @CheckRequire
+@CheckRequire
 def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
     if req.method == "GET":
         type = req.GET.get("type")
@@ -124,50 +127,110 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
         response["Content-Disposition"] = f'attachment; filename={file_name}'
         response["Access-Control-Expose-Headers"] = "Content-Disposition"
 
-        writer = csv.writer(response)
         questions: list[Question] = list(task.questions.all())
+        writer = csv.writer(response)
+        # input_types: list[InputType] = list(task.input_type.all())
         if user_id is None:
-            all_users: list[Current_tag_user] = list(task.current_tag_user_list.all())
+            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.all())
             for tag_user in all_users:
                 if tag_user.is_check_accepted == "none":
                     return request_failed(25, "review not finish")
             tags: list[TagType] = list(task.tag_type.all())
             if type == "all":
-                if task.task_type == "text":
-                    writer.writerow(["filename"] + [tag.type_name for tag in tags])
-                    for question in questions:
-                        text_data: TextData = TextData.objects.filter(id=question.data).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([text_data.filename] + res)
-                elif task.task_type == "image":
-                    writer.writerow(["filename"] + [tag.type_name for tag in tags])
-                    for question in questions:
-                        img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([img_data.filename] + res)
+                writer.writerow(["filename"] + [tag.type_name for tag in tags])
+                for question in questions:
+                    q_data = get_q_data(question)
+                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                    writer.writerow([q_data.filename] + res)
             else:
-                if task.task_type == "text":
-                    for question in questions:
-                        text_data: TextData = TextData.objects.filter(id=question.data).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([text_data.filename, tags[res.index(max(res))].type_name])
-                elif task.task_type == "image":
-                    for question in questions:
-                        img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                        writer.writerow([img_data.filename, tags[res.index(max(res))].type_name])
+                for question in questions:
+                    q_data = get_q_data(question)
+                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                    writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
         else:
-            if task.task_type == "text":
-                for question in questions:
-                    text_data: TextData = TextData.objects.filter(id=question.data).first()
-                    tag_res: Result = question.result.filter(tag_user=user_id).first()
-                    writer.writerow([text_data.filename, tag_res.tag_res])
-            elif task.task_type == "image":
-                for question in questions:
-                    img_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-                    tag_res: Result = question.result.filter(tag_user=user_id).first()
-                    writer.writerow([img_data.filename, tag_res.tag_res])
+            for question in questions:
+                q_data = get_q_data(question)
+                tag_res: Result = question.result.filter(tag_user=user_id).first()
+                writer.writerow([q_data.filename, tag_res.tag_res])
 
         return response
+    else:
+        return BAD_METHOD
+
+
+def get_q_data(question):
+    if question.data_type == "text":
+        q_data: TextData = TextData.objects.filter(id=question.data).first()
+    elif question.data_type == "image":
+        q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
+    else:  # question.data_type in ["video", "audio"]:
+        q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
+    return q_data
+
+
+@CheckRequire
+@CheckLogin
+def report_user(req, user: User, task_id, user_id):
+    if req.method == "POST":
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if task is None:
+            return request_failed(33, "task not exists", 404)
+        if task.publisher.user_id != user.user_id:
+            return request_failed(1006, "no permission")
+        tagger = User.objects.filter(user_id=user_id).first()
+        if tagger is None or \
+                task.current_tag_user_list.filter(user_id=user_id).first() is None or \
+                task.past_tag_user_list.filter(user_id=user_id).first() is None:
+            return request_failed(34, "user is not this task's tagger", 404)
+        report_info = ReportInfo.objects.filter(task_id=task_id, user_id=user_id).first()
+        if report_info is None:
+            ReportInfo.objects.create(task_id=task_id, user_id=user_id)
+        return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def all_reports(req, user: User):
+    if req.method == "GET":
+        if user.user_type != "admin":
+            return request_failed(1006, "no permission")
+        return request_success([report_info.serialize() for report_info in ReportInfo.objects.filter(result=None)])
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def accept_report(req, user: User, task_id, user_id):
+    if req.method == "POST":
+        if user.user_type != "admin":
+            return request_failed(1006, "no permission")
+        report_info = ReportInfo.objects.filter(user_id=user_id, task_id=task_id).first()
+        if report_info is None:
+            return request_failed(35, "report record not found", 404)
+        report_info.result = True
+        report_info.save()
+        tagger = User.objects.filter(user_id=user_id).first()
+        tagger.credit_score -= 10
+        tagger.save()
+        return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def reject_report(req, user: User, task_id, user_id):
+    if req.method == "POST":
+        if user.user_type != "admin":
+            return request_failed(1006, "no permission")
+        report_info = ReportInfo.objects.filter(user_id=user_id, task_id=task_id).first()
+        if report_info is None:
+            return request_failed(35, "report record not found", 404)
+        report_info.result = False
+        report_info.save()
+        return request_success()
     else:
         return BAD_METHOD

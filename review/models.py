@@ -1,4 +1,5 @@
 from django.db import models
+
 from utils.utils_require import MAX_CHAR_LENGTH
 
 

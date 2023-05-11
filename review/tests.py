@@ -26,7 +26,9 @@ class ReviewTests(TestCase):
         "accept_method": "manual",
         "tag_type": ["tag1", "tag2", "tag3"],
         "stdans_tag": "",
-        "strategy": "order"
+        "strategy": "order",
+        "input_type": [],
+        "cut_num": 0
     }
 
     def setUp(self) -> None:
@@ -55,6 +57,17 @@ class ReviewTests(TestCase):
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
         test_receiver1.save()
+        test_admin = User.objects.create(
+            user_id=3,
+            user_name="admin",
+            password=hashed_password,
+            user_type="admin",
+            credit_score=100,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )      
+        test_admin.save()  
 
     def login(self, username):
         response = self.client.post("/user/login", {
@@ -84,7 +97,12 @@ class ReviewTests(TestCase):
         self.assertEqual(res.status_code, 200)
         para = self.para.copy()
         para["task_type"] = task_type
-        para["files"] = [file['tag'] for file in res.json()['data']['files']]
+        
+        # print(res.json())
+
+        para["files"] = res.json()['data']['files']
+        # print(para["files"])
+
         para["distribute_user_num"] = distribute_user_num
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
@@ -116,9 +134,9 @@ class ReviewTests(TestCase):
 
         res = self.client.post(f"/review/manual_check/{task_id}/2", {
             "check_method": "select"}, content_type=default_content_type)
-        print(res.json())
+        # print(res.json())
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()["data"]["q_info"][0]["result"]["tag_res"], "tag_1")
+        self.assertEqual(res.json()["data"]["q_info"][0]["result"]["result"], "tag_1")
 
     def test_manual_check_no_permission(self):
         task_id = self.publisher_login_create_task()
@@ -199,3 +217,10 @@ class ReviewTests(TestCase):
             self.assertEqual(res.status_code, 200)
             res = self.client.get(f"/review/download/{task_id}?type=merged")
             self.assertEqual(res.status_code, 200)
+
+    def test_all_report(self):
+        self.login("admin")
+        res = self.client.get("/review/reportmessage")
+        self.assertEqual(res.status_code, 200)
+
+              

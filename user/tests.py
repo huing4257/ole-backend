@@ -1,5 +1,5 @@
 from django.test import TestCase
-from user.models import User
+from user.models import User, EmailVerify, BankCard
 import bcrypt
 import datetime
 
@@ -10,6 +10,20 @@ class UserTests(TestCase):
     def setUp(self):
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
+        EmailVerify.objects.create(
+            email="1234@asd.com",
+            email_valid="testValid",
+            email_valid_expire=datetime.date(2077, 12, 25)
+        )
+        EmailVerify.objects.create(
+            email="new@mail.com",
+            email_valid="testValid",
+            email_valid_expire=datetime.date(2077, 12, 25)
+        )        
+        bankcard = BankCard.objects.create(
+            card_id="123456789",
+            card_balance=100,
+        )
         User.objects.create(
             user_id=1,
             user_name="testUser",
@@ -19,6 +33,8 @@ class UserTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
+            bank_account=bankcard,
+            account_balance=100,
         )
         User.objects.create(
             user_id=2,
@@ -57,12 +73,14 @@ class UserTests(TestCase):
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/login", payload, content_type=default_content_type)
 
-    def post_register(self, user_name, password, user_type, invite_code):
+    def post_register(self, user_name, password, user_type, invite_code, email):
         payload = {
             "user_name": user_name,
             "password": password,
             "user_type": user_type,
             "invite_code": invite_code,
+            "email": email,
+            "verifycode": "testValid",
         }
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/register", payload, content_type=default_content_type)
@@ -124,7 +142,8 @@ class UserTests(TestCase):
         password: str = "newPassword"
         user_type: str = "admin"
         invite_code: str = "testInviteCode"
-        res = self.post_register(user_name, password, user_type, invite_code)
+        email: str = "1234@asd.com"
+        res = self.post_register(user_name, password, user_type, invite_code, email)
         self.assertEqual(res.status_code, 200)
 
     def test_register_failed(self):
@@ -132,7 +151,8 @@ class UserTests(TestCase):
         password: str = "newPassword"
         user_type: str = "admin"
         invite_code: str = "testInviteCode"
-        res = self.post_register(user_name, password, user_type, invite_code)
+        email: str = "1234@asd.com"
+        res = self.post_register(user_name, password, user_type, invite_code, email)
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(res.content, {"code": 1, "message": "existing username", "data": {}})
 
@@ -197,15 +217,17 @@ class UserTests(TestCase):
                 "user_name": "testUser",
                 "user_type": "admin",
                 "score": 1000,
-                'is_banned': False,
-                'is_checked': False,
                 "membership_level": 0,
                 "invite_code": "testInviteCode",
                 "credit_score": 100,
-                "bank_account": "",
+                "bank_account": "123456789",
                 "account_balance": 100,
                 "grow_value": 0,
                 "vip_expire_time": datetime.datetime.max.timestamp(),
+                'is_banned': False,
+                'is_checked': False,
+                "email": "",
+                "tag_score": 0,
             }   
         })
 
@@ -264,6 +286,15 @@ class UserTests(TestCase):
         res6 = self.client.post("/user/getvip", {"package_type": "year"}, content_type=default_content_type)
         self.assertEqual(res6.status_code, 200)   
 
+    def test_getvip_score_renewal(self):
+        self.post_login("testTag", "testPassword")
+        res = self.client.post("/user/getvip", {"package_type": "month"}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res3 = self.client.post("/user/getvip", {"package_type": "season"}, content_type=default_content_type)
+        self.assertEqual(res3.status_code, 200)
+        res6 = self.client.post("/user/getvip", {"package_type": "year"}, content_type=default_content_type)
+        self.assertEqual(res6.status_code, 200)         
+
     def test_check_user(self):
         self.post_login("testUser", "testPassword")
         res = self.client.post(f"/user/check_user/{2}", {"package_typr": "month"}, content_type=default_content_type)
@@ -273,3 +304,42 @@ class UserTests(TestCase):
         self.post_login("testDemand", "testPassword")
         res = self.client.get("/user/get_agent_list")
         self.assertEqual(res.status_code, 200)
+
+    def test_recharge(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/recharge", {"amount": 10}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.post("/user/recharge", {"amount": 1000}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+
+    def test_withdraw(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/withdraw", {"amount": 10}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        res = self.client.post("/user/recharge", {"amount": 1000}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)        
+
+    def test_send_verify_code(self):
+        content = {
+            "email": "123456@123.com",
+        }
+        res = self.client.post("/user/get_verifycode", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+
+    def test_get_all_tag_scores(self):
+        res = self.client.get("/user/get_all_tag_score")
+        self.assertEqual(res.status_code, 200)                 
+
+    def test_modify_bank_card(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/modifybankaccount", {"bank_account": "123456789"}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)                 
+    
+    def test_change_email(self):
+        self.post_login("testUser", "testPassword")
+        content = {
+            "newemail": "new@mail.com",
+            "verifycode": "testValid"
+        }
+        res = self.client.post("/user/change_email", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)                         
