@@ -3,7 +3,7 @@ import os
 from django.test import TestCase
 import bcrypt
 
-from task.models import Task, ReportInfo
+from task.models import Task
 from user.models import User
 from review.models import AnsList
 from django.core.files.uploadedfile import SimpleUploadedFile
