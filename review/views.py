@@ -182,9 +182,9 @@ def report_user(req, user: User, task_id, user_id):
                 (task.current_tag_user_list.filter(tag_user=tagger).first() is None and
                  task.past_tag_user_list.filter(user_id=user_id).first() is None):
             return request_failed(34, "user is not this task's tagger", 404)
-        report_info = ReportInfo.objects.filter(task=task, user=user).first()
+        report_info = ReportInfo.objects.filter(task=task, user=tagger).first()
         if report_info is None:
-            ReportInfo.objects.create(task=task, user=user)
+            ReportInfo.objects.create(task=task, user=tagger)
         return request_success()
     else:
         return BAD_METHOD
