@@ -314,5 +314,9 @@ class UserTests(TestCase):
         res = self.client.post("/user/recharge", {"amount": 1000}, content_type=default_content_type)
         self.assertEqual(res.status_code, 400)        
 
-
-        
+    def test_send_verify_code(self):
+        content = {
+            "email": "123456@123.com",
+        }
+        res = self.client.post("/user/get_verifycode", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
