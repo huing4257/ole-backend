@@ -15,6 +15,11 @@ class UserTests(TestCase):
             email_valid="testValid",
             email_valid_expire=datetime.date(2077, 12, 25)
         )
+        EmailVerify.objects.create(
+            email="new@mail.com",
+            email_valid="testValid",
+            email_valid_expire=datetime.date(2077, 12, 25)
+        )        
         bankcard = BankCard.objects.create(
             card_id="123456789",
             card_balance=100,
@@ -320,3 +325,21 @@ class UserTests(TestCase):
         }
         res = self.client.post("/user/get_verifycode", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
+
+    def test_get_all_tag_scores(self):
+        res = self.client.get("/user/get_all_tag_score")
+        self.assertEqual(res.status_code, 200)                 
+
+    def test_modify_bank_card(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/modifybankaccount", {"bank_account": "123456789"}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)                 
+    
+    def test_change_email(self):
+        self.post_login("testUser", "testPassword")
+        content = {
+            "newemail": "new@mail.com",
+            "verifycode": "testValid"
+        }
+        res = self.client.post("/user/change_email", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)                         
