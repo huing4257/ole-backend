@@ -287,7 +287,7 @@ def send_verify_code(req):
                   f"如果这不是您发起的请求，请忽略此邮件。<br>" \
                   f'<img width=210px height=100px src="data:image/png ;base64,{img_base64}"/>'
         send_success = send_mail("关注永雏塔菲喵 关注永雏塔菲谢谢喵",
-                                 f"",
+                                 "",
                                  "ole@blog.xial.moe",
                                  [email],
                                  html_message=message)

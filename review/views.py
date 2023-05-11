@@ -6,7 +6,7 @@ import io
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from picbed.models import Image
-from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType, InputType, ReportInfo
+from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType, ReportInfo
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
@@ -129,7 +129,7 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
 
         questions: list[Question] = list(task.questions.all())
         writer = csv.writer(response)
-        input_types: list[InputType] = list(task.input_type.all())
+        # input_types: list[InputType] = list(task.input_type.all())
         if user_id is None:
             all_users: list[CurrentTagUser] = list(task.current_tag_user_list.all())
             for tag_user in all_users:
