@@ -34,9 +34,6 @@ class ReviewTests(TestCase):
     def setUp(self) -> None:
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
-        Task.objects.create(
-            task_id=99
-        )
         test_publisher = User.objects.create(
             user_id=1,
             user_name="testPublisher",
@@ -71,10 +68,6 @@ class ReviewTests(TestCase):
             vip_expire_time=datetime.datetime.max.timestamp(),
         )      
         test_admin.save()  
-        ReportInfo.objects.create(
-            task=Task.objects.filter(task_id=66).first(),
-            user=User.objects.filter(user_id=2).first()
-        )
 
     def login(self, username):
         response = self.client.post("/user/login", {
