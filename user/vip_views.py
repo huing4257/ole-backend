@@ -33,7 +33,6 @@ def getvip(req: HttpRequest, user: User):
             if package_type == "month":
                 if user.score >= 100:
                     user.score -= 100
-                    user.membership_level = user.membership_level
                     add_grow_value(user, 5)
                     user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 15
                     user.save()
@@ -43,7 +42,6 @@ def getvip(req: HttpRequest, user: User):
             elif package_type == "season":
                 if user.score >= 250:
                     user.score -= 250
-                    user.membership_level = user.membership_level
                     add_grow_value(user, 10)
                     user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 30
                     user.save()
@@ -53,7 +51,6 @@ def getvip(req: HttpRequest, user: User):
             elif package_type == "year":
                 if user.score >= 600:
                     user.score -= 600
-                    user.membership_level = user.membership_level
                     add_grow_value(user, 15)
                     user.vip_expire_time = max(get_timestamp(), user.vip_expire_time) + 60
                     user.save()
