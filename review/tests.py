@@ -3,7 +3,7 @@ import os
 from django.test import TestCase
 import bcrypt
 
-from task.models import Task
+from task.models import Task, ReportInfo
 from user.models import User
 from review.models import AnsList
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -34,6 +34,9 @@ class ReviewTests(TestCase):
     def setUp(self) -> None:
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw("testPassword".encode("utf-8"), salt)
+        Task.objects.create(
+            task_id=99
+        )
         test_publisher = User.objects.create(
             user_id=1,
             user_name="testPublisher",
@@ -57,6 +60,21 @@ class ReviewTests(TestCase):
             vip_expire_time=datetime.datetime.max.timestamp(),
         )
         test_receiver1.save()
+        test_admin = User.objects.create(
+            user_id=3,
+            user_name="admin",
+            password=hashed_password,
+            user_type="admin",
+            credit_score=100,
+            membership_level=0,
+            invite_code="testInviteCode",
+            vip_expire_time=datetime.datetime.max.timestamp(),
+        )      
+        test_admin.save()  
+        ReportInfo.objects.create(
+            task=Task.objects.filter(task_id=66).first(),
+            user=User.objects.filter(user_id=2).first()
+        )
 
     def login(self, username):
         response = self.client.post("/user/login", {
@@ -206,3 +224,10 @@ class ReviewTests(TestCase):
             self.assertEqual(res.status_code, 200)
             res = self.client.get(f"/review/download/{task_id}?type=merged")
             self.assertEqual(res.status_code, 200)
+
+    def test_all_report(self):
+        self.login("admin")
+        res = self.client.get("/review/reportmessage")
+        self.assertEqual(res.status_code, 200)
+
+              
