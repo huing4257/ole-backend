@@ -179,12 +179,12 @@ def report_user(req, user: User, task_id, user_id):
             return request_failed(1006, "no permission")
         tagger = User.objects.filter(user_id=user_id).first()
         if tagger is None or \
-                task.current_tag_user_list.filter(user_id=user_id).first() is None or \
-                task.past_tag_user_list.filter(user_id=user_id).first() is None:
+                (task.current_tag_user_list.filter(tag_user=tagger).first() is None and
+                 task.past_tag_user_list.filter(user_id=user_id).first() is None):
             return request_failed(34, "user is not this task's tagger", 404)
-        report_info = ReportInfo.objects.filter(task_id=task_id, user_id=user_id).first()
+        report_info = ReportInfo.objects.filter(task=task, user=tagger).first()
         if report_info is None:
-            ReportInfo.objects.create(task_id=task_id, user_id=user_id)
+            ReportInfo.objects.create(task=task, user=tagger)
         return request_success()
     else:
         return BAD_METHOD
@@ -207,7 +207,9 @@ def accept_report(req, user: User, task_id, user_id):
     if req.method == "POST":
         if user.user_type != "admin":
             return request_failed(1006, "no permission")
-        report_info = ReportInfo.objects.filter(user_id=user_id, task_id=task_id).first()
+        tagger = User.objects.filter(user_id=user_id).first()
+        task = Task.objects.filter(task_id=task_id).first()
+        report_info = ReportInfo.objects.filter(user=tagger, task=task).first()
         if report_info is None:
             return request_failed(35, "report record not found", 404)
         report_info.result = True
