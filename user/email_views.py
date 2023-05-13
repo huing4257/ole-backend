@@ -145,3 +145,5 @@ def check_email(email, verifycode):
     if User.objects.filter(email__email=email).exists():
         return request_failed(41, "email already bound"), None
     return None, email_obj
+
+

@@ -60,6 +60,30 @@ def register(req: HttpRequest):
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
 
+def login_success(user):
+    if user.is_banned:
+        return request_failed(1007, "user is banned", 400)
+    # 检查会员是否过期
+    if user.vip_expire_time < get_timestamp():
+        user.membership_level = 0
+        user.save()
+    return_data = {
+        "user_id": user.user_id,
+        "user_name": user.user_name,
+        "user_type": user.user_type,
+    }
+    response = request_success(return_data)
+    token = bcrypt.hashpw((str(user.user_id) + str(get_timestamp())).encode('utf-8'), bcrypt.gensalt())
+    while UserToken.objects.filter(token=token).exists():
+        token = bcrypt.hashpw(((str(user.user_id) + str(get_timestamp())).encode('utf-8')),
+                              bcrypt.gensalt())
+    user_token = UserToken(user=user, token=token)
+    user_token.save()
+    response.set_cookie("token", token, max_age=604800)
+    response.set_cookie("userId", user.user_id, max_age=604800)
+    response.set_cookie("user_type", user.user_type, max_age=604800)
+    return response
+
 @CheckRequire
 def login(req: HttpRequest):
     if req.method == "POST":
@@ -71,28 +95,7 @@ def login(req: HttpRequest):
             return request_failed(4, "wrong username or password", 400)
         else:
             if bcrypt.checkpw(password.encode('utf-8'), user.password):
-                if user.is_banned:
-                    return request_failed(1007, "user is banned", 400)
-                # 检查会员是否过期
-                if user.vip_expire_time < get_timestamp():
-                    user.membership_level = 0
-                    user.save()
-                return_data = {
-                    "user_id": user.user_id,
-                    "user_name": user.user_name,
-                    "user_type": user.user_type,
-                }
-                response = request_success(return_data)
-                token = bcrypt.hashpw((str(user.user_id) + str(get_timestamp())).encode('utf-8'), bcrypt.gensalt())
-                while UserToken.objects.filter(token=token).exists():
-                    token = bcrypt.hashpw(((str(user.user_id) + str(get_timestamp())).encode('utf-8')),
-                                          bcrypt.gensalt())
-                user_token = UserToken(user=user, token=token)
-                user_token.save()
-                response.set_cookie("token", token, max_age=604800)
-                response.set_cookie("userId", user.user_id, max_age=604800)
-                response.set_cookie("user_type", user.user_type, max_age=604800)
-                return response
+                return login_success(user)
             else:
                 return request_failed(4, "wrong username or password", 400)
     else:

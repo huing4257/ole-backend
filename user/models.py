@@ -38,12 +38,12 @@ class EmailVerify(models.Model):
 
 class User(models.Model):
     user_id = models.AutoField(primary_key=True)
-    user_name = models.CharField(max_length=200, unique=True)
+    user_name = models.CharField(max_length=MAX_CHAR_LENGTH, unique=True)
     password = models.BinaryField()
-    user_type = models.CharField(max_length=20)
+    user_type = models.CharField(max_length=MAX_CHAR_LENGTH)
     score = models.IntegerField(default=100)
     membership_level = models.IntegerField(default=0)
-    invite_code = models.CharField(max_length=20)
+    invite_code = models.CharField(max_length=MAX_CHAR_LENGTH)
     credit_score = models.IntegerField(default=100)
     bank_account = models.ForeignKey(BankCard, on_delete=models.CASCADE, null=True)
     grow_value = models.IntegerField(default=0)
@@ -53,6 +53,7 @@ class User(models.Model):
     categories = models.ManyToManyField(Category, through=UserCategory)
     email = models.ForeignKey(EmailVerify, null=True, on_delete=models.CASCADE)
     tag_score = models.IntegerField(default=0)
+    face_base64 = models.TextField(max_length=1_000_000)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]
