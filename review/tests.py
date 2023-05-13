@@ -223,4 +223,33 @@ class ReviewTests(TestCase):
         res = self.client.get("/review/reportmessage")
         self.assertEqual(res.status_code, 200)
 
-              
+    def test_report_user(self):
+        task_id = self.publisher_login_create_task()
+        self.client.post(f"/task/distribute/{task_id}")
+        self.client.post("/user/logout")
+        self.login("testPublisher")      
+        user_id = 2
+        res = self.client.post(f"/review/report/{task_id}/{user_id}")
+        self.assertEqual(res.status_code, 200)
+        user_id = 1000
+        res = self.client.post(f"/review/report/{task_id}/{user_id}")
+        self.assertEqual(res.status_code, 404)
+        self.assertJSONEqual(res.content, 
+                             {"code": 34, "message": "user is not this task\'s tagger", "data": {}})
+        user_id = 1000
+        res = self.client.post(f"/review/report/1000/{user_id}")
+        self.assertEqual(res.status_code, 404)     
+        self.assertJSONEqual(res.content, 
+                             {"code": 33, "message": "task not exists", "data": {}})
+    
+        self.client.post("/user/logout")
+        self.login("admin")      
+        res = self.client.post(f"/review/report/{task_id}/{user_id}")
+        self.assertEqual(res.status_code, 400)     
+        self.assertJSONEqual(res.content, 
+                             {"code": 1006, "message": "no permission", "data": {}})
+
+
+
+
+
