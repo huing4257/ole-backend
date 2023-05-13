@@ -41,17 +41,16 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             if task.current_tag_user_list.filter(accepted_at__gte=0).count() >= task.distribute_user_num:
                 return request_failed(31, "distribution completed")
             else:
-                if task.current_tag_user_list.filter(tag_user=user, accepted_at__gte=0).exists():
+                if task.current_tag_user_list.filter(tag_user=user).exists():
                     return request_failed(32, "repeat accept")
                 curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
                 task.save()
-        if task.current_tag_user_list.filter(tag_user=user).exists():
+        elif task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
-            for current_tag_user in task.current_tag_user_list.all():
-                if current_tag_user.tag_user == user:
-                    current_tag_user.accepted_at = get_timestamp()
-                    current_tag_user.save()
+            current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+            current_tag_user.accepted_at = get_timestamp()
+            current_tag_user.save()
             task.save()
             for category in task.task_style.all():
                 user_category, created = UserCategory.objects.get_or_create(user=user, category=category)
@@ -101,5 +100,3 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         return request_success({"is_accepted": False})
     else:
         return BAD_METHOD
-
-

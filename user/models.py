@@ -46,7 +46,6 @@ class User(models.Model):
     invite_code = models.CharField(max_length=20)
     credit_score = models.IntegerField(default=100)
     bank_account = models.ForeignKey(BankCard, on_delete=models.CASCADE, null=True)
-    account_balance = models.IntegerField(default=100)
     grow_value = models.IntegerField(default=0)
     vip_expire_time = models.FloatField(default=0)
     is_checked = models.BooleanField(default=False)
@@ -71,7 +70,7 @@ class User(models.Model):
             "invite_code": self.invite_code,
             "credit_score": self.credit_score,
             "bank_account": self.bank_account.card_id if self.bank_account else "",
-            "account_balance": self.account_balance,
+            "account_balance": self.bank_account.card_balance if self.bank_account else 0,
             "grow_value": self.grow_value,
             "vip_expire_time": self.vip_expire_time,
             "is_checked": self.is_checked,
