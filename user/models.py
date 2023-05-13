@@ -53,7 +53,7 @@ class User(models.Model):
     categories = models.ManyToManyField(Category, through=UserCategory)
     email = models.ForeignKey(EmailVerify, null=True, on_delete=models.CASCADE)
     tag_score = models.IntegerField(default=0)
-    face_base64 = models.TextField(max_length=1_000_000)
+    face_base64 = models.TextField(max_length=1_000_000, null=True)
 
     class Meta:
         indexes = [models.Index(fields=["user_name"])]

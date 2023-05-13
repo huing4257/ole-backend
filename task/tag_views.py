@@ -1,10 +1,11 @@
 from django.db.models import Q
 from django.http import HttpRequest
 
-from task.models import Task, CurrentTagUser
+from task.models import Task, CurrentTagUser, TextData
 from user.models import User, UserCategory
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
+from utils.utils_require import CheckRequire
 from utils.utils_time import get_timestamp, DAY
 
 
@@ -98,5 +99,46 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
             if current_tag_user.tag_user == user and current_tag_user.accepted_at:
                 return request_success({"is_accepted": True})
         return request_success({"is_accepted": False})
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def taginfo(req, user: User, task_id):
+    if req.method == "GET":
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if task is None:
+            return request_failed(14, "task not created", 404)
+        ret_data = []
+        for question in task.questions.all():
+            q_id = question.q_id
+
+            result = question.result.filter(tag_user=user).first()
+            if result is None:
+                state = "notstarted"
+                startat = None
+                finishat = None
+            else:
+                startat = result.start_time
+                finishat = result.finish_time
+                state = "started" if finishat is None else "finished"
+
+            q_type = question.data_type
+            q_data = question.data
+            if q_type == "text":
+                q_data = TextData.objects.filter(id=int(q_data)).first().data
+                if len(q_data) > 100:
+                    q_data = q_data[:100]
+
+            ret_data.append({
+                "q_id": q_id,
+                "state": state,
+                "startat": startat,
+                "finishat": finishat,
+                "q_data": q_data,
+                "q_type": q_type,
+            })
+        return request_success(ret_data)
     else:
         return BAD_METHOD
