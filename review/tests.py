@@ -271,4 +271,27 @@ class ReviewTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content,
                              {'code': 0, 'data': {}, 'message': 'Succeed'})
+        
+    def test_reject_report(self):
+        task_id = self.publisher_login_create_task()
+        self.client.post(f"/task/distribute/{task_id}")
+        self.client.post("/user/logout")
+        user_id = 2
+        self.client.post("/user/logout")
+        self.login("admin")              
+        res = self.client.post(f"/review/rejectreport/{task_id}/{user_id}")
+        self.assertEqual(res.status_code, 404)
+        self.assertJSONEqual(res.content,
+                             {'code': 35, 'data': {}, 'message': 'report record not found'})        
+        self.login("testPublisher")      
+        res = self.client.post(f"/review/report/{task_id}/{user_id}")        
+        self.assertEqual(res.status_code, 200)
+        self.assertJSONEqual(res.content,
+                             {'code': 0, 'data': {}, 'message': 'Succeed'})
+        self.client.post("/user/logout")
+        self.login("admin")              
+        res = self.client.post(f"/review/rejectreport/{task_id}/{user_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertJSONEqual(res.content,
+                             {'code': 0, 'data': {}, 'message': 'Succeed'})        
 
