@@ -180,15 +180,15 @@ def get_my_tasks(req: HttpRequest, user: User):
             distribute_list.reverse()
             return request_success(undistribute_list + distribute_list)
         elif user.user_type == "tag":
-            all_tasks: list = Task.objects.all()
+            all_tasks: list[Task] = Task.objects.all()
             unfinish_list = []
             finish_list = []
             for element in all_tasks:
                 for current_tag_user in element.current_tag_user_list.all():
                     if user == current_tag_user.tag_user:
-                        if current_tag_user.accepted_at and current_tag_user.accepted_at == -1:
+                        if current_tag_user.state == "refused":
                             continue
-                        if current_tag_user.is_finished:
+                        if current_tag_user.state in CurrentTagUser.finish_state():
                             finish_list.append(element.serialize())
                         else:
                             unfinish_list.append(element.serialize())
@@ -200,7 +200,9 @@ def get_my_tasks(req: HttpRequest, user: User):
             for element in all_tasks:
                 task: Task = element
                 update_task_tagger_list(task)
-                current_tag_user_num = task.current_tag_user_list.count()
+                current_tag_user_num = task.current_tag_user_list.filter(
+                    state__in=CurrentTagUser.valid_state()
+                ).count()
                 ret_task = task.serialize(short=True)
                 ret_task.update({"current_tag_user_num": current_tag_user_num})
                 return_list.append(ret_task)
@@ -230,9 +232,13 @@ def get_free_tasks(req: HttpRequest, user: User):
         tasks.sort(key=lambda task: -task.my_count)
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
         return_list = [element.serialize() for element in tasks if
-                       element.current_tag_user_list.count() < element.distribute_user_num] + \
+                       element.current_tag_user_list.filter(
+                           state__in=CurrentTagUser.valid_state()
+                       ).count() < element.distribute_user_num] + \
                       [element.serialize() for element in left_tasks if
-                       element.current_tag_user_list.count() < element.distribute_user_num]
+                       element.current_tag_user_list.filter(
+                           state__in=CurrentTagUser.valid_state()
+                       ).count() < element.distribute_user_num]
         return request_success(return_list)
     else:
         return BAD_METHOD

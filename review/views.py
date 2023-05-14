@@ -88,7 +88,7 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         if err is not None:
             return err
         curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
-        curr_tag_user.is_check_accepted = "pass"
+        curr_tag_user.state = "check_accepted"
         curr_tag_user.tag_user.tag_score += task.reward_per_q * task.q_num  # 给标注方加分
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
         add_grow_value(curr_tag_user.tag_user, 10)
@@ -107,7 +107,7 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
         if err is not None:
             return err
         curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
-        curr_tag_user.is_check_accepted = "fail"
+        curr_tag_user.state = "check_refused"
         curr_tag_user.save()
         return request_success()
     else:
@@ -131,10 +131,9 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
         writer = csv.writer(response)
         # input_types: list[InputType] = list(task.input_type.all())
         if user_id is None:
-            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.all())
-            for tag_user in all_users:
-                if tag_user.is_check_accepted == "none":
-                    return request_failed(25, "review not finish")
+            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.filter(state="check_accpeted").all())
+            if len(all_users) != task.distribute_user_num:
+                return request_failed(25, "review not finish")
             tags: list[TagType] = list(task.tag_type.all())
             if type == "all":
                 writer.writerow(["filename"] + [tag.type_name for tag in tags])
@@ -178,9 +177,7 @@ def report_user(req, user: User, task_id, user_id):
         if task.publisher.user_id != user.user_id:
             return request_failed(1006, "no permission")
         tagger = User.objects.filter(user_id=user_id).first()
-        if tagger is None or \
-                (task.current_tag_user_list.filter(tag_user=tagger).first() is None and
-                 task.past_tag_user_list.filter(user_id=user_id).first() is None):
+        if tagger is None or task.current_tag_user_list.filter(tag_user=tagger).first() is None:
             return request_failed(34, "user is not this task's tagger", 404)
         report_info = ReportInfo.objects.filter(task=task, user=tagger).first()
         if report_info is None:

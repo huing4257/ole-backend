@@ -18,7 +18,7 @@ def pre_distribute(task_id: int, user: User):
     if user_id is None:
         user_id = 1
         cache.set('current_user_id', user_id)
-    task = Task.objects.filter(task_id=task_id).first()
+    task: Task = Task.objects.filter(task_id=task_id).first()
     if not task:
         return user_id, task, request_failed(14, "task not created", 404)
     if task.publisher != user:
@@ -86,18 +86,28 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         user_id, task, err = pre_distribute(task_id, user)
+        task: Task = task
         if err is not None:
             return err
 
         update_task_tagger_list(task)
         tag_users = User.objects.filter(user_type="tag").all()
-        invalid_num = task.past_tag_user_list.count()
+        invalid_num = task.current_tag_user_list.filter(
+            state__in=CurrentTagUser.invalid_state(),
+            tag_user__user_id=user_id
+        ).count()
         for ban_user in User.objects.filter(is_banned=True).all():
-            if not task.past_tag_user_list.filter(user=ban_user.ban_user).exists():
+            if not task.current_tag_user_list.filter(
+                    state__in=CurrentTagUser.invalid_state(),
+                    tag_user=ban_user
+            ).exists():
                 invalid_num += 1
         if task.distribute_user_num > tag_users.count() - invalid_num:
             return request_failed(21, "tag user not enough")
-        current_tag_user_num = task.current_tag_user_list.count()
+        current_tag_user_num = task.current_tag_user_list.filter(
+            state__in=CurrentTagUser.valid_state(),
+            tag_user__user_id=user_id
+        ).count()
         while current_tag_user_num < task.distribute_user_num:
             if user_id >= tag_users[len(tag_users) - 1].user_id:
                 tag_user = tag_users[0]
@@ -114,8 +124,6 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
                 continue
             if task.current_tag_user_list.filter(tag_user=tag_user).exists():
                 continue
-            if task.past_tag_user_list.filter(user_id=tag_user.user_id).exists():
-                continue
             cache.set('current_user_id', user_id)
             current_tag_user = CurrentTagUser.objects.create(tag_user=tag_user)
             task.current_tag_user_list.add(current_tag_user)
@@ -129,17 +137,11 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
 def update_task_tagger_list(task):
     current_tagger_list = task.current_tag_user_list.all()
     for current_tagger in current_tagger_list:
-        if current_tagger.accepted_at is None:
-            continue
         if current_tagger.accepted_at == -1:
-            task.past_tag_user_list.add(current_tagger.tag_user)
-            task.current_tag_user_list.remove(current_tagger)
-            continue
-        if current_tagger.is_finished:
-            continue
-        if task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
-            task.past_tag_user_list.add(current_tagger.tag_user)
-            task.current_tag_user_list.remove(current_tagger)
+            current_tagger.state = "refused"
+        elif task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+            current_tagger.state = "timeout"
+        current_tagger.save()
     task.save()
 
 
@@ -168,18 +170,26 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
 
 @CheckLogin
 def distribute_to_user(req: HttpRequest, user: User, task_id: int, user_id: int):
+    """
+    中介将任务分发给特定用户
+    """
     if req.method == "POST":
         if user.user_type != "agent":
             return request_failed(1006, "no permission")
-        task = Task.objects.filter(task_id=task_id).first()
+        task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 404)
-        if task.current_tag_user_list.count() >= task.distribute_user_num:
+        if task.current_tag_user_list.filter(
+                state__in=CurrentTagUser.valid_state()
+        ).count() >= task.distribute_user_num:
             return request_failed(20, "The tasks have all been distributed")
-        if task.past_tag_user_list.filter(user_id=user_id).exists():
-            return request_failed(24, "user is distributed before")  # remains to be modified
-        if task.current_tag_user_list.filter(tag_user=User.objects.filter(user_id=user_id).first()).exists():
-            return request_failed(25, "user has been distributed")  # remains to be modified
+        if task.current_tag_user_list.filter(
+                state__in=CurrentTagUser.invalid_state(),
+                tag_user__user_id=user_id
+        ).exists():
+            return request_failed(24, "user is distributed before")
+        if task.current_tag_user_list.filter(tag_user__user_id=user_id).exists():
+            return request_failed(25, "user has been distributed")
 
         cur_tag_user = CurrentTagUser.objects.create(tag_user=User.objects.filter(user_id=user_id).first())
         task.current_tag_user_list.add(cur_tag_user)

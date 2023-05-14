@@ -102,17 +102,26 @@ class Question(models.Model):
 
 class CurrentTagUser(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
-    # todo 
     accepted_at = models.FloatField(null=True)
-    is_finished = models.BooleanField(default=False)
-    is_check_accepted = models.CharField(max_length=MAX_CHAR_LENGTH, default="none")
+    state = models.CharField(max_length=MAX_CHAR_LENGTH, default="check_refused")
+
+    @staticmethod
+    def valid_state():
+        return ["not_handle", "accepted", "finished", "check_accepted"]
+
+    @staticmethod
+    def invalid_state():
+        return ["refused", "check_refused", "timeout"]
+
+    @staticmethod
+    def finish_state():
+        return ["finished", "check_accepted", "check_refused", "timeout"]
 
     def serialize(self):
         return {
             "tag_user": self.tag_user.serialize(),
             "accepted_at": self.accepted_at,
-            "is_finished": self.is_finished,
-            "is_check_accepted": self.is_check_accepted,
+            "state": self.state,
         }
 
 
@@ -166,7 +175,6 @@ class Task(models.Model):
             "task_name": self.task_name,
             "questions": [user.serialize() for user in self.questions.all()],
             "current_tag_user_list": [user.serialize() for user in self.current_tag_user_list.all()],
-            "past_tag_user_list": [user.serialize() for user in self.past_tag_user_list.all()],
             "progress": [user.serialize() for user in self.progress.all()],
             "result_type": self.result_type,
             "accept_method": self.accept_method,

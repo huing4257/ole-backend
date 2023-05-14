@@ -16,11 +16,15 @@ def refuse_task(req: HttpRequest, user: User, task_id: int):
     若剩余可分发用户不足，则返回错误响应。
     """
     if req.method == "POST":
-        task = Task.objects.filter(task_id=task_id).first()
-        if not task.current_tag_user_list.filter(tag_user=user).exists():
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if not (task.current_tag_user_list.filter(tag_user=user).exists() or task.strategy == "toall"):
             return request_failed(18, "no permission to accept")
-        current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+        current_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
+        if current_tag_user is None:
+            current_tag_user = CurrentTagUser.objects.create(tag_user=user)
+            task.current_tag_user_list.add(current_tag_user)
         current_tag_user.accepted_at = -1
+        current_tag_user.state = "refused"
         current_tag_user.save()
         task.save()
         return request_success()
@@ -37,9 +41,11 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         print(acc_num)
         if acc_num >= 10:
             return request_failed(30, "accept limit")
-        task = Task.objects.filter(task_id=task_id).first()
+        task: Task = Task.objects.filter(task_id=task_id).first()
         if task.strategy == "toall":
-            if task.current_tag_user_list.filter(accepted_at__gte=0).count() >= task.distribute_user_num:
+            if task.current_tag_user_list.filter(
+                    state__in=CurrentTagUser.valid_state()
+            ).count() >= task.distribute_user_num:
                 return request_failed(31, "distribution completed")
             else:
                 if task.current_tag_user_list.filter(tag_user=user).exists():
@@ -47,6 +53,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
                 curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
                 task.save()
+            return request_success()
         elif task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
             current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
@@ -57,7 +64,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
                 user_category, created = UserCategory.objects.get_or_create(user=user, category=category)
                 user_category.count += 1
                 user_category.save()
-            return request_success(task.serialize())
+            return request_success()
         else:
             # no permission to accept
             return request_failed(18, "no permission to accept")
