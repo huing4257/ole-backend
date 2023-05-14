@@ -63,6 +63,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             # current user is tag_user, change accepted_time
             current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
             current_tag_user.accepted_at = get_timestamp()
+            current_tag_user.state = "accepted"
             current_tag_user.save()
             task.save()
             for category in task.task_style.all():
