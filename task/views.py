@@ -247,7 +247,10 @@ def check_task(req: HttpRequest, user: User, task_id: int):
         body = json.loads(req.body.decode("utf-8"))
         check_result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         task = Task.objects.filter(task_id=task_id).first()
-        task.check_result = check_result
+        if task.check_result == "wait":
+            task.check_result = check_result
+        else:
+            return request_failed(51, "recheck")
         task.save()
         return request_success()
     else:

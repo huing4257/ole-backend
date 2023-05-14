@@ -1,10 +1,11 @@
 from django.db.models import Q
 from django.http import HttpRequest
 
-from task.models import Task, CurrentTagUser
+from task.models import Task, CurrentTagUser, TextData
 from user.models import User, UserCategory
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
+from utils.utils_require import CheckRequire
 from utils.utils_time import get_timestamp, DAY
 
 
@@ -41,17 +42,16 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             if task.current_tag_user_list.filter(accepted_at__gte=0).count() >= task.distribute_user_num:
                 return request_failed(31, "distribution completed")
             else:
-                if task.current_tag_user_list.filter(tag_user=user, accepted_at__gte=0).exists():
+                if task.current_tag_user_list.filter(tag_user=user).exists():
                     return request_failed(32, "repeat accept")
                 curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
                 task.current_tag_user_list.add(curr_tag_user)
                 task.save()
-        if task.current_tag_user_list.filter(tag_user=user).exists():
+        elif task.current_tag_user_list.filter(tag_user=user).exists():
             # current user is tag_user, change accepted_time
-            for current_tag_user in task.current_tag_user_list.all():
-                if current_tag_user.tag_user == user:
-                    current_tag_user.accepted_at = get_timestamp()
-                    current_tag_user.save()
+            current_tag_user = task.current_tag_user_list.filter(tag_user=user).first()
+            current_tag_user.accepted_at = get_timestamp()
+            current_tag_user.save()
             task.save()
             for category in task.task_style.all():
                 user_category, created = UserCategory.objects.get_or_create(user=user, category=category)
@@ -103,3 +103,42 @@ def is_accepted(req: HttpRequest, user: User, task_id: int):
         return BAD_METHOD
 
 
+@CheckLogin
+@CheckRequire
+def taginfo(req, user: User, task_id):
+    if req.method == "GET":
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if task is None:
+            return request_failed(14, "task not created", 404)
+        ret_data = []
+        for question in task.questions.all():
+            q_id = question.q_id
+
+            result = question.result.filter(tag_user=user).first()
+            if result is None:
+                state = "notstarted"
+                startat = None
+                finishat = None
+            else:
+                startat = result.start_time
+                finishat = result.finish_time
+                state = "started" if finishat is None else "finished"
+
+            q_type = question.data_type
+            q_data = question.data
+            if q_type == "text":
+                q_data = TextData.objects.filter(id=int(q_data)).first().data
+                if len(q_data) > 100:
+                    q_data = q_data[:100]
+
+            ret_data.append({
+                "q_id": q_id,
+                "state": state,
+                "startat": startat,
+                "finishat": finishat,
+                "q_data": q_data,
+                "q_type": q_type,
+            })
+        return request_success(ret_data)
+    else:
+        return BAD_METHOD
