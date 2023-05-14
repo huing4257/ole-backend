@@ -141,6 +141,9 @@ def update_task_tagger_list(task):
             current_tagger.state = "refused"
         elif task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
             current_tagger.state = "timeout"
+        elif all(q.result.filter(tag_user=current_tagger.tag_user).exists() for q in task.questions.all()):
+            if current_tagger.state not in CurrentTagUser.finish_state():
+                current_tagger.state = "finished"
         current_tagger.save()
     task.save()
 

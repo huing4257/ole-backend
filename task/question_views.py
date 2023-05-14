@@ -50,6 +50,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         result.finish_time = get_timestamp()
         result.save()
         quest.save()
+        task.save()
 
         # 处理progress
         progress: Progress = task.progress.filter(tag_user=user).first()
