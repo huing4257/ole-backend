@@ -28,6 +28,7 @@ build:
   image: python:3.10
   stage: test
   before_script:
+    - pip install -i https://pypi.tuna.tsinghua.edu.cn/simple cmake
     - pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
 unit-test:
