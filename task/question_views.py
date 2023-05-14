@@ -18,9 +18,9 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         body = json.loads(req.body.decode("utf-8"))
         task: Task = Task.objects.filter(task_id=task_id).first()
         try:
-            result = require(body, "result", "list", err_msg="invalid request", err_code=1005)
+            result_data = require(body, "result", "list", err_msg="invalid request", err_code=1005)
         except KeyError:
-            result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
+            result_data = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         input_result_list = require(body, "input_result", "list", err_msg="invalid request", err_code=1005) \
             if task.task_type == "self_define" else []
         input_result_obj_list = [InputResult.objects.create(
@@ -40,12 +40,12 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         if result is None:
             result = Result.objects.create(
                 tag_user=user,
-                tag_res=json.dumps(result),
+                tag_res=json.dumps(result_data),
             )
             result.input_result.set(input_result_obj_list)
             quest.result.add(result)
         else:
-            result.tag_res = json.dumps(result)
+            result.tag_res = json.dumps(result_data)
             result.input_result.set(input_result_obj_list)
         result.finish_time = get_timestamp()
         result.save()
