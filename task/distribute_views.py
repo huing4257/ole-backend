@@ -208,7 +208,7 @@ def is_distributed(req: HttpRequest, user: User, task_id: int):
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(14, "task not created", 404)
-        if task.agent:
+        if task.agent or task.strategy == "toall":
             return request_success({"is_distributed": True})
         if task.current_tag_user_list.count() == 0:
             return request_success({"is_distributed": False})

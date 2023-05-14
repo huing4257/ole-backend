@@ -47,10 +47,16 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
             ).count() >= task.distribute_user_num:
                 return request_failed(31, "distribution completed")
             else:
-                if task.current_tag_user_list.filter(tag_user=user).exists():
-                    return request_failed(32, "repeat accept")
-                curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
-                task.current_tag_user_list.add(curr_tag_user)
+                curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
+                if curr_tag_user:
+                    if curr_tag_user.state == "not_handle":
+                        curr_tag_user.state = "accepted"
+                        curr_tag_user.save()
+                    else:
+                        return request_failed(32, "repeat accept")
+                else:
+                    curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
+                    task.current_tag_user_list.add(curr_tag_user)
                 task.save()
             return request_success()
         elif task.current_tag_user_list.filter(tag_user=user).exists():
