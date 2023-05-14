@@ -199,6 +199,7 @@ class ReportInfo(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     result = models.BooleanField(default=None, null=True)
+    reason = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
 
     def serialize(self):
         return {
@@ -207,5 +208,6 @@ class ReportInfo(models.Model):
             "task_name": self.task.task_name,
             "user_id": self.user.user_id,
             "user_name": self.user.user_name,
-            "credit_score": self.user.credit_score
+            "credit_score": self.user.credit_score,
+            "reason": self.reason
         }
