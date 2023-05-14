@@ -103,7 +103,7 @@ class Question(models.Model):
 class CurrentTagUser(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
     accepted_at = models.FloatField(null=True)
-    state = models.CharField(max_length=MAX_CHAR_LENGTH, default="check_refused")
+    state = models.CharField(max_length=MAX_CHAR_LENGTH, default="not_handle")
 
     @staticmethod
     def valid_state():
@@ -183,7 +183,6 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
-
         } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,
