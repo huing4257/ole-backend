@@ -38,8 +38,7 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         # 计算一天之内接受的任务数目
         acc_num = CurrentTagUser.objects.filter(
             Q(tag_user=user) & Q(accepted_at__isnull=False) & Q(accepted_at__gte=get_timestamp() - DAY)).count()
-        print(acc_num)
-        if acc_num >= 10:
+        if acc_num >= max(int(user.credit_score / 10), 1):
             return request_failed(30, "accept limit")
         task: Task = Task.objects.filter(task_id=task_id).first()
         if task.strategy == "toall":
