@@ -197,7 +197,8 @@ class Task(models.Model):
 
 class ReportInfo(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    report_req = models.ForeignKey(User, on_delete=models.CASCADE, related_name="report_info_report_req", default=1)
+    reportee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="report_info_reportee", default=1)
     result = models.BooleanField(default=None, null=True)
     reason = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
 
@@ -206,8 +207,9 @@ class ReportInfo(models.Model):
             "task_id": self.task.task_id,
             "task_type": self.task.task_type,
             "task_name": self.task.task_name,
-            "user_id": self.user.user_id,
-            "user_name": self.user.user_name,
-            "credit_score": self.user.credit_score,
-            "reason": self.reason
+            "tagger_id": self.reportee.user_id if self.reportee.user_type == "tag" else self.report_req.id,
+            "reportee_id": self.reportee.user_id,
+            "reportee_name": self.reportee.user_name,
+            "credit_score": self.reportee.credit_score,
+            "reason": self.reason,
         }
