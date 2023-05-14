@@ -143,7 +143,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             ret_data['current_tag_user_list'] = []
             if curr_user:
                 ret_data['accepted_time'] = curr_user.accepted_at
-                ret_data['current_tag_user_list'].append(curr_user)
+                ret_data['current_tag_user_list'].append(curr_user.serialize())
         ret_data['current_tag_user_num'] = task.current_tag_user_list.filter(
             state__in=CurrentTagUser.valid_state()
         ).count()
