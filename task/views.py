@@ -132,7 +132,7 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             task.delete()
             return request_success()
     elif req.method == 'GET':
-        task = Task.objects.filter(task_id=task_id).first()
+        task: Task = Task.objects.filter(task_id=task_id).first()
         # for category in task.task_style.all():
         #     print(category.category)
         if not task:
@@ -140,8 +140,13 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
         ret_data = task.serialize()
         if user.user_type == "tag":
             curr_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
+            ret_data['current_tag_user_list'] = []
             if curr_user:
                 ret_data['accepted_time'] = curr_user.accepted_at
+                ret_data['current_tag_user_list'].append(curr_user)
+        ret_data['current_tag_user_num'] = task.current_tag_user_list.filter(
+            state__in=CurrentTagUser.valid_state()
+        ).count()
         response = request_success(ret_data)
         response.set_cookie("user_type", user.user_type)
         return response
