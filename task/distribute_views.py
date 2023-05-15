@@ -41,7 +41,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         user_id, task, err = pre_distribute(task_id, user)
         if err is not None:
             return err
-        if task.current_tag_user_list.count() != 0:
+        if task.current_tag_user_list.count() != 0 or task.strategy == "toall":
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
         tag_users = User.objects.filter(user_type="tag").all()
