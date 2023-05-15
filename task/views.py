@@ -186,19 +186,14 @@ def get_my_tasks(req: HttpRequest, user: User):
             return request_success(undistribute_list + distribute_list)
         elif user.user_type == "tag":
             all_tasks: list[Task] = Task.objects.all()
-            unfinish_list = []
-            finish_list = []
+            task_list = []
             for element in all_tasks:
-                for current_tag_user in element.current_tag_user_list.all():
-                    if user == current_tag_user.tag_user:
-                        if current_tag_user.state == "refused":
-                            continue
-                        if current_tag_user.state in CurrentTagUser.finish_state():
-                            finish_list.append(element.serialize())
-                        else:
-                            unfinish_list.append(element.serialize())
-            finish_list.reverse()
-            return request_success(unfinish_list + finish_list)
+                current_tag_user: CurrentTagUser = element.current_tag_user_list.filter(tag_user=user).first()
+                if current_tag_user:
+                    if current_tag_user.state != "refused":
+                        task_list.append(element.serialize())
+                        task_list[-1]["state"] = current_tag_user.state
+            return request_success(task_list)
         elif user.user_type == "agent":
             all_tasks = user.hand_out_task.all()
             return_list = list()
@@ -222,8 +217,6 @@ def get_my_tasks(req: HttpRequest, user: User):
 @CheckRequire
 def get_free_tasks(req: HttpRequest, user: User):
     if req.method == "GET":
-        if user.user_type != "tag":
-            return request_failed(1006, "no permission")
         usercategories = UserCategory.objects.filter(user=user).all()
         categories = user.categories.all()
         tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories). \
