@@ -2,10 +2,10 @@ import json
 
 from django.db import models
 
-from task.distribute_views import update_task_tagger_list
 from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
+from utils.utils_time import get_timestamp
 
 
 # Create your models here.
@@ -216,3 +216,17 @@ class ReportInfo(models.Model):
             "credit_score": self.reportee.credit_score,
             "reason": self.reason,
         }
+
+
+def update_task_tagger_list(task):
+    current_tagger_list = task.current_tag_user_list.all()
+    for current_tagger in current_tagger_list:
+        if current_tagger.accepted_at == -1:
+            current_tagger.state = "refused"
+        elif task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+            current_tagger.state = "timeout"
+        elif all(q.result.filter(tag_user=current_tagger.tag_user).exists() for q in task.questions.all()):
+            if current_tagger.state not in CurrentTagUser.finish_state():
+                current_tagger.state = "finished"
+        current_tagger.save()
+    task.save()

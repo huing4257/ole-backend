@@ -1,12 +1,11 @@
 import json
 from django.http import HttpRequest
 
-from task.distribute_views import update_task_tagger_list
 from utils.utils_check import CheckLogin, CheckUser
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from user.models import User, Category, UserCategory
-from task.models import Task, Question, CurrentTagUser, TagType, InputType
+from task.models import Task, Question, CurrentTagUser, TagType, InputType, update_task_tagger_list
 from review.models import AnsList
 from django.db.models import IntegerField, Value
 

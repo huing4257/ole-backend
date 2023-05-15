@@ -3,13 +3,12 @@ import json
 from django.core.cache import cache
 from django.http import HttpRequest
 
-from task.models import Task, CurrentTagUser
+from task.models import Task, CurrentTagUser, update_task_tagger_list
 from user.models import User
 from user.vip_views import add_grow_value
 from utils.utils_check import CheckLogin, CheckUser
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import CheckRequire, require
-from utils.utils_time import get_timestamp
 
 
 def pre_distribute(task_id: int, user: User):
@@ -132,20 +131,6 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         return request_success()
     else:
         return BAD_METHOD
-
-
-def update_task_tagger_list(task):
-    current_tagger_list = task.current_tag_user_list.all()
-    for current_tagger in current_tagger_list:
-        if current_tagger.accepted_at == -1:
-            current_tagger.state = "refused"
-        elif task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
-            current_tagger.state = "timeout"
-        elif all(q.result.filter(tag_user=current_tagger.tag_user).exists() for q in task.questions.all()):
-            if current_tagger.state not in CurrentTagUser.finish_state():
-                current_tagger.state = "finished"
-        current_tagger.save()
-    task.save()
 
 
 @CheckLogin
