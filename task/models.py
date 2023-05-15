@@ -2,10 +2,12 @@ import json
 
 from django.db import models
 
+from picbed.models import Image
 from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
 from utils.utils_time import get_timestamp
+from video.models import Video
 
 
 # Create your models here.
@@ -77,6 +79,12 @@ class Question(models.Model):
     tag_type = models.ManyToManyField(TagType, default=[])
     input_type = models.ManyToManyField(InputType, default=[])
     cut_num = models.IntegerField(default=None, null=True)
+
+    def filename(self):
+        q_data = get_q_data(self)
+        if q_data is not None:
+            return q_data.filename
+        return None
 
     def serialize(self, detail=False, user_id: int = None):
         if detail:
@@ -231,3 +239,13 @@ def update_task_tagger_list(task):
                 current_tagger.state = "finished"
         current_tagger.save()
     task.save()
+
+
+def get_q_data(question):
+    if question.data_type == "text":
+        q_data: TextData = TextData.objects.filter(id=question.data).first()
+    elif question.data_type == "image":
+        q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
+    else:  # question.data_type in ["video", "audio"]:
+        q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
+    return q_data

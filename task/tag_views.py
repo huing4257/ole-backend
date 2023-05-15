@@ -1,7 +1,11 @@
+import csv
+import io
+import json
+
 from django.db.models import Q
 from django.http import HttpRequest
 
-from task.models import Task, CurrentTagUser, TextData
+from task.models import Task, CurrentTagUser, TextData, Question, Result, InputResult
 from user.models import User, UserCategory
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
@@ -153,5 +157,64 @@ def taginfo(req, user: User, task_id):
                 "q_type": q_type,
             })
         return request_success(ret_data)
+    else:
+        return BAD_METHOD
+
+
+def get_question_filename(task: Task, filename):
+    for q in task.questions.all():
+        if q.filename() == filename:
+            return filename
+    return None
+
+
+@CheckLogin
+@CheckRequire
+def upload_many_res(req, user: User, task_id):
+    if req.method == "POST":
+        if user.user_type != "tag":
+            return request_failed(1006, "no permission")
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if task is None:
+            return request_failed(14, "task not created", 404)
+        if task.task_type in ["threeD", "human_face", "image_select"]:
+            return request_failed(72, "invalid task type")
+        file_obj = req.FILES.get("file")
+        file_data = file_obj.read().decode("utf-8")
+        rows = csv.DictReader(io.StringIO(file_data), delimiter=',')
+        if "filename" not in rows.fieldnames:
+            return request_failed(71, "missing field name")
+        if task.tag_type.exists() and "tag" not in rows.fieldnames:
+            return request_failed(71, "missing field name")
+        if task.task_type == "triplet" and any(tag not in rows.fieldnames for tag in ["first", "second"]):
+            return request_failed(71, "missing field name")
+        input_types = [input_type for input_type in task.input_type.all()]
+        if any(input_type.input_tip not in rows.fieldnames for input_type in input_types):
+            return request_failed(71, "missing field name")
+        for row in rows:
+            question: Question = get_question_filename(task, row["filename"])
+            if question is None:
+                return request_failed(73, "wrong filename")
+            result = question.result.filter(tag_user=user).first()
+            if result is None:
+                result = Result.objects.create(tag_user=user)
+                question.result.add(result)
+            if task.task_type == "triplet":
+                result.tag_res = json.dumps([row["first"], row["second"]])
+            else:
+                if task.tag_type.exists():
+                    tags = [tag_type.type_name for tag_type in task.tag_type.all()]
+                    if row["tag"] not in tags:
+                        return request_failed(74, "wrong tag name")
+                    result.tag_res = json.dumps(row['tag'])
+                for input_type in input_types:
+                    input_res = result.input_result.filter(input_type=input_type).first()
+                    if input_res is None:
+                        input_res = InputResult.objects.create(input_type=input_type)
+                    input_res.input_res = row[input_type.input_tip]
+                    input_res.save()
+            result.save()
+            question.save()
+        return request_success()
     else:
         return BAD_METHOD

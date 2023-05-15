@@ -5,15 +5,13 @@ import io
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
-from picbed.models import Image
-from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType
+from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
-from video.models import Video
 
 
 # Create your views here.
@@ -155,15 +153,5 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
         return response
     else:
         return BAD_METHOD
-
-
-def get_q_data(question):
-    if question.data_type == "text":
-        q_data: TextData = TextData.objects.filter(id=question.data).first()
-    elif question.data_type == "image":
-        q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-    else:  # question.data_type in ["video", "audio"]:
-        q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
-    return q_data
 
 
