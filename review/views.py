@@ -131,7 +131,7 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
         writer = csv.writer(response)
         # input_types: list[InputType] = list(task.input_type.all())
         if user_id is None:
-            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.filter(state="check_accpeted").all())
+            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.filter(state="check_accepted").all())
             if len(all_users) != task.distribute_user_num:
                 return request_failed(25, "review not finish")
             tags: list[TagType] = list(task.tag_type.all())

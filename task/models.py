@@ -1,6 +1,8 @@
 import json
 
 from django.db import models
+
+from task.distribute_views import update_task_tagger_list
 from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
@@ -162,6 +164,7 @@ class Task(models.Model):
     cut_num = models.IntegerField(default=None, null=True)
 
     def serialize(self, short=False):
+        update_task_tagger_list(self)
         return {
             "task_type": self.task_type,
             "task_style": " ".join([tag.category for tag in self.task_style.all()]),
