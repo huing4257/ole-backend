@@ -229,14 +229,11 @@ def get_free_tasks(req: HttpRequest, user: User):
         tasks = list(tasks)
         tasks.sort(key=lambda task: -task.my_count)
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
-        return_list = [element.serialize() for element in tasks if
+        return_list = [element.serialize() for element in tasks + list(left_tasks) if
                        element.current_tag_user_list.filter(
                            state__in=CurrentTagUser.valid_state()
-                       ).count() < element.distribute_user_num] + \
-                      [element.serialize() for element in left_tasks if
-                       element.current_tag_user_list.filter(
-                           state__in=CurrentTagUser.valid_state()
-                       ).count() < element.distribute_user_num]
+                       ).count() < element.distribute_user_num and
+                       not element.current_tag_user_list.filter(tag_user=user).exists()]
         return request_success(return_list)
     else:
         return BAD_METHOD
