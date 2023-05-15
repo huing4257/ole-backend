@@ -133,10 +133,9 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             return request_success()
     elif req.method == 'GET':
         task: Task = Task.objects.filter(task_id=task_id).first()
-        # for category in task.task_style.all():
-        #     print(category.category)
         if not task:
             return request_failed(11, "task does not exist", 404)
+        update_task_tagger_list(task)
         ret_data = task.serialize()
         if user.user_type == "tag":
             curr_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
@@ -148,7 +147,6 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             state__in=CurrentTagUser.valid_state()
         ).count()
         response = request_success(ret_data)
-        response.set_cookie("user_type", user.user_type)
         return response
     else:
         return BAD_METHOD
