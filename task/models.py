@@ -1,9 +1,11 @@
 import json
 
 from django.db import models
+
 from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
+from utils.utils_time import get_timestamp
 
 
 # Create your models here.
@@ -102,17 +104,26 @@ class Question(models.Model):
 
 class CurrentTagUser(models.Model):
     tag_user = models.ForeignKey(User, on_delete=models.CASCADE, default=None)
-    # todo 
     accepted_at = models.FloatField(null=True)
-    is_finished = models.BooleanField(default=False)
-    is_check_accepted = models.CharField(max_length=MAX_CHAR_LENGTH, default="none")
+    state = models.CharField(max_length=MAX_CHAR_LENGTH, default="not_handle")
+
+    @staticmethod
+    def valid_state():
+        return ["not_handle", "accepted", "finished", "check_accepted"]
+
+    @staticmethod
+    def invalid_state():
+        return ["refused", "check_refused", "timeout"]
+
+    @staticmethod
+    def finish_state():
+        return ["finished", "check_accepted", "check_refused", "timeout"]
 
     def serialize(self):
         return {
             "tag_user": self.tag_user.serialize(),
             "accepted_at": self.accepted_at,
-            "is_finished": self.is_finished,
-            "is_check_accepted": self.is_check_accepted,
+            "state": self.state,
         }
 
 
@@ -153,6 +164,7 @@ class Task(models.Model):
     cut_num = models.IntegerField(default=None, null=True)
 
     def serialize(self, short=False):
+        update_task_tagger_list(self)
         return {
             "task_type": self.task_type,
             "task_style": " ".join([tag.category for tag in self.task_style.all()]),
@@ -166,7 +178,6 @@ class Task(models.Model):
             "task_name": self.task_name,
             "questions": [user.serialize() for user in self.questions.all()],
             "current_tag_user_list": [user.serialize() for user in self.current_tag_user_list.all()],
-            "past_tag_user_list": [user.serialize() for user in self.past_tag_user_list.all()],
             "progress": [user.serialize() for user in self.progress.all()],
             "result_type": self.result_type,
             "accept_method": self.accept_method,
@@ -175,7 +186,6 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
-
         } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,
@@ -190,15 +200,34 @@ class Task(models.Model):
 
 class ReportInfo(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    report_req = models.ForeignKey(User, on_delete=models.CASCADE, related_name="report_info_report_req", default=1)
+    reportee = models.ForeignKey(User, on_delete=models.CASCADE, related_name="report_info_reportee", default=1)
     result = models.BooleanField(default=None, null=True)
+    reason = models.CharField(max_length=MAX_CHAR_LENGTH, null=True)
 
     def serialize(self):
         return {
             "task_id": self.task.task_id,
             "task_type": self.task.task_type,
             "task_name": self.task.task_name,
-            "user_id": self.user.user_id,
-            "user_name": self.user.user_name,
-            "credit_score": self.user.credit_score
+            "tagger_id": self.reportee.user_id if self.reportee.user_type == "tag" else self.report_req.id,
+            "reportee_id": self.reportee.user_id,
+            "reportee_name": self.reportee.user_name,
+            "credit_score": self.reportee.credit_score,
+            "reason": self.reason,
         }
+
+
+def update_task_tagger_list(task):
+    current_tagger_list = task.current_tag_user_list.all()
+    for current_tagger in current_tagger_list:
+        if current_tagger.accepted_at == -1:
+            current_tagger.state = "refused"
+        elif current_tagger.accepted_at is not None and \
+                task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+            current_tagger.state = "timeout"
+        elif all(q.result.filter(tag_user=current_tagger.tag_user).exists() for q in task.questions.all()):
+            if current_tagger.state not in CurrentTagUser.finish_state():
+                current_tagger.state = "finished"
+        current_tagger.save()
+    task.save()

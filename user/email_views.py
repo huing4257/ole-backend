@@ -18,6 +18,11 @@ def send_verify_code(req):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
         email = require(body, "email", "string", err_msg="Missing or error type of [email]")
+
+        # 邮箱已被绑定
+        if User.objects.filter(email__email=email).exists():
+            return request_failed(41, "email already bound")
+
         with open(Path(__file__).resolve().parent / "imgs" / "blue_archive.png", "rb") as f:
             img_base64 = base64.b64encode(f.read()).decode("utf-8")
         valid_code = str(secrets.randbelow(999999)).zfill(6)
@@ -35,10 +40,6 @@ def send_verify_code(req):
         # 发送邮件失败
         if send_success == 0:
             return request_failed(40, "send verify code failed")
-
-        # 邮箱已被绑定
-        if User.objects.filter(email__email=email).exists():
-            return request_failed(41, "email already bound")
 
         # 更新数据库中 Verify Code & Expire Time
         email_obj: EmailVerify = EmailVerify.objects.filter(email=email).first()
@@ -66,7 +67,7 @@ def change_email(req, user: User):
         # 检查邮箱验证码
         email = require(body, "newemail", "string", err_msg="Missing or error type of [newemail]")
         verifycode = require(body, "verifycode", "string", err_msg="Missing or error type of [verifycode]")
-        email_verify_res, email_obj = check_email(email, verifycode)
+        email_verify_res, email_obj = check_email(email, verifycode, check_exist=True)
         if email_verify_res is not None:
             return email_verify_res
 
@@ -132,7 +133,7 @@ def modifypassword_by_email(req, user: User):
         return BAD_METHOD
 
 
-def check_email(email, verifycode):
+def check_email(email, verifycode, check_exist: bool = False):
     """
     检查邮箱验证码的正确性
     """
@@ -142,8 +143,6 @@ def check_email(email, verifycode):
     if email_obj.email_valid_expire < datetime.datetime.now().replace(tzinfo=datetime.timezone.utc):
         return request_failed(45, "email verify code expired"), None
 
-    if User.objects.filter(email__email=email).exists():
+    if User.objects.filter(email__email=email).exists() and check_exist:
         return request_failed(41, "email already bound"), None
     return None, email_obj
-
-

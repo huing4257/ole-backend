@@ -50,6 +50,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         result.finish_time = get_timestamp()
         result.save()
         quest.save()
+        task.save()
 
         # 处理progress
         progress: Progress = task.progress.filter(tag_user=user).first()
@@ -63,11 +64,11 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                     # 所有题目已经做完了，就把progress设为0
                     progress.q_id = 0
                     curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
-                    curr_tag_user.is_finished = True
+                    curr_tag_user.state = "finished"
 
                     # 开始自动审核
                     if task.accept_method == "auto":
-                        curr_tag_user.is_check_accepted = "pass"
+                        curr_tag_user.state = "check_accepted"
                         ans_list = task.ans_list
                         questions = task.questions.all()
                         for ans in ans_list.ans_list.all():
@@ -75,8 +76,8 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                             question = questions.filter(q_id=q_id).first()
                             result = question.input_res.all().filter(tag_user=user).first()
                             if result.tag_res != ans.std_ans:
-                                curr_tag_user.is_check_accepted = "fail"
-                        if curr_tag_user.is_check_accepted == "pass":
+                                curr_tag_user.state = "check_refused"
+                        if curr_tag_user.state == "check_accepted":
                             # 给标注方加分
                             user.score += task.reward_per_q * task.q_num
                             user.tag_score += task.reward_per_q * task.q_num
@@ -104,7 +105,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
 def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
     if req.method == "GET":
         # 找到task 和 question
-        task = Task.objects.filter(task_id=task_id).first()
+        task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(11, "task does not exist", 404)
         question = task.questions.filter(q_id=q_id).first()
@@ -119,7 +120,9 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
             else:
                 return request_failed(16, "no access permission")
         elif user_type == "tag":
-            if task.current_tag_user_list.filter(tag_user=user):
+            if task.current_tag_user_list.filter(
+                    state__in=["accepted", "finished", "check_accepted", "check_refused"],
+                    tag_user=user):
                 return_data = question.serialize(detail=True)
                 return request_success(return_data)
             else:
