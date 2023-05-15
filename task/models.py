@@ -56,7 +56,7 @@ class Result(models.Model):
     def serialize(self):
         return {
             "tag_user_id": self.tag_user.user_id,
-            "result": json.loads(self.tag_res),
+            "result": json.loads(self.tag_res) if self.tag_res is not None else None,
             "input_result": [input_res.serialize() for input_res in self.input_result.all()],
         }
 
