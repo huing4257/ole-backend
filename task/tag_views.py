@@ -59,7 +59,9 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
                     else:
                         return request_failed(32, "repeat accept")
                 else:
-                    curr_tag_user = CurrentTagUser.objects.create(tag_user=user, accepted_at=get_timestamp())
+                    curr_tag_user = CurrentTagUser.objects.create(tag_user=user,
+                                                                  accepted_at=get_timestamp(),
+                                                                  state="accepted")
                     task.current_tag_user_list.add(curr_tag_user)
                 task.save()
             return request_success()
