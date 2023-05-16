@@ -26,8 +26,18 @@ class TextData(models.Model):
         }
 
 
+class TagType(models.Model):
+    type_name = models.CharField(max_length=MAX_CHAR_LENGTH)
+
+    def serialize(self):
+        return {
+            "type_name": self.type_name,
+        }
+
+
 class InputType(models.Model):
     input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
+    tag_type = models.ManyToManyField(TagType, null=True)
 
     def serialize(self):
         return {
@@ -58,15 +68,6 @@ class Result(models.Model):
             "tag_user_id": self.tag_user.user_id,
             "result": json.loads(self.tag_res) if self.tag_res is not None else None,
             "input_result": [input_res.serialize() for input_res in self.input_result.all()],
-        }
-
-
-class TagType(models.Model):
-    type_name = models.CharField(max_length=MAX_CHAR_LENGTH)
-
-    def serialize(self):
-        return {
-            "type_name": self.type_name,
         }
 
 

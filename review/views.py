@@ -5,7 +5,7 @@ import io
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
-from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data
+from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
@@ -127,7 +127,7 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
 
         questions: list[Question] = list(task.questions.all())
         writer = csv.writer(response)
-        # input_types: list[InputType] = list(task.input_type.all())
+        input_types: list[InputType] = list(task.input_type.all())
         if user_id is None:
             all_users: list[CurrentTagUser] = list(task.current_tag_user_list.filter(state="check_accepted").all())
             if len(all_users) != task.distribute_user_num:
@@ -145,13 +145,18 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                     res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
                     writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
         else:
+            writer.writerow(["filename", "tag"] + [input_type.input_tip for input_type in input_types])
             for question in questions:
                 q_data = get_q_data(question)
                 tag_res: Result = question.result.filter(tag_user=user_id).first()
-                writer.writerow([q_data.filename, tag_res.tag_res])
+                input_results = []
+                for input_type in input_types:
+                    print(input_type.id)
+                    input_res = tag_res.input_result.filter(input_type=input_type).first()
+                    print(input_res)
+                # writer.writerow([q_data.filename, str(json.loads(tag_res.tag_res))] +
+                #                 [input_res.input_res for input_res in tag_res.input_result.all()])
 
         return response
     else:
         return BAD_METHOD
-
-

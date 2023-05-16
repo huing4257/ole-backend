@@ -52,7 +52,14 @@ def change_tasks(req: HttpRequest, task: Task):
 
     # 获取 input_type list
     input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
-    input_type_obj_list = [InputType.objects.create(input_tip=input_tip) for input_tip in input_type_list]
+    if len(input_type_list) != len(set(input_type_list)):
+        return request_failed(79, "no repeated input tip")
+    input_type_obj_list = []
+    for input_tip in input_type_list:
+        input_type = InputType.objects.filter(input_tip=input_tip).first()
+        if input_type is None:
+            input_type = InputType.objects.create(input_tip=input_tip)
+        input_type_obj_list.append(input_type)
     task.input_type.set(input_type_obj_list)
 
     # 获取 cut_num
