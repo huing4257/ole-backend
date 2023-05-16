@@ -26,4 +26,5 @@ urlpatterns = [
     path('verifycode_current_email', user.email_views.verifycode_current_email),
     path('face_recognition', user.face_views.face_reco),
     path('face_recognition_login', user.face_views.face_reco_login),
+    path('unban_user/<int:user_id>', views.unban_user),
 ]

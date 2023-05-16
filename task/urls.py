@@ -18,7 +18,7 @@ urlpatterns = [
     path('distribute/<int:task_id>', task.distribute_views.distribute_task),
     path('refuse/<int:task_id>', task.tag_views.refuse_task),
     path('accept/<int:task_id>', task.tag_views.accept_task),
-    path('progress/<int:task_id>', task.tag_views.get_progress),
+    # path('progress/<int:task_id>', task.tag_views.get_progress),
     # path('is_accepted/<task_id>', task.tag_views.is_accepted),
     path('is_distributed/<task_id>', task.distribute_views.is_distributed),
     path('redistribute/<int:task_id>', task.distribute_views.redistribute_task),
