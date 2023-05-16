@@ -84,6 +84,7 @@ def login_success(user):
     response.set_cookie("user_type", user.user_type, max_age=604800)
     return response
 
+
 @CheckRequire
 def login(req: HttpRequest):
     if req.method == "POST":

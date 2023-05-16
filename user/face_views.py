@@ -1,9 +1,9 @@
 import base64
 import json
 import re
-from io import BytesIO
+# from io import BytesIO
 
-from PIL import Image as PIL_Image
+# from PIL import Image as PIL_Image
 import face_recognition
 from django.core.files.uploadedfile import SimpleUploadedFile
 

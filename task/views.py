@@ -229,8 +229,8 @@ def get_free_tasks(req: HttpRequest, user: User):
         return_list = [element.serialize() for element in tasks + list(left_tasks) if
                        element.current_tag_user_list.filter(
                            state__in=CurrentTagUser.valid_state()
-                       ).count() < element.distribute_user_num and
-                       not element.current_tag_user_list.filter(tag_user=user).exists()]
+        ).count() < element.distribute_user_num and
+            not element.current_tag_user_list.filter(tag_user=user).exists()]
         return request_success(return_list)
     else:
         return BAD_METHOD
