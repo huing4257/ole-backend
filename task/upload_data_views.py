@@ -61,7 +61,6 @@ def upload_data(req: HttpRequest, user: User):
         data_type = require(req.GET, "data_type")
         zfile = require(req.FILES, 'file', 'file')
         zfile_size = len(zfile) / 1_000_000
-        print(zfile_size)
         if user.membership_level == 0:
             time.sleep(zfile_size * 10)
         elif user.membership_level == 1:

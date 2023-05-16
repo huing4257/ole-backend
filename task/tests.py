@@ -376,6 +376,13 @@ class TaskTests(TestCase):
         self.assertEqual(res2.status_code, 400)
         self.assertEqual(res2.json()['code'], 12)
 
+    def test_get_my_tasks_agent(self):
+        self.client.post("/user/login", {"user_name": "testAgent", "password": "testPassword"},
+                         content_type=default_content_type)
+        res2 = self.client.get("/task/get_my_tasks")
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.json()['code'], 0)    
+
     def test_upload_textdata(self):
         # 以需求方的身份登录
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -821,3 +828,33 @@ class TaskTests(TestCase):
         self.assertEqual(res.status_code, 200)
         user = User.objects.get(user_id=2)
         self.assertTrue(Task.objects.get(task_id=task_id).current_tag_user_list.filter(tag_user=user).exists())
+
+    def test_get_free_tasks(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.get("/task/get_free_tasks")                              
+        self.assertJSONEqual(res.content, {"code": 1006, "message": "no permission", "data": {}})                
+        self.client.post("/user/logout")        
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)  
+        res = self.client.get("/task/get_free_tasks")                      
+        self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": []})
+
+    def test_check_task(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)        
+        content = {
+            "result": "pass",
+        }        
+        res = self.client.post("/task/check_task/1", content, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 400)
+        self.client.post("/user/logout")        
+        self.client.post("/user/login", {"user_name": "testAdmin", "password": "testPassword"},
+                         content_type=default_content_type)
+        task_id = 1
+
+        res = self.client.post(f"/task/check_task/{task_id}", content, content_type=default_content_type)
+        self.assertJSONEqual(
+            res.content,
+            {"code": 0, "message": "Succeed", "data": {}}
+        )

@@ -325,6 +325,8 @@ class UserTests(TestCase):
         }
         res = self.client.post("/user/get_verifycode", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
+        res = self.client.post("/user/get_verifycode", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)        
 
     def test_get_all_tag_scores(self):
         res = self.client.get("/user/get_all_tag_score")
