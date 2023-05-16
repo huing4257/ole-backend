@@ -34,7 +34,6 @@ class UserTests(TestCase):
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
             bank_account=bankcard,
-            account_balance=100,
         )
         User.objects.create(
             user_id=2,
