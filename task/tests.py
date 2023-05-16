@@ -895,3 +895,29 @@ class TaskTests(TestCase):
             res.content,
             {"code": 0, "message": "Succeed", "data": {}}
         )
+
+    def test_is_accepted(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3)
+        self.client.post("/user/logout")
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.post(f"/task/accept/{task_id}")
+        self.assertEqual(res.status_code, 200)   
+        res = self.client.get(f"/task/taginfo/{task_id}")
+        self.assertEqual(res.status_code, 200)
