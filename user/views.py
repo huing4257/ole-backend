@@ -251,6 +251,7 @@ def withdraw(req: HttpRequest, user: User):
         if user.score < amount * 15:
             return request_failed(5, "score not enough")
         user.bank_account.card_balance += amount
+        user.bank_account.save()
         user.score -= amount * 15
         user.save()
         return request_success()
