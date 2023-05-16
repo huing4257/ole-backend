@@ -5,7 +5,7 @@ import io
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
-from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType
+from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType, InputResult
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
@@ -151,11 +151,9 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                 tag_res: Result = question.result.filter(tag_user=user_id).first()
                 input_results = []
                 for input_type in input_types:
-                    print(input_type.id)
-                    input_res = tag_res.input_result.filter(input_type=input_type).first()
-                    print(input_res)
-                # writer.writerow([q_data.filename, str(json.loads(tag_res.tag_res))] +
-                #                 [input_res.input_res for input_res in tag_res.input_result.all()])
+                    input_res: InputResult = tag_res.input_result.filter(input_type=input_type).first()
+                    input_results.append(input_res.input_res)
+                writer.writerow([q_data.filename, str(json.loads(tag_res.tag_res))] + input_results)
 
         return response
     else:

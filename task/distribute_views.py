@@ -105,8 +105,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         if task.distribute_user_num > tag_users.count() - invalid_num:
             return request_failed(21, "tag user not enough")
         current_tag_user_num = task.current_tag_user_list.filter(
-            state__in=CurrentTagUser.valid_state(),
-            tag_user__user_id=user_id
+            state__in=CurrentTagUser.valid_state()
         ).count()
         while current_tag_user_num < task.distribute_user_num:
             if user_id >= tag_users[len(tag_users) - 1].user_id:
