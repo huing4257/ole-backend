@@ -32,7 +32,7 @@ class TaskTests(TestCase):
         "files": [{'filename': '1.jpg', 'tag': 'picbed/data/picbed/uploads/2023/05/10/1_gE5uYWl.jpg'}, 
                   {'filename': '2.jpg', 'tag': 'picbed/data/picbed/uploads/2023/05/10/2_9S5EAtx.jpg'}, 
                   {'filename': '3.jpg', 'tag': 'picbed/data/picbed/uploads/2023/05/10/3_kme5rxL.jpg'}],
-        "tag_type": ["tag1", "tag2", "tag3"],
+        "tag_type": ["text", "tag2", "tag3"],
         "stdans_tag": "",
         "strategy": "order",
         "input_type": [],
@@ -948,7 +948,7 @@ class TaskTests(TestCase):
             {"code": 0, "message": "Succeed", "data": {}}
         )
 
-    def test_is_accepted(self):
+    def test_taginfo(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
 
@@ -970,6 +970,25 @@ class TaskTests(TestCase):
         self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
                          content_type=default_content_type)
         res = self.client.post(f"/task/accept/{task_id}")
-        self.assertEqual(res.status_code, 200)   
+        self.assertEqual(res.status_code, 200)  
+        # 未上传答案
         res = self.client.get(f"/task/taginfo/{task_id}")
         self.assertEqual(res.status_code, 200)
+        # 已上传答案
+        data = {
+            "result": [
+                "testString",
+            ]
+        }
+        self.task.accept_method = "auto"
+        self.task.save()
+        res = self.client.post(f"/task/upload_res/{task_id}/1", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        res = self.client.post(f"/task/upload_res/{task_id}/2", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")        
+
+        res = self.client.get(f"/task/taginfo/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        
