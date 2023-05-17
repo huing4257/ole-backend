@@ -9,6 +9,7 @@ from user.models import User, Category
 from task.models import Question, CurrentTagUser, Task, TextData, TagType, Progress
 import bcrypt
 import datetime
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 default_content_type = "application/json"
 
@@ -485,7 +486,7 @@ class TaskTests(TestCase):
             self.assertEqual(res2.status_code, 200)
             self.assertEqual(res2.json()["message"], "file sequence interrupt")
             self.assertEqual(len(res2.json()["data"]), 3)             
-    
+
     def test_upload_verify(self):
         # 以需求方的身份登录
         res = self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
@@ -1025,7 +1026,7 @@ class TaskTests(TestCase):
 
         res = self.client.get(f"/task/taginfo/{task_id}")
         self.assertEqual(res.status_code, 200)
-        
+
     def test_startquestion(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
@@ -1049,7 +1050,41 @@ class TaskTests(TestCase):
                          content_type=default_content_type)
         res = self.client.post(f"/task/accept/{task_id}")
         self.assertEqual(res.status_code, 200)           
-        
+
         q_id = 1 
         res = self.client.post(f"/task/startquestion/{task_id}/{q_id}")
         self.assertEqual(res.status_code, 200)
+
+    def test_upload_many_res(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3)
+
+        self.client.post("/user/logout")     
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.post(f"/task/accept/{task_id}")
+        self.assertEqual(res.status_code, 200)   
+        with open("b.csv", "w") as f:
+            f.write("filename,tag,tag1,tag2,tag3")
+        file = SimpleUploadedFile("b.csv", open("b.csv", "rb").read())
+        content = {
+            "file": file
+        }
+        res = self.client.post(f"/task/upload_res/{task_id}", content)
+        print(res.content)
+        self.assertEqual(res.status_code, 200)                         
