@@ -145,7 +145,20 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
             tags: list[TagType] = list(task.tag_type.all())
             if type == "all":
                 if task.task_type == "self_define":
-                    pass
+                    writer.writerow(["tag user", "filename"] + [tag_tip.input_tip for tag_tip in tag_input_types]
+                                    + [tag_tip.input_tip for tag_tip in input_types])
+                    for curr_tag_user in all_users:
+                        for question in questions:
+                            q_data = get_q_data(question)
+                            tag_res: Result = question.result.filter(tag_user=curr_tag_user).first()
+                            input_results = []
+                            for input_type in tag_input_types:
+                                input_results.append(
+                                    tag_res.input_result.filter(input_type=input_type).first().input_res)
+                            for input_type in input_types:
+                                input_results.append(
+                                    tag_res.input_result.filter(input_type=input_type).first().input_res)
+                            writer.writerow([q_data.filename] + input_results)
                 else:
                     writer.writerow(["filename"] + [tag.type_name for tag in tags])
                     for question in questions:
@@ -153,10 +166,8 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                         res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
                         writer.writerow([q_data.filename] + res)
             else:
-                if task.task_type in ["triplet", "image_select", "human_face", "threeD"]:
+                if task.task_type in ["triplet", "image_select", "human_face", "threeD", "self_define"]:
                     return request_failed(80, "cannot merge this task type")
-                if task.task_type == "self_define":
-                    pass
                 else:
                     writer.writerow(["filename", "tag"])
                     for question in questions:
