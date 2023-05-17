@@ -27,4 +27,5 @@ urlpatterns = [
     path('face_recognition', user.face_views.face_reco),
     path('face_recognition_login', user.face_views.face_reco_login),
     path('unban_user/<int:user_id>', views.unban_user),
+    path('reset_invite_code', views.reset_invite_code),
 ]

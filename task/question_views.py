@@ -47,7 +47,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                     input_type=task.input_type.filter(
                         input_tip=tag_res["input_type"],
                         tag_type__isnull=False
-                    ),
+                    ).first(),
                     input_res=tag_res["tag_result"]
                 ))
         else:

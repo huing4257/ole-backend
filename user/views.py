@@ -29,17 +29,21 @@ def register(req: HttpRequest):
         else:
             password = require(body, "password", "string", err_msg="password format error", err_code=3)
             user_type = require(body, "user_type", "string", err_msg="Missing or error type of [userType]")
-            assert user_type in ["admin", "demand", "tag", "agent"], "Invalid userType"
+            assert user_type in ["admin", "demand", "tag", "agent", "advertiser"], "Invalid userType"
 
             # 检查邀请码的正确性
             invite_code = body.get("invite_code", None)
             if invite_code:
-                inviter = User.objects.filter(invite_code=invite_code).first()
+                inviter: User = User.objects.filter(invite_code=invite_code).first()
+                if user_type == "admin" and inviter.user_type != "admin":
+                    return request_failed(80, "need invite code of admin")
                 if inviter:
                     inviter.score += 2
                     inviter.save()
                 else:
                     return request_failed(92, "wrong invite code")
+            elif user_type == "admin":
+                return request_failed(80, "need invite code of admin")
 
             # 检查邮箱验证码
             email = require(body, "email", "string", err_msg="Missing or error type of [email]")
@@ -58,6 +62,17 @@ def register(req: HttpRequest):
                         email=email_obj)
             user.save()
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
+
+
+@CheckLogin
+def reset_invite_code(req, _user: User):
+    if req.method == "POST":
+        ran_str = ''.join(secrets.SystemRandom(user_name).sample(string.ascii_letters + string.digits, 8))
+        _user.invite_code = ran_str
+        _user.save()
+        return request_success()
+    else:
+        return BAD_METHOD
 
 
 def login_success(user):
