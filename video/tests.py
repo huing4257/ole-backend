@@ -72,23 +72,69 @@ class VideoTests(TestCase):
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/login", payload, content_type=default_content_type)
 
-    def test_upload(self):
-        res = self.post_login("testDemand", "testPassword")
-        self.assertEqual(res.status_code, 200)
-        open("video1.mp4", "w")
-        file = SimpleUploadedFile("video1.mp4", open("video1.mp4", "rb").read())
+    def test_upload_not_logged_in(self):
+        video_content = b'\xff\x00\x00' * 100 * 100
+        file = SimpleUploadedFile("video1.mp4", video_content, content_type="video/mp4")
         content = {
             "video": file
         }
-        res = self.client.post("/video", content)
-        print(res.content)
+        res = self.client.post("/video/", content)
+        self.assertEqual(res.status_code, 401)
+        self.assertJSONEqual(
+            res.content, {"code": 1001, "message": "not_logged_in", "data": {}}
+        )
+
+    def test_upload(self):
+        res = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res.status_code, 200)
+        video_content = b'\xff\x00\x00' * 100 * 100
+        file = SimpleUploadedFile("video1.mp4", video_content, content_type="video/mp4")
+        content = {
+            "video": file
+        }
+        res = self.client.post("/video/", content)
         self.assertEqual(res.status_code, 200)
 
-    def test_video_handler(self):
+    def test_video_handler_get_not_found(self):
         res = self.post_login("testDemand", "testPassword")
         self.assertEqual(res.status_code, 200)        
-        url = "111111111"
+        url = "111"
         res = self.client.get(f"/video/{url}")
         self.assertJSONEqual(
             res.content, {"code": 18, "message": "video not found", "data": {}}
         )
+
+    def test_video_handler_delete_not_found(self):
+        res = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res.status_code, 200)        
+        url = "111"
+        res = self.client.get(f"/video/{url}")
+        self.assertJSONEqual(
+            res.content, {"code": 18, "message": "video not found", "data": {}}
+        )        
+
+    def test_video_handler_get(self):
+        res = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res.status_code, 200)  
+        video_content = b'\xff\x00\x00' * 100 * 100
+        file = SimpleUploadedFile("video1.mp4", video_content, content_type="video/mp4")
+        content = {
+            "video": file
+        }              
+        res = self.client.post("/video/", content)
+        url = res.json()["data"]["url"]
+        res = self.client.get(f"/video/{url}")
+        self.assertEqual(res.status_code, 200)
+
+    def test_video_handler_delete(self):
+        res = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res.status_code, 200)  
+        video_content = b'\xff\x00\x00' * 100 * 100
+        file = SimpleUploadedFile("video1.mp4", video_content, content_type="video/mp4")
+        content = {
+            "video": file
+        }              
+        res = self.client.post("/video/", content)
+        url = res.json()["data"]["url"]
+        res = self.client.delete(f"/video/{url}")
+        self.assertEqual(res.status_code, 200)        
