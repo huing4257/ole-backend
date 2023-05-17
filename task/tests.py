@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from review.models import AnsList, AnsData
 from user.models import User, Category
-from task.models import Question, CurrentTagUser, Task, TextData, TagType
+from task.models import Question, CurrentTagUser, Task, TextData, TagType, Progress
 import bcrypt
 import datetime
 
@@ -520,17 +520,52 @@ class TaskTests(TestCase):
                 "testString",
             ]
         }
-        self.task.accept_method = "auto"
-        self.task.save()
         res = self.client.post("/task/upload_res/1/1", data, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
         res = self.client.post("/task/upload_res/1/2", data, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")
-        # res = self.client.post("/task/upload_res/1/3", data, content_type=default_content_type)
-        # self.assertEqual(res.status_code, 200)
-        # self.assertEqual(res.json()["message"], "Succeed")
+
+    def test_upload_result_auto(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        para["accept_method"] = "auto"
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+        prog = Progress(
+            tag_user=User.objects.filter(user_id=2).first(),
+            q_id=task.q_num
+        )
+        prog.save()
+        task.progress.add(prog)
+        task.save()
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3)
+        self.client.post("/user/logout")     
+        self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
+                         content_type=default_content_type)
+        res = self.client.post(f"/task/accept/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        data = {
+            "result": [
+                "testString",
+            ]
+        }
+        q_id = 3
+        res = self.client.post(f"/task/upload_res/{task_id}/{q_id}", data, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": {}})
 
     def test_get_task_question_not_receiver(self):
         self.client.post("/user/login", {"user_name": "testReceiver2", "password": "testPassword"},
