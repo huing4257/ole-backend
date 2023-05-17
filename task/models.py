@@ -41,7 +41,8 @@ class InputType(models.Model):
 
     def serialize(self):
         return {
-            "input_tip": self.input_tip
+            "input_type": self.input_tip,
+            "tags": [tag.type_name for tag in self.tag_type.all()] if self.tag_type.exists() else []
         }
 
 

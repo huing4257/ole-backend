@@ -49,7 +49,17 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
             q_list: list[Question] = list(task.questions.all().order_by("q_id"))
         return_data = {"q_info": []}
         for question in q_list:
-            return_data["q_info"].append(question.serialize(detail=True, user_id=user_id))
+            return_q_data = question.serialize(detail=True, user_id=user_id)
+            if task.task_type == "toall":
+                return_q_data["result"]["result"] = []
+                return_q_data["result"]["input_result"] = []
+                q_res: Result = question.result.filter(tag_user__user_id=user_id).first()
+                for input_res in q_res.input_result.all():
+                    if input_res.input_type.tag_type.exists():
+                        return_q_data["result"]["result"].append(input_res.serialize())
+                    else:
+                        return_q_data["result"]["input_result"].append(input_res.serialize())
+            return_data["q_info"].append(return_q_data)
         return_data["q_info"].sort(key=lambda item: item['q_id'])
         return request_success(return_data)
     else:

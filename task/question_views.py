@@ -24,7 +24,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         input_result_list = require(body, "input_result", "list", err_msg="invalid request", err_code=1005) \
             if task.task_type == "self_define" else []
         input_result_obj_list = [InputResult.objects.create(
-            input_type=InputType.objects.filter(input_tip=input_result['input_type']).first(),
+            input_type=task.input_type.filter(input_tip=input_result['input_type']).first(),
             input_res=input_result['input_res']
         ) for input_result in input_result_list]
 
@@ -38,15 +38,20 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         # 处理result
         # 上传的是第q_id个问题的结果
         if result is None:
-            result = Result.objects.create(
-                tag_user=user,
-                tag_res=json.dumps(result_data),
-            )
-            result.input_result.set(input_result_obj_list)
+            result = Result.objects.create(tag_user=user)
             quest.result.add(result)
+        if task.task_type == "toall":
+            result.input_result.set(input_result_obj_list)
+            for tag_res in result_data:
+                result.input_result.add(InputResult.objects.create(
+                    input_type=task.input_type.filter(
+                        input_tip=tag_res["input_type"],
+                        tag_type__isnull=False
+                    ),
+                    input_res=tag_res["tag_result"]
+                ))
         else:
             result.tag_res = json.dumps(result_data)
-            result.input_result.set(input_result_obj_list)
         result.finish_time = get_timestamp()
         result.save()
         quest.save()
@@ -89,30 +94,34 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(11, "task does not exist", 404)
-        question = task.questions.filter(q_id=q_id).first()
+        question: Question = task.questions.filter(q_id=q_id).first()
         if not question:
             return request_failed(13, "question does not exist", 404)
         release_user_id = task.publisher.user_id
         user_type: str = user.user_type
-        if user_type == "demand":
-            if release_user_id == user.user_id:
-                return_data = question.serialize(detail=True)
-                return request_success(return_data)
-            else:
-                return request_failed(16, "no access permission")
-        elif user_type == "tag":
-            if task.current_tag_user_list.filter(
-                    state__in=["accepted", "finished", "check_accepted", "check_refused"],
-                    tag_user=user):
-                return_data = question.serialize(detail=True)
-                return request_success(return_data)
-            else:
-                return request_failed(16, "no access permission")
-        elif user_type == "admin":
-            return_data = question.serialize(detail=True)
-            return request_success(return_data)
-        else:
+        if user_type not in ["demand", "tag", "admin"]:
             return request_failed(16, "no access permission")
+
+        if user_type == "tag" and not task.current_tag_user_list.filter(
+                state__in=["accepted", "finished", "check_accepted", "check_refused"],
+                tag_user=user).exists():
+            return request_failed(16, "no access permission")
+
+        if user_type == "demand" and release_user_id != user.user_id:
+            return request_failed(16, "no access permission")
+
+        return_data = question.serialize(detail=True)
+        return_data["tag_type"] = []
+        return_data["input_type"] = []
+        if task.task_type == "toall":
+            for input_type in task.input_type.all():
+                if input_type.tag_type.exists():
+                    return_data["tag_type"].append(input_type.serialize())
+                else:
+                    return_data["input_type"].append(input_type.input_tip)
+        else:
+            return_data["tag_type"] = [tag.type_name for tag in task.tag_type.all()]
+        return request_success(return_data)
     else:
         return BAD_METHOD
 
