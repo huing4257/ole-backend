@@ -40,7 +40,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
         if result is None:
             result = Result.objects.create(tag_user=user)
             quest.result.add(result)
-        if task.task_type == "toall":
+        if task.task_type == "self_define":
             result.input_result.set(input_result_obj_list)
             for tag_res in result_data:
                 result.input_result.add(InputResult.objects.create(
@@ -113,7 +113,7 @@ def get_task_question(req: HttpRequest, user: User, task_id: int, q_id: int):
         return_data = question.serialize(detail=True)
         return_data["tag_type"] = []
         return_data["input_type"] = []
-        if task.task_type == "toall":
+        if task.task_type == "self_define":
             for input_type in task.input_type.all():
                 if input_type.tag_type.exists():
                     return_data["tag_type"].append(input_type.serialize())

@@ -88,7 +88,7 @@ def redistribute_task(req: HttpRequest, user: User, task_id: int):
         task: Task = task
         if err is not None:
             return err
-        if task.task_type == "toall":
+        if task.strategy == "toall":
             return request_failed(75, "toall task cannot redistribute")
         update_task_tagger_list(task)
         tag_users = User.objects.filter(user_type="tag").all()

@@ -50,7 +50,7 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
         return_data = {"q_info": []}
         for question in q_list:
             return_q_data = question.serialize(detail=True, user_id=user_id)
-            if task.task_type == "toall":
+            if task.task_type == "self_define":
                 return_q_data["result"]["result"] = []
                 return_q_data["result"]["input_result"] = []
                 q_res: Result = question.result.filter(tag_user__user_id=user_id).first()
@@ -74,16 +74,15 @@ def upload_stdans(req: HttpRequest, user: User):
         decoded_file = csv_file.read().decode('utf-8')
         io_string = io.StringIO(decoded_file)
         reader = csv.reader(io_string, delimiter=',', quotechar='|')
-        anslist = AnsList.objects.create()
+        ans_list = AnsList.objects.create()
         for row in reader:
-            # print(row)
             if len(row) != 2:
                 return request_failed(20, "field error")
             ansdata = AnsData.objects.create(filename=row[0], std_ans=row[1])
             ansdata.save()
-            anslist.ans_list.add(ansdata)
-        anslist.save()
-        return request_success(str(anslist.id))
+            ans_list.ans_list.add(ansdata)
+        ans_list.save()
+        return request_success(str(ans_list.id))
     else:
         return BAD_METHOD
 
@@ -137,34 +136,40 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
 
         questions: list[Question] = list(task.questions.all())
         writer = csv.writer(response)
-        input_types: list[InputType] = list(task.input_type.all())
+        tag_input_types: list[InputType] = list(task.input_type.filter(tag_type__isnull=False))
+        input_types: list[InputType] = list(task.input_type.filter(tag_type__isnull=True).all())
         if user_id is None:
             all_users: list[CurrentTagUser] = list(task.current_tag_user_list.filter(state="check_accepted").all())
             if len(all_users) != task.distribute_user_num:
                 return request_failed(25, "review not finish")
             tags: list[TagType] = list(task.tag_type.all())
             if type == "all":
-                writer.writerow(["filename"] + [tag.type_name for tag in tags])
-                for question in questions:
-                    q_data = get_q_data(question)
-                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                    writer.writerow([q_data.filename] + res)
+                if task.task_type == "self_define":
+                    pass
+                else:
+                    writer.writerow(["filename"] + [tag.type_name for tag in tags])
+                    for question in questions:
+                        q_data = get_q_data(question)
+                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                        writer.writerow([q_data.filename] + res)
             else:
+                if task.task_type == "self_define":
+                    pass
+                else:
+                    writer.writerow(["filename", "tag"])
+                    for question in questions:
+                        q_data = get_q_data(question)
+                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                        writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
+        else:
+            if task.task_type == "self_define":
+                pass
+            else:
+                writer.writerow(["filename", "tag"])
                 for question in questions:
                     q_data = get_q_data(question)
-                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                    writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
-        else:
-            writer.writerow(["filename", "tag"] + [input_type.input_tip for input_type in input_types])
-            for question in questions:
-                q_data = get_q_data(question)
-                tag_res: Result = question.result.filter(tag_user=user_id).first()
-                input_results = []
-                for input_type in input_types:
-                    input_res: InputResult = tag_res.input_result.filter(input_type=input_type).first()
-                    input_results.append(input_res.input_res)
-                writer.writerow([q_data.filename, str(json.loads(tag_res.tag_res))] + input_results)
-
+                    tag_res: Result = question.result.filter(tag_user=user_id).first()
+                    writer.writerow([q_data.filename, tag_res.tag_res])
         return response
     else:
         return BAD_METHOD

@@ -51,7 +51,7 @@ def change_tasks(req: HttpRequest, task: Task):
     task.strategy = require(body, "strategy", "string", err_msg="Missing or error type of [strategy]")
 
     # 获取 input_type list
-    if task.task_type == "toall":
+    if task.task_type == "self_define":
         input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
         if len(input_type_list) != len(set(input_type_list)):
             return request_failed(79, "no repeated input tip")
