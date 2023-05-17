@@ -16,7 +16,7 @@ def report_user(req, user: User, task_id, user_id):
         task: Task = Task.objects.filter(task_id=task_id).first()
         if task is None:
             return request_failed(33, "task not exists", 404)
-        if task.publisher.user_id != user.user_id:
+        if task.publisher.user_id != user.user_id and not task.current_tag_user_list.filter(tag_user=user).exists():
             return request_failed(1006, "no permission")
         reportee = User.objects.filter(user_id=user_id).first()
         if reportee is None or (

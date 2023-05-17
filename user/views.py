@@ -155,6 +155,8 @@ def ban_user(req: HttpRequest, user: User, user_id: int):
             return request_failed(19, "no permission")
         else:
             to_ban_user: User = User.objects.filter(user_id=user_id).first()
+            if to_ban_user is None:
+                return request_failed(76, "no such user")
             to_ban_user.is_banned = True
             to_ban_user.save()
             return request_success()
@@ -252,6 +254,7 @@ def withdraw(req: HttpRequest, user: User):
         if user.score < amount * 15:
             return request_failed(5, "score not enough")
         user.bank_account.card_balance += amount
+        user.bank_account.save()
         user.score -= amount * 15
         user.save()
         return request_success()
@@ -280,5 +283,22 @@ def modify_bank_card(req, user: User):
         user.bank_account = card
         user.save()
         return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def unban_user(req, user: User, user_id):
+    if req.method == "POST":
+        if user.user_type != "admin":
+            return request_failed(19, "no permission")
+        else:
+            to_ban_user: User = User.objects.filter(user_id=user_id).first()
+            if to_ban_user is None:
+                return request_failed(76, "no such user")
+            to_ban_user.is_banned = False
+            to_ban_user.save()
+            return request_success()
     else:
         return BAD_METHOD

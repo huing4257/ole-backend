@@ -2,10 +2,12 @@ import json
 
 from django.db import models
 
+from picbed.models import Image
 from user.models import User, Category
 from review.models import AnsList
 from utils.utils_require import MAX_CHAR_LENGTH
 from utils.utils_time import get_timestamp
+from video.models import Video
 
 
 # Create your models here.
@@ -24,12 +26,23 @@ class TextData(models.Model):
         }
 
 
-class InputType(models.Model):
-    input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
+class TagType(models.Model):
+    type_name = models.CharField(max_length=MAX_CHAR_LENGTH)
 
     def serialize(self):
         return {
-            "input_tip": self.input_tip
+            "type_name": self.type_name,
+        }
+
+
+class InputType(models.Model):
+    input_tip = models.CharField(max_length=MAX_CHAR_LENGTH)
+    tag_type = models.ManyToManyField(TagType, null=True)
+
+    def serialize(self):
+        return {
+            "input_type": self.input_tip,
+            "tags": [tag.type_name for tag in self.tag_type.all()] if self.tag_type.exists() else []
         }
 
 
@@ -54,17 +67,8 @@ class Result(models.Model):
     def serialize(self):
         return {
             "tag_user_id": self.tag_user.user_id,
-            "result": json.loads(self.tag_res),
+            "result": json.loads(self.tag_res) if self.tag_res is not None else None,
             "input_result": [input_res.serialize() for input_res in self.input_result.all()],
-        }
-
-
-class TagType(models.Model):
-    type_name = models.CharField(max_length=MAX_CHAR_LENGTH)
-
-    def serialize(self):
-        return {
-            "type_name": self.type_name,
         }
 
 
@@ -77,6 +81,12 @@ class Question(models.Model):
     tag_type = models.ManyToManyField(TagType, default=[])
     input_type = models.ManyToManyField(InputType, default=[])
     cut_num = models.IntegerField(default=None, null=True)
+
+    def filename(self):
+        q_data = get_q_data(self)
+        if q_data is not None:
+            return q_data.filename
+        return None
 
     def serialize(self, detail=False, user_id: int = None):
         if detail:
@@ -226,8 +236,19 @@ def update_task_tagger_list(task):
         elif current_tagger.accepted_at is not None and \
                 task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
             current_tagger.state = "timeout"
-        elif all(q.result.filter(tag_user=current_tagger.tag_user).exists() for q in task.questions.all()):
+        elif all(q.result.filter(tag_user=current_tagger.tag_user, finish_time__isnull=False).exists()
+                 for q in task.questions.all()):
             if current_tagger.state not in CurrentTagUser.finish_state():
                 current_tagger.state = "finished"
         current_tagger.save()
     task.save()
+
+
+def get_q_data(question):
+    if question.data_type == "text":
+        q_data: TextData = TextData.objects.filter(id=question.data).first()
+    elif question.data_type == "image":
+        q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
+    else:  # question.data_type in ["video", "audio"]:
+        q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
+    return q_data

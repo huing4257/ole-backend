@@ -51,17 +51,38 @@ def change_tasks(req: HttpRequest, task: Task):
     task.strategy = require(body, "strategy", "string", err_msg="Missing or error type of [strategy]")
 
     # 获取 input_type list
-    input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
-    input_type_obj_list = [InputType.objects.create(input_tip=input_tip) for input_tip in input_type_list]
-    task.input_type.set(input_type_obj_list)
+    if task.task_type == "self_define":
+        input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
+        tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+        tag_input_tips = [tag_type_dict["input_type"] for tag_type_dict in tag_type_list]
+        if len(tag_input_tips + input_type_list) != len(set(tag_input_tips + input_type_list)):
+            return request_failed(79, "no repeated tag tip")
+        input_type_obj_list = []
+        for input_tip in input_type_list:
+            input_type = InputType.objects.filter(input_tip=input_tip).first()
+            if input_type is None:
+                input_type = InputType.objects.create(input_tip=input_tip)
+            input_type_obj_list.append(input_type)
+        task.input_type.set(input_type_obj_list)
+
+        for tag_type_dict in tag_type_list:
+            tag_input_tip = require(tag_type_dict, "input_type", "string",
+                                    err_msg="Missing or error type of [input_type]")
+            tag_tags = require(tag_type_dict, "tags", "list", err_msg="Missing or error type of [tags]")
+            tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_tags]
+            input_type = InputType.objects.create(input_tip=tag_input_tip)
+            input_type.tag_type.set(tag_type_obj_list)
+            input_type.save()
+            task.input_type.add(input_type)
+
+    else:
+        # 获取 tag_type list
+        tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+        tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
+        task.tag_type.set(tag_type_obj_list)
 
     # 获取 cut_num
     task.cut_num = require(body, "cut_num", 'int', err_msg="Missing or error type of [cut_num]")
-
-    # 获取 tag_type list
-    tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
-    tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
-    task.tag_type.set(tag_type_obj_list)
 
     # 获取 ans_list
     if body["stdans_tag"] != "":
@@ -85,9 +106,9 @@ def change_tasks(req: HttpRequest, task: Task):
         else:
             data_type = "text"
         question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=data_type, cut_num=task.cut_num)
-        question.tag_type.set(tag_type_obj_list)
+        # question.tag_type.set(tag_type_obj_list)
         question.cut_num = task.cut_num
-        question.input_type.set(input_type_obj_list)
+        # question.input_type.set(input_type_obj_list)
         question.save()
         task.questions.add(question)
     task.save()
