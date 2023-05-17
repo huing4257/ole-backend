@@ -43,9 +43,9 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         if task.current_tag_user_list.count() != 0 or task.strategy == "toall":
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
-        tag_users = User.objects.filter(user_type="tag").all()
+        tag_users = User.objects.filter(user_type="tag", is_banned=False).order_by(user_id)
         # 设定的分发用户数比可分发的用户数多
-        if task.distribute_user_num > tag_users.count() - User.objects.filter(is_banned=True).all().count():
+        if task.distribute_user_num > tag_users.count():
             return request_failed(21, "tag user not enough")
 
         # 检测分数是否足够 扣分
@@ -54,28 +54,39 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         else:
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
-        add_grow_value(user, 10)
-        current_tag_user_num = 0  # 当前被分发到的用户数
-        while current_tag_user_num < task.distribute_user_num:
-            if user_id >= tag_users[len(tag_users) - 1].user_id:
-                tag_user = tag_users[0]
-                user_id = tag_user.user_id
-                # 检测是否在被封禁用户列表中
-                if tag_user.is_banned:
-                    continue
-            else:
-                user_id += 1
-                tag_user = tag_users.filter(user_id=user_id).first()
-                while not tag_user:
-                    user_id += 1
-                    tag_user = tag_users.filter(user_id=user_id).first()
-                # 检测是否被封禁
-                if tag_user.is_banned:
-                    continue
-            cache.set('current_user_id', user_id)
-            current_tag_user = CurrentTagUser.objects.create(tag_user=tag_user)
-            task.current_tag_user_list.add(current_tag_user)
-            current_tag_user_num += 1
+
+        add_grow_value(user, task.reward_per_q * task.q_num * task.distribute_user_num)
+        if task.strategy == "order":
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                if tag_user.user_id > user_id:
+                    task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                    current_tag_user_num += 1
+                    if current_tag_user_num >= task.distribute_user_num:
+                        cache.set('current_user_id', tag_user.user_id)
+                        break
+            for tag_user in tag_users:
+                if tag_user.user_id <= user_id and current_tag_user_num < task.distribute_user_num:
+                    task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                    current_tag_user_num += 1
+                    if current_tag_user_num >= task.distribute_user_num:
+                        cache.set('current_user_id', tag_user.user_id)
+                        break
+        else:  # if task.strategy == "smart"
+            def multi_armed_bandit(tag_user: User):
+                all_curr_user = CurrentTagUser.objects.filter(tag_user=tag_user).exclude(state="refused")
+                all_acc_count = all_curr_user.count()
+                all_suc_count = all_curr_user.filter(state="check_accpetd").count()
+                alpha = 0.95
+                return alpha * (all_acc_count / all_suc_count) + (1 - alpha) * tag_user.credit_score
+
+            tag_users = tag_users.order_by(multi_armed_bandit)
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                current_tag_user_num += 1
+                if current_tag_user_num >= task.distribute_user_num:
+                    break
         task.save()
         return request_success()
 
