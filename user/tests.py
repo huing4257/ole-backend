@@ -1276,4 +1276,26 @@ class UserTests(TestCase):
         self.assertJSONEqual(res.content, {"code": 52, "message": "no email bound", "data": {}})
 
     def test_modifypassword_by_email(self):
-        pass
+        self.post_login("testUser", "testPassword")
+        content = {
+            "newemail": "new@mail.com",
+            "verifycode": "testValid"
+        }
+        res = self.client.post("/user/change_email", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)  
+        content2 = {
+            "verifycode": "testValid",
+            "new_password": "newPassword"
+        }
+        res = self.client.post("/user/modifypassword_by_email", content2, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 200)
+        self.assertJSONEqual(res.content, {"code": 0, "message": "Succeed", "data": {}})        
+
+    def test_modifypassword_by_email_no_email(self):        
+        self.post_login("testUser", "testPassword")
+        content2 = {
+
+        }        
+        res = self.client.post("/user/modifypassword_by_email", content2, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(res.content, {"code": 52, "message": "no email bound", "data": {}})
