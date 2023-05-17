@@ -1,5 +1,6 @@
 from django.test import TestCase
 from user.models import User, EmailVerify, BankCard
+from django.core.files.uploadedfile import SimpleUploadedFile
 import bcrypt
 import datetime
 default_content_type = "application/json"
@@ -70,3 +71,24 @@ class VideoTests(TestCase):
         }
         payload = {k: v for k, v in payload.items() if v is not None}
         return self.client.post("/user/login", payload, content_type=default_content_type)
+
+    def test_upload(self):
+        res = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res.status_code, 200)
+        open("video1.mp4", "w")
+        file = SimpleUploadedFile("video1.mp4", open("video1.mp4", "rb").read())
+        content = {
+            "video": file
+        }
+        res = self.client.post("/video", content)
+        print(res.content)
+        self.assertEqual(res.status_code, 200)
+
+    def test_video_handler(self):
+        res = self.post_login("testDemand", "testPassword")
+        self.assertEqual(res.status_code, 200)        
+        url = "111111111"
+        res = self.client.get(f"/video/{url}")
+        self.assertJSONEqual(
+            res.content, {"code": 18, "message": "video not found", "data": {}}
+        )
