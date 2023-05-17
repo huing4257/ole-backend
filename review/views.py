@@ -153,6 +153,8 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                         res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
                         writer.writerow([q_data.filename] + res)
             else:
+                if task.task_type in ["triplet", "image_select", "human_face", "threeD"]:
+                    return request_failed(80, "cannot merge this task type")
                 if task.task_type == "self_define":
                     pass
                 else:
@@ -163,13 +165,23 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                         writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
         else:
             if task.task_type == "self_define":
-                pass
+                writer.writerow(["filename"] + [tag_tip.input_tip for tag_tip in tag_input_types]
+                                + [tag_tip.input_tip for tag_tip in input_types])
+                for question in questions:
+                    q_data = get_q_data(question)
+                    tag_res: Result = question.result.filter(tag_user=user_id).first()
+                    input_results = []
+                    for input_type in tag_input_types:
+                        input_results.append(tag_res.input_result.filter(input_type=input_type).first().input_res)
+                    for input_type in input_types:
+                        input_results.append(tag_res.input_result.filter(input_type=input_type).first().input_res)
+                    writer.writerow([q_data.filename] + input_results)
             else:
                 writer.writerow(["filename", "tag"])
                 for question in questions:
                     q_data = get_q_data(question)
                     tag_res: Result = question.result.filter(tag_user=user_id).first()
-                    writer.writerow([q_data.filename, tag_res.tag_res])
+                    writer.writerow([q_data.filename, str(json.loads(tag_res.tag_res))])
         return response
     else:
         return BAD_METHOD
