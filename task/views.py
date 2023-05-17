@@ -53,8 +53,10 @@ def change_tasks(req: HttpRequest, task: Task):
     # 获取 input_type list
     if task.task_type == "self_define":
         input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
-        if len(input_type_list) != len(set(input_type_list)):
-            return request_failed(79, "no repeated input tip")
+        tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+        tag_input_tips = [tag_type_dict["input_type"] for tag_type_dict in tag_type_list]
+        if len(tag_input_tips + input_type_list) != len(set(tag_input_tips + input_type_list)):
+            return request_failed(79, "no repeated tag tip")
         input_type_obj_list = []
         for input_tip in input_type_list:
             input_type = InputType.objects.filter(input_tip=input_tip).first()
@@ -63,10 +65,6 @@ def change_tasks(req: HttpRequest, task: Task):
             input_type_obj_list.append(input_type)
         task.input_type.set(input_type_obj_list)
 
-        tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
-        tag_input_tips = [tag_type_dict["input_type"] for tag_type_dict in tag_type_list]
-        if len(tag_input_tips) != len(set(tag_input_tips)):
-            return request_failed(79, "no repeated tag tip")
         for tag_type_dict in tag_type_list:
             tag_input_tip = require(tag_type_dict, "input_type", "string",
                                     err_msg="Missing or error type of [input_type]")

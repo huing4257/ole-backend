@@ -174,11 +174,11 @@ def get_question_filename(task: Task, filename):
 @CheckRequire
 def upload_many_res(req, user: User, task_id):
     if req.method == "POST":
-        if user.user_type != "tag":
-            return request_failed(1006, "no permission")
         task: Task = Task.objects.filter(task_id=task_id).first()
         if task is None:
             return request_failed(14, "task not created", 404)
+        if user.user_type != "tag":
+            return request_failed(1006, "no permission")
         if task.task_type in ["threeD", "human_face", "image_select"]:
             return request_failed(72, "invalid task type")
         file_obj = req.FILES.get("file")
@@ -197,7 +197,7 @@ def upload_many_res(req, user: User, task_id):
             question: Question = get_question_filename(task, row["filename"])
             if question is None:
                 return request_failed(73, "wrong filename")
-            result = question.result.filter(tag_user=user).first()
+            result: Result = question.result.filter(tag_user=user).first()
             if result is None:
                 result = Result.objects.create(tag_user=user)
                 question.result.add(result)
@@ -213,6 +213,10 @@ def upload_many_res(req, user: User, task_id):
                     input_res = result.input_result.filter(input_type=input_type).first()
                     if input_res is None:
                         input_res = InputResult.objects.create(input_type=input_type)
+                        result.input_result.add(input_res)
+                    if input_type.tag_type.exists() and \
+                            not input_type.tag_type.filter(type_name=row[input_type.input_tip]).exists():
+                        return request_failed(74, "wrong tag name")
                     input_res.input_res = row[input_type.input_tip]
                     input_res.save()
             result.save()
