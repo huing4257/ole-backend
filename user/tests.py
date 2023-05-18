@@ -968,9 +968,7 @@ class UserTests(TestCase):
 
     def test_modifypassword_by_email_no_email(self):        
         self.post_login("testUser", "testPassword")
-        content2 = {
-
-        }        
+        content2 = {}        
         res = self.client.post("/user/modifypassword_by_email", content2, content_type=default_content_type)        
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(res.content, {"code": 52, "message": "no email bound", "data": {}})
