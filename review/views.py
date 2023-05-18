@@ -5,7 +5,7 @@ import io
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
-from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType, InputResult
+from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
