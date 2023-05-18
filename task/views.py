@@ -1,12 +1,11 @@
 import json
 from django.http import HttpRequest
 
-from task.distribute_views import update_task_tagger_list
 from utils.utils_check import CheckLogin, CheckUser
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import require, CheckRequire
 from user.models import User, Category, UserCategory
-from task.models import Task, Question, CurrentTagUser, TagType, InputType
+from task.models import Task, Question, CurrentTagUser, TagType, InputType, update_task_tagger_list
 from review.models import AnsList
 from django.db.models import IntegerField, Value
 
@@ -52,17 +51,38 @@ def change_tasks(req: HttpRequest, task: Task):
     task.strategy = require(body, "strategy", "string", err_msg="Missing or error type of [strategy]")
 
     # 获取 input_type list
-    input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
-    input_type_obj_list = [InputType.objects.create(input_tip=input_tip) for input_tip in input_type_list]
-    task.input_type.set(input_type_obj_list)
+    if task.task_type == "self_define":
+        input_type_list = require(body, "input_type", "list", err_msg="Missing or error type of [input_type]")
+        tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+        tag_input_tips = [tag_type_dict["input_type"] for tag_type_dict in tag_type_list]
+        if len(tag_input_tips + input_type_list) != len(set(tag_input_tips + input_type_list)):
+            return request_failed(79, "no repeated tag tip")
+        input_type_obj_list = []
+        for input_tip in input_type_list:
+            input_type = InputType.objects.filter(input_tip=input_tip).first()
+            if input_type is None:
+                input_type = InputType.objects.create(input_tip=input_tip)
+            input_type_obj_list.append(input_type)
+        task.input_type.set(input_type_obj_list)
+
+        for tag_type_dict in tag_type_list:
+            tag_input_tip = require(tag_type_dict, "input_type", "string",
+                                    err_msg="Missing or error type of [input_type]")
+            tag_tags = require(tag_type_dict, "tags", "list", err_msg="Missing or error type of [tags]")
+            tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_tags]
+            input_type = InputType.objects.create(input_tip=tag_input_tip)
+            input_type.tag_type.set(tag_type_obj_list)
+            input_type.save()
+            task.input_type.add(input_type)
+
+    else:
+        # 获取 tag_type list
+        tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
+        tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
+        task.tag_type.set(tag_type_obj_list)
 
     # 获取 cut_num
     task.cut_num = require(body, "cut_num", 'int', err_msg="Missing or error type of [cut_num]")
-
-    # 获取 tag_type list
-    tag_type_list = require(body, "tag_type", "list", err_msg="Missing or error type of [tagType]")
-    tag_type_obj_list = [TagType.objects.create(type_name=tag) for tag in tag_type_list]
-    task.tag_type.set(tag_type_obj_list)
 
     # 获取 ans_list
     if body["stdans_tag"] != "":
@@ -86,9 +106,9 @@ def change_tasks(req: HttpRequest, task: Task):
         else:
             data_type = "text"
         question = Question.objects.create(q_id=q_id + 1, data=f_id, data_type=data_type, cut_num=task.cut_num)
-        question.tag_type.set(tag_type_obj_list)
+        # question.tag_type.set(tag_type_obj_list)
         question.cut_num = task.cut_num
-        question.input_type.set(input_type_obj_list)
+        # question.input_type.set(input_type_obj_list)
         question.save()
         task.questions.add(question)
     task.save()
@@ -132,18 +152,21 @@ def task_ops(req: HttpRequest, user: User, task_id: any):
             task.delete()
             return request_success()
     elif req.method == 'GET':
-        task = Task.objects.filter(task_id=task_id).first()
-        # for category in task.task_style.all():
-        #     print(category.category)
+        task: Task = Task.objects.filter(task_id=task_id).first()
         if not task:
             return request_failed(11, "task does not exist", 404)
+        update_task_tagger_list(task)
         ret_data = task.serialize()
         if user.user_type == "tag":
             curr_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
+            ret_data['current_tag_user_list'] = []
             if curr_user:
                 ret_data['accepted_time'] = curr_user.accepted_at
+                ret_data['current_tag_user_list'].append(curr_user.serialize())
+        ret_data['current_tag_user_num'] = task.current_tag_user_list.filter(
+            state__in=CurrentTagUser.valid_state()
+        ).count()
         response = request_success(ret_data)
-        response.set_cookie("user_type", user.user_type)
         return response
     else:
         return BAD_METHOD
@@ -180,27 +203,24 @@ def get_my_tasks(req: HttpRequest, user: User):
             distribute_list.reverse()
             return request_success(undistribute_list + distribute_list)
         elif user.user_type == "tag":
-            all_tasks: list = Task.objects.all()
-            unfinish_list = []
-            finish_list = []
+            all_tasks: list[Task] = Task.objects.all()
+            task_list = []
             for element in all_tasks:
-                for current_tag_user in element.current_tag_user_list.all():
-                    if user == current_tag_user.tag_user:
-                        if current_tag_user.accepted_at and current_tag_user.accepted_at == -1:
-                            continue
-                        if current_tag_user.is_finished:
-                            finish_list.append(element.serialize())
-                        else:
-                            unfinish_list.append(element.serialize())
-            finish_list.reverse()
-            return request_success(unfinish_list + finish_list)
+                current_tag_user: CurrentTagUser = element.current_tag_user_list.filter(tag_user=user).first()
+                if current_tag_user:
+                    if current_tag_user.state != "refused":
+                        task_list.append(element.serialize())
+                        task_list[-1]["state"] = current_tag_user.state
+            return request_success(task_list)
         elif user.user_type == "agent":
             all_tasks = user.hand_out_task.all()
             return_list = list()
             for element in all_tasks:
                 task: Task = element
                 update_task_tagger_list(task)
-                current_tag_user_num = task.current_tag_user_list.count()
+                current_tag_user_num = task.current_tag_user_list.filter(
+                    state__in=CurrentTagUser.valid_state()
+                ).count()
                 ret_task = task.serialize(short=True)
                 ret_task.update({"current_tag_user_num": current_tag_user_num})
                 return_list.append(ret_task)
@@ -215,8 +235,6 @@ def get_my_tasks(req: HttpRequest, user: User):
 @CheckRequire
 def get_free_tasks(req: HttpRequest, user: User):
     if req.method == "GET":
-        if user.user_type != "tag":
-            return request_failed(1006, "no permission")
         usercategories = UserCategory.objects.filter(user=user).all()
         categories = user.categories.all()
         tasks = Task.objects.filter(strategy="toall", check_result="accept", task_style__in=categories). \
@@ -229,10 +247,11 @@ def get_free_tasks(req: HttpRequest, user: User):
         tasks = list(tasks)
         tasks.sort(key=lambda task: -task.my_count)
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
-        return_list = [element.serialize() for element in tasks if
-                       element.current_tag_user_list.count() < element.distribute_user_num] + \
-                      [element.serialize() for element in left_tasks if
-                       element.current_tag_user_list.count() < element.distribute_user_num]
+        return_list = [element.serialize() for element in tasks + list(left_tasks) if
+                       element.current_tag_user_list.filter(
+                           state__in=CurrentTagUser.valid_state()
+        ).count() < element.distribute_user_num and
+            not element.current_tag_user_list.filter(tag_user=user).exists()]
         return request_success(return_list)
     else:
         return BAD_METHOD
@@ -247,7 +266,10 @@ def check_task(req: HttpRequest, user: User, task_id: int):
         body = json.loads(req.body.decode("utf-8"))
         check_result = require(body, "result", "string", err_msg="invalid request", err_code=1005)
         task = Task.objects.filter(task_id=task_id).first()
-        task.check_result = check_result
+        if task.check_result == "wait":
+            task.check_result = check_result
+        else:
+            return request_failed(51, "recheck")
         task.save()
         return request_success()
     else:

@@ -1,34 +1,16 @@
-import base64
-import datetime
 import json
 import string
 import secrets
-from pathlib import Path
 
-from django.core.mail import send_mail
 from django.http import HttpRequest
 
+from user.email_views import check_email
 from utils.utils_request import request_failed, request_success, BAD_METHOD, return_field
 from utils.utils_require import require, CheckRequire
 from utils.utils_time import get_timestamp
 from utils.utils_check import CheckLogin
-from user.models import User, UserToken, EmailVerify, BankCard
+from user.models import User, UserToken, BankCard
 import bcrypt
-
-
-def check_email(email, verifycode):
-    """
-    检查邮箱验证码的正确性
-    """
-    email_obj: EmailVerify = EmailVerify.objects.filter(email=email, email_valid=verifycode).filter().first()
-    if email_obj is None:
-        return request_failed(46, "wrong email verify code"), None
-    if email_obj.email_valid_expire < datetime.datetime.now().replace(tzinfo=datetime.timezone.utc):
-        return request_failed(45, "email verify code expired"), None
-
-    if User.objects.filter(email__email=email).exists():
-        return request_failed(41, "email already bound"), None
-    return None, email_obj
 
 
 @CheckRequire
@@ -78,6 +60,31 @@ def register(req: HttpRequest):
         return request_success(return_field(user.serialize(), ["user_id", "user_name"]))
 
 
+def login_success(user):
+    if user.is_banned:
+        return request_failed(1007, "user is banned", 400)
+    # 检查会员是否过期
+    if user.vip_expire_time < get_timestamp():
+        user.membership_level = 0
+        user.save()
+    return_data = {
+        "user_id": user.user_id,
+        "user_name": user.user_name,
+        "user_type": user.user_type,
+    }
+    response = request_success(return_data)
+    token = bcrypt.hashpw((str(user.user_id) + str(get_timestamp())).encode('utf-8'), bcrypt.gensalt())
+    while UserToken.objects.filter(token=token).exists():
+        token = bcrypt.hashpw(((str(user.user_id) + str(get_timestamp())).encode('utf-8')),
+                              bcrypt.gensalt())
+    user_token = UserToken(user=user, token=token)
+    user_token.save()
+    response.set_cookie("token", token, max_age=604800)
+    response.set_cookie("userId", user.user_id, max_age=604800)
+    response.set_cookie("user_type", user.user_type, max_age=604800)
+    return response
+
+
 @CheckRequire
 def login(req: HttpRequest):
     if req.method == "POST":
@@ -89,28 +96,7 @@ def login(req: HttpRequest):
             return request_failed(4, "wrong username or password", 400)
         else:
             if bcrypt.checkpw(password.encode('utf-8'), user.password):
-                if user.is_banned:
-                    return request_failed(1007, "user is banned", 400)
-                # 检查会员是否过期
-                if user.vip_expire_time < get_timestamp():
-                    user.membership_level = 0
-                    user.save()
-                return_data = {
-                    "user_id": user.user_id,
-                    "user_name": user.user_name,
-                    "user_type": user.user_type,
-                }
-                response = request_success(return_data)
-                token = bcrypt.hashpw((str(user.user_id) + str(get_timestamp())).encode('utf-8'), bcrypt.gensalt())
-                while UserToken.objects.filter(token=token).exists():
-                    token = bcrypt.hashpw(((str(user.user_id) + str(get_timestamp())).encode('utf-8')),
-                                          bcrypt.gensalt())
-                user_token = UserToken(user=user, token=token)
-                user_token.save()
-                response.set_cookie("token", token, max_age=604800)
-                response.set_cookie("userId", user.user_id, max_age=604800)
-                response.set_cookie("user_type", user.user_type, max_age=604800)
-                return response
+                return login_success(user)
             else:
                 return request_failed(4, "wrong username or password", 400)
     else:
@@ -169,6 +155,8 @@ def ban_user(req: HttpRequest, user: User, user_id: int):
             return request_failed(19, "no permission")
         else:
             to_ban_user: User = User.objects.filter(user_id=user_id).first()
+            if to_ban_user is None:
+                return request_failed(76, "no such user")
             to_ban_user.is_banned = True
             to_ban_user.save()
             return request_success()
@@ -266,53 +254,10 @@ def withdraw(req: HttpRequest, user: User):
         if user.score < amount * 15:
             return request_failed(5, "score not enough")
         user.bank_account.card_balance += amount
+        user.bank_account.save()
         user.score -= amount * 15
         user.save()
         return request_success()
-    else:
-        return BAD_METHOD
-
-
-@CheckRequire
-def send_verify_code(req):
-    if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-        email = require(body, "email", "string", err_msg="Missing or error type of [email]")
-        with open(Path(__file__).resolve().parent / "imgs" / "blue_archive.png", "rb") as f:
-            img_base64 = base64.b64encode(f.read()).decode("utf-8")
-        valid_code = str(secrets.randbelow(999999)).zfill(6)
-        message = f"您的注册验证码是<br>" \
-                  f"<h1>{valid_code}</h1>" \
-                  f"验证码 5 分钟有效，过期请重新获取。<br><br>" \
-                  f"如果这不是您发起的请求，请忽略此邮件。<br>" \
-                  f'<img width=210px height=100px src="data:image/png ;base64,{img_base64}"/>'
-        send_success = send_mail("关注永雏塔菲喵 关注永雏塔菲谢谢喵",
-                                 "",
-                                 "ole@blog.xial.moe",
-                                 [email],
-                                 html_message=message)
-
-        # 发送邮件失败
-        if send_success == 0:
-            return request_failed(40, "send verify code failed")
-
-        # 邮箱已被绑定
-        if User.objects.filter(email__email=email).exists():
-            return request_failed(41, "email already bound")
-
-        # 更新数据库中 Verify Code & Expire Time
-        email_obj: EmailVerify = EmailVerify.objects.filter(email=email).first()
-        if email_obj is None:
-            EmailVerify.objects.create(email=email,
-                                       email_valid=valid_code,
-                                       email_valid_expire=datetime.datetime.now() + datetime.timedelta(minutes=5))
-        else:
-            email_obj.email_valid = valid_code
-            email_obj.email_valid_expire = datetime.datetime.now() + datetime.timedelta(minutes=5)
-            email_obj.save()
-
-        return request_success()
-
     else:
         return BAD_METHOD
 
@@ -344,19 +289,16 @@ def modify_bank_card(req, user: User):
 
 @CheckLogin
 @CheckRequire
-def change_email(req, user: User):
+def unban_user(req, user: User, user_id):
     if req.method == "POST":
-        body = json.loads(req.body.decode("utf-8"))
-
-        # 检查邮箱验证码
-        email = require(body, "newemail", "string", err_msg="Missing or error type of [newemail]")
-        verifycode = require(body, "verifycode", "string", err_msg="Missing or error type of [verifycode]")
-        email_verify_res, email_obj = check_email(email, verifycode)
-        if email_verify_res is not None:
-            return email_verify_res
-
-        user.email = email_obj
-        user.save()
-        return request_success()
+        if user.user_type != "admin":
+            return request_failed(19, "no permission")
+        else:
+            to_ban_user: User = User.objects.filter(user_id=user_id).first()
+            if to_ban_user is None:
+                return request_failed(76, "no such user")
+            to_ban_user.is_banned = False
+            to_ban_user.save()
+            return request_success()
     else:
         return BAD_METHOD

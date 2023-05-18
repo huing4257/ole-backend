@@ -5,15 +5,13 @@ import io
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
-from picbed.models import Image
-from task.models import Task, Question, CurrentTagUser, TextData, Result, TagType, ReportInfo
+from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType
 from user.models import User
 from user.vip_views import add_grow_value
 from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
-from video.models import Video
 
 
 # Create your views here.
@@ -51,7 +49,17 @@ def manual_check(req: HttpRequest, user: User, task_id: int, user_id: int):
             q_list: list[Question] = list(task.questions.all().order_by("q_id"))
         return_data = {"q_info": []}
         for question in q_list:
-            return_data["q_info"].append(question.serialize(detail=True, user_id=user_id))
+            return_q_data = question.serialize(detail=True, user_id=user_id)
+            if task.task_type == "self_define":
+                return_q_data["result"]["result"] = []
+                return_q_data["result"]["input_result"] = []
+                q_res: Result = question.result.filter(tag_user__user_id=user_id).first()
+                for input_res in q_res.input_result.all():
+                    if input_res.input_type.tag_type.exists():
+                        return_q_data["result"]["result"].append(input_res.serialize())
+                    else:
+                        return_q_data["result"]["input_result"].append(input_res.serialize())
+            return_data["q_info"].append(return_q_data)
         return_data["q_info"].sort(key=lambda item: item['q_id'])
         return request_success(return_data)
     else:
@@ -66,16 +74,15 @@ def upload_stdans(req: HttpRequest, user: User):
         decoded_file = csv_file.read().decode('utf-8')
         io_string = io.StringIO(decoded_file)
         reader = csv.reader(io_string, delimiter=',', quotechar='|')
-        anslist = AnsList.objects.create()
+        ans_list = AnsList.objects.create()
         for row in reader:
-            # print(row)
             if len(row) != 2:
                 return request_failed(20, "field error")
             ansdata = AnsData.objects.create(filename=row[0], std_ans=row[1])
             ansdata.save()
-            anslist.ans_list.add(ansdata)
-        anslist.save()
-        return request_success(str(anslist.id))
+            ans_list.ans_list.add(ansdata)
+        ans_list.save()
+        return request_success(str(ans_list.id))
     else:
         return BAD_METHOD
 
@@ -88,7 +95,7 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         if err is not None:
             return err
         curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
-        curr_tag_user.is_check_accepted = "pass"
+        curr_tag_user.state = "check_accepted"
         curr_tag_user.tag_user.tag_score += task.reward_per_q * task.q_num  # 给标注方加分
         curr_tag_user.tag_user.score += task.reward_per_q * task.q_num  # 给标注方加分
         add_grow_value(curr_tag_user.tag_user, 10)
@@ -107,7 +114,7 @@ def review_reject(req: HttpRequest, user: User, task_id: int, user_id: int):
         if err is not None:
             return err
         curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user_id).first()
-        curr_tag_user.is_check_accepted = "fail"
+        curr_tag_user.state = "check_refused"
         curr_tag_user.save()
         return request_success()
     else:
@@ -129,108 +136,63 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
 
         questions: list[Question] = list(task.questions.all())
         writer = csv.writer(response)
-        # input_types: list[InputType] = list(task.input_type.all())
+        tag_input_types: list[InputType] = list(task.input_type.filter(tag_type__isnull=False))
+        input_types: list[InputType] = list(task.input_type.filter(tag_type__isnull=True).all())
         if user_id is None:
-            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.all())
-            for tag_user in all_users:
-                if tag_user.is_check_accepted == "none":
-                    return request_failed(25, "review not finish")
+            all_users: list[CurrentTagUser] = list(task.current_tag_user_list.filter(state="check_accepted").all())
+            if len(all_users) != task.distribute_user_num:
+                return request_failed(25, "review not finish")
             tags: list[TagType] = list(task.tag_type.all())
             if type == "all":
-                writer.writerow(["filename"] + [tag.type_name for tag in tags])
-                for question in questions:
-                    q_data = get_q_data(question)
-                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                    writer.writerow([q_data.filename] + res)
+                if task.task_type == "self_define":
+                    writer.writerow(["tag user", "filename"] + [tag_tip.input_tip for tag_tip in tag_input_types]
+                                    + [tag_tip.input_tip for tag_tip in input_types])
+                    for curr_tag_user in all_users:
+                        for question in questions:
+                            q_data = get_q_data(question)
+                            tag_res: Result = question.result.filter(tag_user=curr_tag_user).first()
+                            input_results = []
+                            for input_type in tag_input_types:
+                                input_results.append(
+                                    tag_res.input_result.filter(input_type=input_type).first().input_res)
+                            for input_type in input_types:
+                                input_results.append(
+                                    tag_res.input_result.filter(input_type=input_type).first().input_res)
+                            writer.writerow([q_data.filename] + input_results)
+                else:
+                    writer.writerow(["filename"] + [tag.type_name for tag in tags])
+                    for question in questions:
+                        q_data = get_q_data(question)
+                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                        writer.writerow([q_data.filename] + res)
             else:
+                if task.task_type in ["triplet", "image_select", "human_face", "threeD", "self_define"]:
+                    return request_failed(80, "cannot merge this task type")
+                else:
+                    writer.writerow(["filename", "tag"])
+                    for question in questions:
+                        q_data = get_q_data(question)
+                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                        writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
+        else:
+            if task.task_type == "self_define":
+                writer.writerow(["filename"] + [tag_tip.input_tip for tag_tip in tag_input_types]
+                                + [tag_tip.input_tip for tag_tip in input_types])
                 for question in questions:
                     q_data = get_q_data(question)
-                    res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
-                    writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
-        else:
-            for question in questions:
-                q_data = get_q_data(question)
-                tag_res: Result = question.result.filter(tag_user=user_id).first()
-                writer.writerow([q_data.filename, tag_res.tag_res])
-
+                    tag_res: Result = question.result.filter(tag_user=user_id).first()
+                    input_results = []
+                    for input_type in tag_input_types:
+                        input_results.append(tag_res.input_result.filter(input_type=input_type).first().input_res)
+                    for input_type in input_types:
+                        input_results.append(tag_res.input_result.filter(input_type=input_type).first().input_res)
+                    writer.writerow([q_data.filename] + input_results)
+            else:
+                writer.writerow(["filename", "tag"])
+                for question in questions:
+                    q_data = get_q_data(question)
+                    tag_res: Result = question.result.filter(tag_user=user_id).first()
+                    writer.writerow([q_data.filename, str(json.loads(tag_res.tag_res))])
         return response
-    else:
-        return BAD_METHOD
-
-
-def get_q_data(question):
-    if question.data_type == "text":
-        q_data: TextData = TextData.objects.filter(id=question.data).first()
-    elif question.data_type == "image":
-        q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
-    else:  # question.data_type in ["video", "audio"]:
-        q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
-    return q_data
-
-
-@CheckRequire
-@CheckLogin
-def report_user(req, user: User, task_id, user_id):
-    if req.method == "POST":
-        task: Task = Task.objects.filter(task_id=task_id).first()
-        if task is None:
-            return request_failed(33, "task not exists", 404)
-        if task.publisher.user_id != user.user_id:
-            return request_failed(1006, "no permission")
-        tagger = User.objects.filter(user_id=user_id).first()
-        if tagger is None or \
-                task.current_tag_user_list.filter(user_id=user_id).first() is None or \
-                task.past_tag_user_list.filter(user_id=user_id).first() is None:
-            return request_failed(34, "user is not this task's tagger", 404)
-        report_info = ReportInfo.objects.filter(task_id=task_id, user_id=user_id).first()
-        if report_info is None:
-            ReportInfo.objects.create(task_id=task_id, user_id=user_id)
-        return request_success()
-    else:
-        return BAD_METHOD
-
-
-@CheckLogin
-@CheckRequire
-def all_reports(req, user: User):
-    if req.method == "GET":
-        if user.user_type != "admin":
-            return request_failed(1006, "no permission")
-        return request_success([report_info.serialize() for report_info in ReportInfo.objects.filter(result=None)])
-    else:
-        return BAD_METHOD
-
-
-@CheckLogin
-@CheckRequire
-def accept_report(req, user: User, task_id, user_id):
-    if req.method == "POST":
-        if user.user_type != "admin":
-            return request_failed(1006, "no permission")
-        report_info = ReportInfo.objects.filter(user_id=user_id, task_id=task_id).first()
-        if report_info is None:
-            return request_failed(35, "report record not found", 404)
-        report_info.result = True
-        report_info.save()
-        tagger = User.objects.filter(user_id=user_id).first()
-        tagger.credit_score -= 10
-        tagger.save()
-        return request_success()
-    else:
-        return BAD_METHOD
-
-
-@CheckLogin
-@CheckRequire
-def reject_report(req, user: User, task_id, user_id):
-    if req.method == "POST":
-        if user.user_type != "admin":
-            return request_failed(1006, "no permission")
-        report_info = ReportInfo.objects.filter(user_id=user_id, task_id=task_id).first()
-        if report_info is None:
-            return request_failed(35, "report record not found", 404)
-        report_info.result = False
-        report_info.save()
-        return request_success()
     else:
         return BAD_METHOD
