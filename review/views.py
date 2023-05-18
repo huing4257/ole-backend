@@ -1,14 +1,14 @@
 import csv
+import io
 import json
 import secrets
-import io
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
+from review.models import AnsData, AnsList
 from task.models import Task, Question, CurrentTagUser, Result, TagType, get_q_data, InputType
 from user.models import User
 from user.vip_views import add_grow_value
-from review.models import AnsData, AnsList
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_success, BAD_METHOD, request_failed
 from utils.utils_require import CheckRequire, require
@@ -19,7 +19,7 @@ from utils.utils_require import CheckRequire, require
 def check_task(task_id: int, user: User) -> tuple[Task | None, JsonResponse | None]:
     task: Task = Task.objects.filter(task_id=task_id).first()
     if not task:
-        return None, request_failed(14, "task not created", 400)
+        return None, request_failed(14, "task not created", 404)
     if user != task.publisher and user.user_type != "admin":
         return None, request_failed(16, "no permissions")
     if task.current_tag_user_list.count() == 0:

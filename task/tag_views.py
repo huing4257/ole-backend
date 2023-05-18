@@ -1,16 +1,19 @@
 import csv
 import io
 import json
+import zipfile
 
 from django.db.models import Q
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 
-from task.models import Task, CurrentTagUser, TextData, Question, Result, InputResult
+from picbed.models import Image
+from task.models import Task, CurrentTagUser, TextData, Question, Result, InputResult, InputType
 from user.models import User, UserCategory
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
 from utils.utils_require import CheckRequire
 from utils.utils_time import get_timestamp, DAY
+from video.models import Video
 
 
 @CheckLogin
@@ -166,7 +169,7 @@ def taginfo(req, user: User, task_id):
 def get_question_filename(task: Task, filename):
     for q in task.questions.all():
         if q.filename() == filename:
-            return filename
+            return q
     return None
 
 
@@ -203,12 +206,7 @@ def upload_many_res(req, user: User, task_id):
                 question.result.add(result)
             if task.task_type == "triplet":
                 result.tag_res = json.dumps([row["first"], row["second"]])
-            else:
-                if task.tag_type.exists():
-                    tags = [tag_type.type_name for tag_type in task.tag_type.all()]
-                    if row["tag"] not in tags:
-                        return request_failed(74, "wrong tag name")
-                    result.tag_res = json.dumps(row['tag'])
+            elif task.task_type == "self_define":
                 for input_type in input_types:
                     input_res = result.input_result.filter(input_type=input_type).first()
                     if input_res is None:
@@ -219,8 +217,62 @@ def upload_many_res(req, user: User, task_id):
                         return request_failed(74, "wrong tag name")
                     input_res.input_res = row[input_type.input_tip]
                     input_res.save()
+            else:
+                tags = [tag_type.type_name for tag_type in task.tag_type.all()]
+                if row["tag"] not in tags:
+                    return request_failed(74, "wrong tag name")
+                result.tag_res = json.dumps(row['tag'])
             result.save()
             question.save()
         return request_success()
+    else:
+        return BAD_METHOD
+
+
+@CheckLogin
+@CheckRequire
+def get_batch_data(req, user: User, task_id):
+    if req.method == "GET":
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if task is None:
+            return request_failed(14, "task not created", 404)
+        if task.task_type in ["threeD", "human_face", "image_select"]:
+            return request_failed(72, "invalid task type")
+        if not task.current_tag_user_list.filter(tag_user=user, state="accepted").exists():
+            return request_failed(1006, "no permission")
+
+        file_name = "data.zip"
+        response = HttpResponse(content_type="application/octet-stream")
+        response["Content-Disposition"] = f'attachment; filename={file_name}'
+        response["Access-Control-Expose-Headers"] = "Content-Disposition"
+
+        zip_buffer = io.BytesIO()
+        ret_zip = zipfile.ZipFile(zip_buffer, "w")
+        for question in task.questions.all():
+            if question.data_type == "text":
+                q_data: TextData = TextData.objects.filter(id=question.data).first()
+                ret_zip.writestr(q_data.filename, q_data.data)
+            elif question.data_type == "image":
+                q_data: Image = Image.objects.filter(img_file=question.data[7:]).first()
+                ret_zip.writestr(q_data.filename, q_data.img_file.read())
+            else:  # question.data_type in ["video", "audio"]:
+                q_data: Video = Video.objects.filter(video_file=question.data[6:]).first()
+                ret_zip.writestr(q_data.filename, q_data.video_file.read())
+
+        csv_buffer = io.StringIO()
+        writer = csv.writer(csv_buffer)
+        if task.task_type == "self_define":
+            tag_input_types: list[InputType] = list(task.input_type.filter(tag_type__isnull=False))
+            input_types: list[InputType] = list(task.input_type.filter(tag_type__isnull=True).all())
+            writer.writerow(["filename"] + [tag_tip.input_tip for tag_tip in tag_input_types]
+                            + [tag_tip.input_tip for tag_tip in input_types])
+        elif task.task_type == "triplet":
+            writer.writerow(["filename", "first", "second"])
+        else:
+            writer.writerow(["filename", "tag"])
+        ret_zip.writestr("upload.csv", csv_buffer.getvalue())
+        ret_zip.close()
+        response.write(zip_buffer.getvalue())
+        return response
     else:
         return BAD_METHOD
