@@ -44,7 +44,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         if task.current_tag_user_list.count() != 0 or task.strategy == "toall":
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
-        tag_users = User.objects.filter(user_type="tag", is_banned=False).order_by(lambda _user: _user.user_id)
+        tag_users = User.objects.filter(user_type="tag", is_banned=False).order_by("-user_id")
         # 设定的分发用户数比可分发的用户数多
         if task.distribute_user_num > tag_users.count():
             return request_failed(21, "tag user not enough")
@@ -74,7 +74,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                         cache.set('current_user_id', tag_user.user_id)
                         break
         elif task.strategy == "credit":
-            tag_users = tag_users.order_by(lambda _user: -1 * _user.credit_score)
+            tag_users = tag_users.order_by("-credit_score")
             current_tag_user_num = 0  # 当前被分发到的用户数
             for tag_user in tag_users:
                 task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
@@ -82,7 +82,7 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                 if current_tag_user_num >= task.distribute_user_num:
                     break
         elif task.strategy == "tag_rank":
-            tag_users = tag_users.order_by(lambda _user: -1 * _user.tag_score)
+            tag_users = tag_users.order_by("-tag_score")
             current_tag_user_num = 0  # 当前被分发到的用户数
             for tag_user in tag_users:
                 task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
@@ -99,7 +99,8 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                     - 0.1 * tag_user.credit_score \
                     - math.sqrt(2 * math.log(tot_task_cnt) / (all_suc_count + 1))
 
-            tag_users = tag_users.order_by(multi_armed_bandit)
+            tag_users = list(tag_users)
+            tag_users.sort(key=lambda item: multi_armed_bandit(item))
             current_tag_user_num = 0  # 当前被分发到的用户数
             for tag_user in tag_users:
                 task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
