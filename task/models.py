@@ -196,6 +196,7 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
+            "cut_num": self.cut_num,
         } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,
