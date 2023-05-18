@@ -204,6 +204,8 @@ def upload_many_res(req, user: User, task_id):
             if result is None:
                 result = Result.objects.create(tag_user=user)
                 question.result.add(result)
+            if result.start_time is None:
+                result.start_time = get_timestamp()
             if task.task_type == "triplet":
                 result.tag_res = json.dumps([row["first"], row["second"]])
             elif task.task_type == "self_define":
@@ -222,6 +224,7 @@ def upload_many_res(req, user: User, task_id):
                 if row["tag"] not in tags:
                     return request_failed(74, "wrong tag name")
                 result.tag_res = json.dumps(row['tag'])
+            result.finish_time = get_timestamp()
             result.save()
             question.save()
         return request_success()
