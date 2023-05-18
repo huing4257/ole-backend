@@ -101,6 +101,12 @@ def review_accept(req: HttpRequest, user: User, task_id: int, user_id: int):
         add_grow_value(curr_tag_user.tag_user, 10)
         curr_tag_user.tag_user.save()
         curr_tag_user.save()
+        task.save()
+        if task.agent is not None:
+            if task.current_tag_user_list.filter(state="check_accepted").count() == task.distribute_user_num:
+                task.agent.score += int(task.reward_per_q * task.q_num * task.distribute_user_num * 1.4)
+                task.agent.save()
+                task.save()
         return request_success()
     else:
         return BAD_METHOD

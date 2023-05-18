@@ -8,6 +8,7 @@ from django.http import HttpRequest, HttpResponse
 
 from picbed.models import Image
 from task.models import Task, CurrentTagUser, TextData, Question, Result, InputResult, InputType
+from task.question_views import auto_check
 from user.models import User, UserCategory
 from utils.utils_check import CheckLogin
 from utils.utils_request import request_failed, request_success, BAD_METHOD
@@ -180,7 +181,7 @@ def upload_many_res(req, user: User, task_id):
         task: Task = Task.objects.filter(task_id=task_id).first()
         if task is None:
             return request_failed(14, "task not created", 404)
-        if user.user_type != "tag":
+        if not task.current_tag_user_list.filter(tag_user=user, state="accepted").exists():
             return request_failed(1006, "no permission")
         if task.task_type in ["threeD", "human_face", "image_select"]:
             return request_failed(72, "invalid task type")
@@ -227,6 +228,17 @@ def upload_many_res(req, user: User, task_id):
             result.finish_time = get_timestamp()
             result.save()
             question.save()
+        curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
+        if all(q.result.filter(tag_user=user, finish_time__isnull=False).exists() for q in task.questions.all()):
+            curr_tag_user.state = "finished"
+            auto_check(curr_tag_user, task, user)
+            curr_tag_user.save()
+            task.save()
+        if task.agent is not None:
+            if task.current_tag_user_list.filter(state="check_accepted").count() == task.distribute_user_num:
+                task.agent.score += int(task.reward_per_q * task.q_num * task.distribute_user_num * 1.4)
+                task.agent.save()
+                task.save()
         return request_success()
     else:
         return BAD_METHOD
