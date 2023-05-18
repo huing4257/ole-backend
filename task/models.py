@@ -221,7 +221,7 @@ class ReportInfo(models.Model):
             "task_id": self.task.task_id,
             "task_type": self.task.task_type,
             "task_name": self.task.task_name,
-            "tagger_id": self.reportee.user_id if self.reportee.user_type == "tag" else self.report_req.id,
+            "tagger_id": self.reportee.user_id if self.reportee.user_type == "tag" else self.report_req.user_id,
             "reportee_id": self.reportee.user_id,
             "reportee_name": self.reportee.user_name,
             "credit_score": self.reportee.credit_score,
