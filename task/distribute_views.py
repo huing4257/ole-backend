@@ -149,6 +149,7 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
         agent_id = require(body, "agent_id", "int", err_msg="invalid request", err_code=1005)
+
         agent = User.objects.filter(user_id=agent_id).first()
         if not agent:
             return request_failed(8, "user does not exist", 404)
@@ -159,6 +160,15 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
             return request_failed(14, "task not created", 404)
         if task.publisher != user:
             return request_failed(1006, "no permission")
+
+        # 检测分数是否足够 扣分
+        cost_score = int(task.reward_per_q * task.q_num * task.distribute_user_num * 1.4)
+        if user.score < cost_score:
+            return request_failed(10, "score not enough")
+        else:
+            user.score -= cost_score
+            user.save()
+
         task.agent = agent
         task.save()
         return request_success()
