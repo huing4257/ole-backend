@@ -67,7 +67,7 @@ def register(req: HttpRequest):
 @CheckLogin
 def reset_invite_code(req, _user: User):
     if req.method == "POST":
-        ran_str = ''.join(secrets.SystemRandom(user_name).sample(string.ascii_letters + string.digits, 8))
+        ran_str = ''.join(secrets.SystemRandom(_user.user_name).sample(string.ascii_letters + string.digits, 8))
         _user.invite_code = ran_str
         _user.save()
         return request_success()

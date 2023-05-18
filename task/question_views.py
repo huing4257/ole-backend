@@ -2,7 +2,7 @@ import json
 
 from django.http import HttpRequest
 
-from task.models import Task, Result, Question, CurrentTagUser, InputResult, InputType
+from task.models import Task, Result, Question, CurrentTagUser, InputResult
 from user.models import User
 from user.vip_views import add_grow_value
 from utils.utils_check import CheckLogin, CheckUser

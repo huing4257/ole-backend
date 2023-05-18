@@ -29,4 +29,5 @@ urlpatterns = [
     path('taginfo/<int:task_id>', task.tag_views.taginfo),
     path('startquestion/<int:task_id>/<int:q_id>', task.question_views.startquestion),
     path('upload_res/<int:task_id>', task.tag_views.upload_many_res),
+    path('get_batch_data/<int:task_id>', task.tag_views.get_batch_data)
 ]
