@@ -1,4 +1,5 @@
 import json
+import math
 
 from django.core.cache import cache
 from django.http import HttpRequest
@@ -72,13 +73,31 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
                     if current_tag_user_num >= task.distribute_user_num:
                         cache.set('current_user_id', tag_user.user_id)
                         break
+        elif task.strategy == "credit":
+            tag_users = tag_users.order_by(lambda _user: -1 * _user.credit_score)
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                current_tag_user_num += 1
+                if current_tag_user_num >= task.distribute_user_num:
+                    break
+        elif task.strategy == "tag_rank":
+            tag_users = tag_users.order_by(lambda _user: -1 * _user.tag_score)
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                current_tag_user_num += 1
+                if current_tag_user_num >= task.distribute_user_num:
+                    break
         else:  # if task.strategy == "smart"
             def multi_armed_bandit(tag_user: User):
                 all_curr_user = CurrentTagUser.objects.filter(tag_user=tag_user).exclude(state="refused")
                 all_acc_count = all_curr_user.count()
                 all_suc_count = all_curr_user.filter(state="check_accpetd").count()
-                alpha = 0.95
-                return alpha * (all_acc_count / all_suc_count) + (1 - alpha) * tag_user.credit_score
+                tot_task_cnt = Task.objects.count()
+                return -5 * (all_suc_count / all_acc_count) \
+                    - 0.1 * tag_user.credit_score \
+                    - math.sqrt(2 * math.log(tot_task_cnt) / (all_suc_count + 1))
 
             tag_users = tag_users.order_by(multi_armed_bandit)
             current_tag_user_num = 0  # 当前被分发到的用户数
