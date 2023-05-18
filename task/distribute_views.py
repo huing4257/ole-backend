@@ -96,7 +96,6 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         user_id, task, err = pre_distribute(task_id, user)
-        task: Task = task
         if err is not None:
             return err
         if task.strategy == "toall":
