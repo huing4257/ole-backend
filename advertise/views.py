@@ -17,8 +17,8 @@ def publish(req, user: User):
             return request_failed(1006, "no permission")
         body = json.loads(req.body.decode("utf-8"))
         ad_time = require(body, "time", "int", err_msg="Missing or error type of [time]")
-        ad_type = require(body, "type", "int", err_msg="Missing or error type of [type]")
-        img_url = require(body, "url", "int", err_msg="Missing or error type of [url]")
+        ad_type = require(body, "type", "string", err_msg="Missing or error type of [type]")
+        img_url = require(body, "url", "string", err_msg="Missing or error type of [url]")
         if user.score < ad_time:
             return request_failed(83, "score not enough")
         user.score -= ad_time
@@ -43,6 +43,7 @@ def get_ad(req, user: User):
             return request_failed(1006, "no permission")
         ad_type = req.GET.get('type', default='horizontal')
         num = req.GET.get('num', default=4)
+        num = (int)(num)
         ads = Advertise.objects.filter(ad_type=ad_type).order_by('?')[:min(Advertise.objects.count(), num)]
         return request_success([ad.img_url for ad in ads])
     else:
@@ -52,7 +53,7 @@ def get_ad(req, user: User):
 @CheckLogin
 @CheckRequire
 def renew(req, user: User, ad_id):
-    if req.method == "GET":
+    if req.method == "POST":
         if user.user_type != "advertiser":
             return request_failed(1006, "no permission")
         body = json.loads(req.body.decode("utf-8"))
@@ -61,6 +62,7 @@ def renew(req, user: User, ad_id):
         if ad is None:
             return request_failed(86, "no such ad")
         ad.ad_time = max(get_timestamp(), ad.ad_time) + ad_time
+        ad.save()
         return request_success()
     else:
         return BAD_METHOD
