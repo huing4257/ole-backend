@@ -73,9 +73,15 @@ class AdvertiseTests(TestCase):
     def test_publish_no_permission(self):
         self.post_login("testTag", "testPassword")
         content = {
-
-        }
-        self.client.post("/advertise/publish", content, content_type=default_content_type)
+            "time": 500,
+            "type": 1,
+            "url": 1,
+        }  
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(
+            res.content, {"code": 1006, "message": "no permission", "data": {}}
+        )        
 
     def test_publish_score_not_enough(self):
         self.post_login("testAdvertise", "testPassword")
@@ -84,4 +90,18 @@ class AdvertiseTests(TestCase):
             "type": 1,
             "url": 1,
         }
-        self.client.post("/advertise/publish", content, content_type=default_content_type)        
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(
+            res.content, {"code": 83, "message": "score not enough", "data": {}}
+        )
+
+    def test_publish_success(self):
+        self.post_login("testAdvertise", "testPassword")
+        content = {
+            "time": 500,
+            "type": 1,
+            "url": 1,
+        }        
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
+        self.assertEqual(res.status_code, 200)
