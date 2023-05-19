@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'picbed',
     "review",
     "video",
+    "advertise",
 ]
 
 MIDDLEWARE = [

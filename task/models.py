@@ -196,6 +196,7 @@ class Task(models.Model):
             "agent": self.agent.serialize() if self.agent else None,
             "check_result": self.check_result,
             "strategy": self.strategy,
+            "cut_num": self.cut_num,
         } if not short else {
             "task_id": self.task_id,
             "task_name": self.task_name,
@@ -220,7 +221,7 @@ class ReportInfo(models.Model):
             "task_id": self.task.task_id,
             "task_type": self.task.task_type,
             "task_name": self.task.task_name,
-            "tagger_id": self.reportee.user_id if self.reportee.user_type == "tag" else self.report_req.id,
+            "tagger_id": self.reportee.user_id if self.reportee.user_type == "tag" else self.report_req.user_id,
             "reportee_id": self.reportee.user_id,
             "reportee_name": self.reportee.user_name,
             "credit_score": self.reportee.credit_score,
@@ -233,13 +234,13 @@ def update_task_tagger_list(task):
     for current_tagger in current_tagger_list:
         if current_tagger.accepted_at == -1:
             current_tagger.state = "refused"
-        elif current_tagger.accepted_at is not None and \
-                task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
-            current_tagger.state = "timeout"
         elif all(q.result.filter(tag_user=current_tagger.tag_user, finish_time__isnull=False).exists()
                  for q in task.questions.all()):
             if current_tagger.state not in CurrentTagUser.finish_state():
                 current_tagger.state = "finished"
+        elif current_tagger.accepted_at is not None and \
+                task.total_time_limit < get_timestamp() - current_tagger.accepted_at:
+            current_tagger.state = "timeout"
         current_tagger.save()
     task.save()
 

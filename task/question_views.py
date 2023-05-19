@@ -47,7 +47,7 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
                     input_type=task.input_type.filter(
                         input_tip=tag_res["input_type"],
                         tag_type__isnull=False
-                    ),
+                    ).first(),
                     input_res=tag_res["tag_result"]
                 ))
         else:
@@ -62,28 +62,32 @@ def upload_res(req: HttpRequest, user: User, task_id: int, q_id: int):
             curr_tag_user: CurrentTagUser = task.current_tag_user_list.filter(tag_user=user).first()
             curr_tag_user.state = "finished"
 
-            # 开始自动审核
-            if task.accept_method == "auto":
-                curr_tag_user.state = "check_accepted"
-                ans_list = task.ans_list
-                questions = task.questions.all()
-                for ans in ans_list.ans_list.all():
-                    q_id = int(ans.filename.split('.')[0])
-                    question = questions.filter(q_id=q_id).first()
-                    result = question.input_res.all().filter(tag_user=user).first()
-                    if result.tag_res != ans.std_ans:
-                        curr_tag_user.state = "check_refused"
-                if curr_tag_user.state == "check_accepted":
-                    # 给标注方加分
-                    user.score += task.reward_per_q * task.q_num
-                    user.tag_score += task.reward_per_q * task.q_num
-                    add_grow_value(user, 10)
-                    user.save()
+            auto_check(curr_tag_user, task, user)
             curr_tag_user.save()
         task.save()
         return request_success()
     else:
         return BAD_METHOD
+
+
+def auto_check(curr_tag_user, task, user):
+    # 开始自动审核
+    if task.accept_method == "auto":
+        curr_tag_user.state = "check_accepted"
+        ans_list = task.ans_list
+        questions = task.questions.all()
+        for ans in ans_list.ans_list.all():
+            q_id = int(ans.filename.split('.')[0])
+            question = questions.filter(q_id=q_id).first()
+            result = question.input_res.all().filter(tag_user=user).first()
+            if result.tag_res != ans.std_ans:
+                curr_tag_user.state = "check_refused"
+        if curr_tag_user.state == "check_accepted":
+            # 给标注方加分
+            user.score += task.reward_per_q * task.q_num
+            user.tag_score += task.reward_per_q * task.q_num
+            add_grow_value(user, 10)
+            user.save()
 
 
 @CheckLogin

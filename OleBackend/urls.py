@@ -27,4 +27,5 @@ urlpatterns = [
     path('picbed/', include('picbed.urls')),
     path('review/', include('review.urls')),
     path('video/', include('video.urls')),
+    path('advertise/', include('advertise.urls')),
 ]

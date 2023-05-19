@@ -1,4 +1,5 @@
 import json
+import math
 
 from django.core.cache import cache
 from django.http import HttpRequest
@@ -43,9 +44,9 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         if task.current_tag_user_list.count() != 0 or task.strategy == "toall":
             return request_failed(22, "task has been distributed")
         # 顺序分发(根据标注方的信用分从高到低分发)
-        tag_users = User.objects.filter(user_type="tag").all()
+        tag_users = User.objects.filter(user_type="tag", is_banned=False).order_by("-user_id")
         # 设定的分发用户数比可分发的用户数多
-        if task.distribute_user_num > tag_users.count() - User.objects.filter(is_banned=True).all().count():
+        if task.distribute_user_num > tag_users.count():
             return request_failed(21, "tag user not enough")
 
         # 检测分数是否足够 扣分
@@ -54,28 +55,58 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
         else:
             user.score -= task.reward_per_q * task.q_num * task.distribute_user_num
             user.save()
-        add_grow_value(user, 10)
-        current_tag_user_num = 0  # 当前被分发到的用户数
-        while current_tag_user_num < task.distribute_user_num:
-            if user_id >= tag_users[len(tag_users) - 1].user_id:
-                tag_user = tag_users[0]
-                user_id = tag_user.user_id
-                # 检测是否在被封禁用户列表中
-                if tag_user.is_banned:
-                    continue
-            else:
-                user_id += 1
-                tag_user = tag_users.filter(user_id=user_id).first()
-                while not tag_user:
-                    user_id += 1
-                    tag_user = tag_users.filter(user_id=user_id).first()
-                # 检测是否被封禁
-                if tag_user.is_banned:
-                    continue
-            cache.set('current_user_id', user_id)
-            current_tag_user = CurrentTagUser.objects.create(tag_user=tag_user)
-            task.current_tag_user_list.add(current_tag_user)
-            current_tag_user_num += 1
+
+        add_grow_value(user, task.reward_per_q * task.q_num * task.distribute_user_num)
+        if task.strategy == "order":
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                if tag_user.user_id > user_id:
+                    task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                    current_tag_user_num += 1
+                    if current_tag_user_num >= task.distribute_user_num:
+                        cache.set('current_user_id', tag_user.user_id)
+                        break
+            for tag_user in tag_users:
+                if tag_user.user_id <= user_id and current_tag_user_num < task.distribute_user_num:
+                    task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                    current_tag_user_num += 1
+                    if current_tag_user_num >= task.distribute_user_num:
+                        cache.set('current_user_id', tag_user.user_id)
+                        break
+        elif task.strategy == "credit":
+            tag_users = tag_users.order_by("-credit_score")
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                current_tag_user_num += 1
+                if current_tag_user_num >= task.distribute_user_num:
+                    break
+        elif task.strategy == "tag_rank":
+            tag_users = tag_users.order_by("-tag_score")
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                current_tag_user_num += 1
+                if current_tag_user_num >= task.distribute_user_num:
+                    break
+        else:  # if task.strategy == "smart"
+            def multi_armed_bandit(tag_user: User):
+                all_curr_user = CurrentTagUser.objects.filter(tag_user=tag_user).exclude(state="refused")
+                all_acc_count = all_curr_user.count()
+                all_suc_count = all_curr_user.filter(state="check_accpetd").count()
+                tot_task_cnt = Task.objects.count()
+                return -5 * (all_suc_count / all_acc_count) \
+                    - 0.1 * tag_user.credit_score \
+                    - math.sqrt(2 * math.log(tot_task_cnt) / (all_suc_count + 1))
+
+            tag_users = list(tag_users)
+            tag_users.sort(key=lambda item: multi_armed_bandit(item))
+            current_tag_user_num = 0  # 当前被分发到的用户数
+            for tag_user in tag_users:
+                task.current_tag_user_list.add(CurrentTagUser.objects.create(tag_user=tag_user))
+                current_tag_user_num += 1
+                if current_tag_user_num >= task.distribute_user_num:
+                    break
         task.save()
         return request_success()
 
@@ -85,7 +116,6 @@ def distribute_task(req: HttpRequest, user: User, task_id: int):
 def redistribute_task(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         user_id, task, err = pre_distribute(task_id, user)
-        task: Task = task
         if err is not None:
             return err
         if task.strategy == "toall":
@@ -139,6 +169,7 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
     if req.method == "POST":
         body = json.loads(req.body.decode("utf-8"))
         agent_id = require(body, "agent_id", "int", err_msg="invalid request", err_code=1005)
+
         agent = User.objects.filter(user_id=agent_id).first()
         if not agent:
             return request_failed(8, "user does not exist", 404)
@@ -149,6 +180,15 @@ def to_agent(req: HttpRequest, user: User, task_id: int):
             return request_failed(14, "task not created", 404)
         if task.publisher != user:
             return request_failed(1006, "no permission")
+
+        # 检测分数是否足够 扣分
+        cost_score = int(task.reward_per_q * task.q_num * task.distribute_user_num * 1.4)
+        if user.score < cost_score:
+            return request_failed(10, "score not enough")
+        else:
+            user.score -= cost_score
+            user.save()
+
         task.agent = agent
         task.save()
         return request_success()
