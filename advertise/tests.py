@@ -1,5 +1,6 @@
 from django.test import TestCase
 from user.models import User, BankCard
+from advertise.models import Advertise
 import bcrypt
 import datetime
 default_content_type = "application/json"
@@ -87,8 +88,8 @@ class AdvertiseTests(TestCase):
         self.post_login("testAdvertise", "testPassword")
         content = {
             "time": 100000,
-            "type": 1,
-            "url": 1,
+            "type": "horizontal",
+            "url": "testURL",
         }
         res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
         self.assertEqual(res.status_code, 400)
@@ -100,8 +101,8 @@ class AdvertiseTests(TestCase):
         self.post_login("testAdvertise", "testPassword")
         content = {
             "time": 500,
-            "type": 1,
-            "url": 1,
+            "type": "horizontal",
+            "url": "testURL",
         }        
         res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
         self.assertEqual(res.status_code, 200)
@@ -124,8 +125,29 @@ class AdvertiseTests(TestCase):
         res = self.client.get("/advertise/get_my_ad")
         self.assertEqual(res.status_code, 200)
 
-    def test_renew(self):
+    def test_renew_not_found(self):
         self.post_login("testAdvertise", "testPassword")
         ad_id = 1
         res = self.client.post(f"/advertise/renew/{ad_id}", {"time": 555}, content_type=default_content_type)
-        print(res.content)
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(
+            res.content, {"code": 86, "message": "no such ad", "data": {}}
+        )
+
+    def test_renew(self):
+        self.post_login("testAdvertise", "testPassword")
+        content = {
+            "time": 500,
+            "type": "horizontal",
+            "url": "testURL",
+        }        
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
+        self.assertEqual(res.status_code, 200)        
+        ad_id = 1
+        ad: Advertise = Advertise.objects.filter(ad_id=ad_id).first()
+        oldtime = ad.ad_time
+        res = self.client.post(f"/advertise/renew/{ad_id}", {"time": 555}, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        ad: Advertise = Advertise.objects.filter(ad_id=ad_id).first()
+        newtime = ad.ad_time
+        self.assertEqual(newtime - oldtime, 555)
