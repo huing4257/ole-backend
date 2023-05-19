@@ -143,7 +143,7 @@ class AdvertiseTests(TestCase):
         }        
         res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
         self.assertEqual(res.status_code, 200)        
-        ad_id = 1
+        ad_id = Advertise.objects.first().ad_id
         ad: Advertise = Advertise.objects.filter(ad_id=ad_id).first()
         oldtime = ad.ad_time
         res = self.client.post(f"/advertise/renew/{ad_id}", {"time": 555}, content_type=default_content_type)
