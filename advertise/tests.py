@@ -105,3 +105,27 @@ class AdvertiseTests(TestCase):
         }        
         res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
         self.assertEqual(res.status_code, 200)
+
+    def test_get_ad_no_permission(self):
+        self.post_login("testTag", "testPassword")
+        res = self.client.get("/advertise/get_ad")
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(
+            res.content, {"code": 1006, "message": "no permission", "data": {}}
+        )              
+
+    def test_get_ad(self):
+        self.post_login("testAdvertise", "testPassword")
+        res = self.client.get("/advertise/get_ad", {"type": "hotizontal", "num": 3})
+        self.assertEqual(res.status_code, 200)
+
+    def test_get_my_ad(self):
+        self.post_login("testAdvertise", "testPassword")
+        res = self.client.get("/advertise/get_my_ad")
+        self.assertEqual(res.status_code, 200)
+
+    def test_renew(self):
+        self.post_login("testAdvertise", "testPassword")
+        ad_id = 1
+        res = self.client.post(f"/advertise/renew/{ad_id}", {"time": 555}, content_type=default_content_type)
+        print(res.content)
