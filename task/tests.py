@@ -654,6 +654,93 @@ class TaskTests(TestCase):
         distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
         self.assertEqual(len(distribute_user_list), 3)
 
+    def test_distribute_credit_success(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        res = self.client.post("/task/distribute/114514")
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 14)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        para["strategy"] = "credit"
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3)
+
+    def test_distribute_tag_rank_success(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        res = self.client.post("/task/distribute/114514")
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 14)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        para["strategy"] = "tag_rank"
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3)            
+
+    def test_distribute_smart_success(self):
+        self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
+                         content_type=default_content_type)
+
+        res = self.client.post("/task/distribute/114514")
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.json()['code'], 14)
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3)     
+
+        para = self.para.copy()
+        para["distribute_user_num"] = 3
+        para["strategy"] = "smart"
+        res = self.client.post("/task/", para, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
+        task_id = res.json()['data']['task_id']
+
+        set_task_checked(task_id)
+        res = self.client.post(f"/task/distribute/{task_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["message"], "Succeed")
+        task = Task.objects.get(task_id=task_id)
+
+        distribute_user_list = set(tag_user.tag_user.user_id for tag_user in task.current_tag_user_list.all())
+        self.assertEqual(len(distribute_user_list), 3) 
+
     def test_distribute_no_permission(self):
         self.client.post("/user/login", {"user_name": "testReceiver1", "password": "testPassword"},
                          content_type=default_content_type)
