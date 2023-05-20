@@ -61,6 +61,10 @@ def renew(req, user: User, ad_id):
         ad: Advertise = Advertise.objects.filter(ad_id=ad_id).first()
         if ad is None:
             return request_failed(86, "no such ad")
+        if user.score < ad_time:
+            return request_failed(83, "score not enough")
+        user.score -= ad_time
+        user.save()
         ad.ad_time = max(get_timestamp(), ad.ad_time) + ad_time
         ad.save()
         return request_success()
