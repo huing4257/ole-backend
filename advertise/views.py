@@ -39,8 +39,6 @@ def publish(req, user: User):
 @CheckRequire
 def get_ad(req, user: User):
     if req.method == "GET":
-        if user.user_type != "advertiser":
-            return request_failed(1006, "no permission")
         ad_type = req.GET.get('type', default='horizontal')
         num = req.GET.get('num', default=4)
         num = (int)(num)
