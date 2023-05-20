@@ -972,3 +972,29 @@ class UserTests(TestCase):
         res = self.client.post("/user/modifypassword_by_email", content2, content_type=default_content_type)        
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(res.content, {"code": 52, "message": "no email bound", "data": {}})
+
+    def test_reset_invite_code(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post("/user/reset_invite_code", {}, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 200)
+        
+    def test_unban_user_no_permission(self):
+        self.post_login("testTag", "testPassword")
+        res = self.client.post(f"/user/unban_user/{1}", {}, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(
+            res.content, {'code': 19, 'data': {}, 'message': 'no permission'}
+        )        
+
+    def test_unban_user(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post(f"/user/unban_user/{3}", {}, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 200)
+
+    def test_unban_user_not_found(self):
+        self.post_login("testUser", "testPassword")
+        res = self.client.post(f"/user/unban_user/{30000}", {}, content_type=default_content_type)        
+        self.assertEqual(res.status_code, 400)  
+        self.assertJSONEqual(
+            res.content, {'code': 76, 'data': {}, 'message': 'no such user'}
+        )                      
