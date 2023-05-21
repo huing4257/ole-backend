@@ -92,17 +92,11 @@ class ReviewTests(TestCase):
             data = {
                 "file": test_zip
             }
-
             res = self.client.post(f"/task/upload_data?data_type={task_type}", data)
         self.assertEqual(res.status_code, 200)
         para = self.para.copy()
         para["task_type"] = task_type
-
-        # print(res.json())
-
         para["files"] = res.json()['data']['files']
-        # print(para["files"])
-
         para["distribute_user_num"] = distribute_user_num
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
@@ -152,7 +146,8 @@ class ReviewTests(TestCase):
     def test_upload_stdans_success(self):
         self.publisher_login_create_task()
         with open("a.csv", "w") as f:
-            f.write("1.txt,tag_1_1")
+            f.write("filename,tag\n")
+            f.write("1.jpg,tag1")
         file = SimpleUploadedFile("a.csv", open("a.csv", "rb").read())
         res = self.client.post("/review/upload_stdans", {
             "file": file

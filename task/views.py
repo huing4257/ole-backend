@@ -17,7 +17,7 @@ from django.db.models import IntegerField, Value
 def create_task(req: HttpRequest, user: User):
     if req.method == 'POST':
         task = Task.objects.create(publisher=user)
-        task, err = change_tasks(req, task)
+        _, err = change_tasks(req, task)
         if err is not None:
             task.delete()
             return err
@@ -256,8 +256,7 @@ def get_free_tasks(req: HttpRequest, user: User):
         left_tasks = Task.objects.filter(strategy="toall", check_result="accept").exclude(task_style__in=categories)
         return_list = [element.serialize() for element in tasks + list(left_tasks) if
                        element.current_tag_user_list.filter(
-                           state__in=CurrentTagUser.valid_state()
-                       ).count() < element.distribute_user_num and
+                           state__in=CurrentTagUser.valid_state()).count() < element.distribute_user_num and
                        not element.current_tag_user_list.filter(tag_user=user).exists()]
         return request_success(return_list)
     else:
