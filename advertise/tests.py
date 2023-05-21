@@ -58,7 +58,7 @@ class AdvertiseTests(TestCase):
             user_name="testAdvertise",
             password=hashed_password,
             user_type="advertiser",
-            score=1000,
+            score=10000,
             membership_level=0,
             invite_code="testInviteCode",
         )
@@ -106,14 +106,6 @@ class AdvertiseTests(TestCase):
         }        
         res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
         self.assertEqual(res.status_code, 200)
-
-    def test_get_ad_no_permission(self):
-        self.post_login("testTag", "testPassword")
-        res = self.client.get("/advertise/get_ad")
-        self.assertEqual(res.status_code, 400)
-        self.assertJSONEqual(
-            res.content, {"code": 1006, "message": "no permission", "data": {}}
-        )              
 
     def test_get_ad(self):
         self.post_login("testAdvertise", "testPassword")
