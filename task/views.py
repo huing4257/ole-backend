@@ -19,6 +19,7 @@ def create_task(req: HttpRequest, user: User):
         task = Task.objects.create(publisher=user)
         task, err = change_tasks(req, task)
         if err is not None:
+            task.delete()
             return err
         if user.score < task.reward_per_q * task.q_num * task.distribute_user_num:
             return request_failed(10, "score not enough", status_code=400)
@@ -86,13 +87,17 @@ def change_tasks(req: HttpRequest, task: Task):
     # 获取 cut_num
     task.cut_num = require(body, "cut_num", 'int', err_msg="Missing or error type of [cut_num]")
 
+    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
+    filename_list = [file["filename"] for file in file_list]
     # 获取 ans_list
     if body["stdans_tag"] != "":
-        ans_list = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
+        ans_list: AnsList = AnsList.objects.filter(id=int(body["stdans_tag"])).first()
         task.ans_list = ans_list
+        for ans in ans_list.ans_list.all():
+            if ans.filename not in filename_list or ans.std_ans not in tag_type_list:
+                return None, request_failed(89, "illegal standard answer file")
 
     # 构建这个task的questions，把数据绑定到每个上
-    file_list = require(body, "files", "list", err_msg="Missing or error type of [files]")
     task.q_num = len(file_list)
     for q_id, file in enumerate(file_list):
         f_id = file['tag']
@@ -252,8 +257,8 @@ def get_free_tasks(req: HttpRequest, user: User):
         return_list = [element.serialize() for element in tasks + list(left_tasks) if
                        element.current_tag_user_list.filter(
                            state__in=CurrentTagUser.valid_state()
-        ).count() < element.distribute_user_num and
-            not element.current_tag_user_list.filter(tag_user=user).exists()]
+                       ).count() < element.distribute_user_num and
+                       not element.current_tag_user_list.filter(tag_user=user).exists()]
         return request_success(return_list)
     else:
         return BAD_METHOD
