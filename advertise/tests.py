@@ -109,7 +109,7 @@ class AdvertiseTests(TestCase):
 
     def test_get_ad(self):
         self.post_login("testAdvertise", "testPassword")
-        res = self.client.get("/advertise/get_ad", {"type": "hotizontal", "num": 3})
+        res = self.client.get("/advertise/get_ad", {"type": "horizontal", "num": 3})
         self.assertEqual(res.status_code, 200)
 
     def test_get_my_ad(self):

@@ -41,8 +41,9 @@ def get_ad(req, user: User):
     if req.method == "GET":
         ad_type = req.GET.get('type', default='horizontal')
         num = req.GET.get('num', default=4)
-        num = (int)(num)
-        ads = Advertise.objects.filter(ad_type=ad_type).order_by('?')[:min(Advertise.objects.count(), num)]
+        num = int(num)
+        ads = Advertise.objects.filter(ad_type=ad_type, ad_time__gte=get_timestamp())
+        ads = ads.order_by('?')[:min(ads.count(), num)]
         return request_success([ad.img_url for ad in ads])
     else:
         return BAD_METHOD
