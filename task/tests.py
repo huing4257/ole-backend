@@ -214,7 +214,6 @@ class TaskTests(TestCase):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
                          content_type=default_content_type)
         para = self.para.copy()
-        para["stdans_tag"] = "1"
         res = self.client.post("/task/", para, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["message"], "Succeed")

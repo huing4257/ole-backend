@@ -78,9 +78,9 @@ def auto_check(curr_tag_user, task, user):
         questions = task.questions.all()
         for ans in ans_list.ans_list.all():
             q_id = int(ans.filename.split('.')[0])
-            question = questions.filter(q_id=q_id).first()
-            result = question.input_res.all().filter(tag_user=user).first()
-            if result.tag_res != ans.std_ans:
+            question: Question = questions.filter(q_id=q_id).first()
+            result = question.result.filter(tag_user=user).first()
+            if json.loads(result.tag_res) != ans.std_ans:
                 curr_tag_user.state = "check_refused"
         if curr_tag_user.state == "check_accepted":
             # 给标注方加分

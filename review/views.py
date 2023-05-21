@@ -73,12 +73,12 @@ def upload_stdans(req: HttpRequest, user: User):
         csv_file = req.FILES["file"]
         decoded_file = csv_file.read().decode('utf-8')
         io_string = io.StringIO(decoded_file)
-        reader = csv.reader(io_string, delimiter=',', quotechar='|')
+        reader = csv.DictReader(io_string, delimiter=',')
         ans_list = AnsList.objects.create()
+        if any(tag not in reader.fieldnames for tag in ["filename", "tag"]):
+            return request_failed(20, "field error")
         for row in reader:
-            if len(row) != 2:
-                return request_failed(20, "field error")
-            ansdata = AnsData.objects.create(filename=row[0], std_ans=row[1])
+            ansdata = AnsData.objects.create(filename=row["filename"], std_ans=row["tag"])
             ansdata.save()
             ans_list.ans_list.add(ansdata)
         ans_list.save()
@@ -169,7 +169,7 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                     writer.writerow(["filename"] + [tag.type_name for tag in tags])
                     for question in questions:
                         q_data = get_q_data(question)
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                        res = [question.result.filter(tag_res=json.dumps(tag.type_name)).count() for tag in tags]
                         writer.writerow([q_data.filename] + res)
             else:
                 if task.task_type in ["triplet", "image_select", "human_face", "threeD", "self_define"]:
@@ -178,7 +178,7 @@ def download(req: HttpRequest, user: User, task_id: int, user_id: int = None):
                     writer.writerow(["filename", "tag"])
                     for question in questions:
                         q_data = get_q_data(question)
-                        res = [question.result.filter(tag_res=tag.type_name).count() for tag in tags]
+                        res = [question.result.filter(tag_res=json.dumps(tag.type_name)).count() for tag in tags]
                         writer.writerow([q_data.filename, tags[res.index(max(res))].type_name])
         else:
             if task.task_type == "self_define":
