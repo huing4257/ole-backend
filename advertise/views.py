@@ -35,9 +35,8 @@ def publish(req, user: User):
         return BAD_METHOD
 
 
-@CheckLogin
 @CheckRequire
-def get_ad(req, user: User):
+def get_ad(req):
     if req.method == "GET":
         ad_type = req.GET.get('type', default='horizontal')
         num = req.GET.get('num', default=4)
