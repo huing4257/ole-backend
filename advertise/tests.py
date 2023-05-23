@@ -3,6 +3,7 @@ from user.models import User, BankCard
 from advertise.models import Advertise
 import bcrypt
 import datetime
+
 default_content_type = "application/json"
 
 
@@ -69,20 +70,20 @@ class AdvertiseTests(TestCase):
             "password": password,
         }
         payload = {k: v for k, v in payload.items() if v is not None}
-        return self.client.post("/user/login", payload, content_type=default_content_type)        
-    
+        return self.client.post("/user/login", payload, content_type=default_content_type)
+
     def test_publish_no_permission(self):
         self.post_login("testTag", "testPassword")
         content = {
             "time": 500,
             "type": 1,
             "url": 1,
-        }  
+        }
         res = self.client.post("/advertise/publish", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(
             res.content, {"code": 1006, "message": "no permission", "data": {}}
-        )        
+        )
 
     def test_publish_score_not_enough(self):
         self.post_login("testAdvertise", "testPassword")
@@ -91,7 +92,7 @@ class AdvertiseTests(TestCase):
             "type": "horizontal",
             "url": "testURL",
         }
-        res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 400)
         self.assertJSONEqual(
             res.content, {"code": 83, "message": "score not enough", "data": {}}
@@ -103,8 +104,8 @@ class AdvertiseTests(TestCase):
             "time": 500,
             "type": "horizontal",
             "url": "testURL",
-        }        
-        res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
+        }
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
 
     def test_get_ad(self):
@@ -132,9 +133,9 @@ class AdvertiseTests(TestCase):
             "time": 500,
             "type": "horizontal",
             "url": "testURL",
-        }        
-        res = self.client.post("/advertise/publish", content, content_type=default_content_type)   
-        self.assertEqual(res.status_code, 200)        
+        }
+        res = self.client.post("/advertise/publish", content, content_type=default_content_type)
+        self.assertEqual(res.status_code, 200)
         ad_id = Advertise.objects.first().ad_id
         ad: Advertise = Advertise.objects.filter(ad_id=ad_id).first()
         oldtime = ad.ad_time

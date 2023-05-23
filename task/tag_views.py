@@ -88,42 +88,46 @@ def accept_task(req: HttpRequest, user: User, task_id: int):
         return BAD_METHOD
 
 
-# @CheckLogin
-# def get_progress(req: HttpRequest, user: User, task_id: int):
-#     if req.method == "GET":
-#         task = Task.objects.filter(task_id=task_id).first()
-#         if task.strategy == "toall" or task.current_tag_user_list.filter(tag_user=user).exists():
-#             if task.progress.filter(tag_user=user).first():
-#                 # 已经做过这个题目
-#                 qid = task.progress.filter(tag_user=user).first().q_id
-#                 return request_success({"q_id": qid})
-#             else:
-#                 # 这个用户还没做过这个题目
-#                 return request_success({"q_id": 1})
-#         else:
-#             return request_failed(1006, "no access permission")
-#     else:
-#         return BAD_METHOD
+'''
+deprecated
+
+@CheckLogin
+def get_progress(req: HttpRequest, user: User, task_id: int):
+    if req.method == "GET":
+        task = Task.objects.filter(task_id=task_id).first()
+        if task.strategy == "toall" or task.current_tag_user_list.filter(tag_user=user).exists():
+            if task.progress.filter(tag_user=user).first():
+                # 已经做过这个题目
+                qid = task.progress.filter(tag_user=user).first().q_id
+                return request_success({"q_id": qid})
+            else:
+                # 这个用户还没做过这个题目
+                return request_success({"q_id": 1})
+        else:
+            return request_failed(1006, "no access permission")
+    else:
+        return BAD_METHOD
 
 
-# @CheckLogin
-# def is_accepted(req: HttpRequest, user: User, task_id: int):
-#     """
-#     后端判断当前用户是否已经接受任务task_id。
-#     """
-#     if req.method == "GET":
-#         task: Task = Task.objects.filter(task_id=task_id).first()
-#         if not task:
-#             return request_failed(14, "task not created", 404)
-#         # 没有分发
-#         if task.strategy != "toall" and task.current_tag_user_list.count() == 0:
-#             return request_failed(22, "task not distributed", 400)
-#         for current_tag_user in task.current_tag_user_list.all():
-#             if current_tag_user.tag_user == user and current_tag_user.accepted_at:
-#                 return request_success({"is_accepted": True})
-#         return request_success({"is_accepted": False})
-#     else:
-#         return BAD_METHOD
+@CheckLogin
+def is_accepted(req: HttpRequest, user: User, task_id: int):
+    """
+    后端判断当前用户是否已经接受任务task_id。
+    """
+    if req.method == "GET":
+        task: Task = Task.objects.filter(task_id=task_id).first()
+        if not task:
+            return request_failed(14, "task not created", 404)
+        # 没有分发
+        if task.strategy != "toall" and task.current_tag_user_list.count() == 0:
+            return request_failed(22, "task not distributed", 400)
+        for current_tag_user in task.current_tag_user_list.all():
+            if current_tag_user.tag_user == user and current_tag_user.accepted_at:
+                return request_success({"is_accepted": True})
+        return request_success({"is_accepted": False})
+    else:
+        return BAD_METHOD
+'''
 
 
 @CheckLogin

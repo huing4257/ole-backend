@@ -36,7 +36,8 @@ def register(req: HttpRequest):
             if invite_code:
                 inviter: User = User.objects.filter(invite_code=invite_code).first()
                 if user_type == "admin" and (inviter is None or inviter.user_type != "admin"):
-                    return request_failed(80, "need invite code of admin")
+                    return request_failed(92, "wrong invite code") if inviter is None \
+                        else request_failed(80, "need invite code of admin")
                 if inviter:
                     inviter.score += 2
                     inviter.save()
