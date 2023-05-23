@@ -41,7 +41,8 @@ def all_reports(req, user: User):
     if req.method == "GET":
         if user.user_type != "admin":
             return request_failed(1006, "no permission")
-        return request_success([report_info.serialize() for report_info in ReportInfo.objects.filter(result=None)])
+        return request_success([report_info.serialize()
+                                for report_info in ReportInfo.objects.filter(result__isnull=True)])
     else:
         return BAD_METHOD
 
@@ -57,6 +58,8 @@ def accept_report(req, user: User, task_id, user_id):
         report_info = ReportInfo.objects.filter(reportee=tagger, task=task).first()
         if report_info is None:
             return request_failed(35, "report record not found", 404)
+        if report_info.result is not None:
+            return request_failed(91, "no repeat accept")
         report_info.result = True
         report_info.save()
         tagger = User.objects.filter(user_id=user_id).first()
@@ -76,6 +79,8 @@ def reject_report(req, user: User, task_id, user_id):
         report_info = ReportInfo.objects.filter(reportee_id=user_id, task_id=task_id).first()
         if report_info is None:
             return request_failed(35, "report record not found", 404)
+        if report_info.result is not None:
+            return request_failed(91, "no repeat reject")
         report_info.result = False
         report_info.save()
         return request_success()
