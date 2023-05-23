@@ -3,6 +3,7 @@ from user.models import User, EmailVerify, BankCard
 from django.core.files.uploadedfile import SimpleUploadedFile
 import bcrypt
 import datetime
+
 default_content_type = "application/json"
 
 
@@ -19,7 +20,7 @@ class VideoTests(TestCase):
             email="new@mail.com",
             email_valid="testValid",
             email_valid_expire=datetime.date(2077, 12, 25)
-        )        
+        )
         bankcard = BankCard.objects.create(
             card_id="123456789",
             card_balance=100,
@@ -97,7 +98,7 @@ class VideoTests(TestCase):
 
     def test_video_handler_get_not_found(self):
         res = self.post_login("testDemand", "testPassword")
-        self.assertEqual(res.status_code, 200)        
+        self.assertEqual(res.status_code, 200)
         url = "111"
         res = self.client.get(f"/video/{url}")
         self.assertJSONEqual(
@@ -106,21 +107,21 @@ class VideoTests(TestCase):
 
     def test_video_handler_delete_not_found(self):
         res = self.post_login("testDemand", "testPassword")
-        self.assertEqual(res.status_code, 200)        
+        self.assertEqual(res.status_code, 200)
         url = "111"
         res = self.client.get(f"/video/{url}")
         self.assertJSONEqual(
             res.content, {"code": 18, "message": "video not found", "data": {}}
-        )        
+        )
 
     def test_video_handler_get(self):
         res = self.post_login("testDemand", "testPassword")
-        self.assertEqual(res.status_code, 200)  
+        self.assertEqual(res.status_code, 200)
         video_content = b'\xff\x00\x00' * 100 * 100
         file = SimpleUploadedFile("video1.mp4", video_content, content_type="video/mp4")
         content = {
             "video": file
-        }              
+        }
         res = self.client.post("/video/", content)
         url = res.json()["data"]["url"]
         res = self.client.get(f"/video/{url}")
@@ -128,13 +129,13 @@ class VideoTests(TestCase):
 
     def test_video_handler_delete(self):
         res = self.post_login("testDemand", "testPassword")
-        self.assertEqual(res.status_code, 200)  
+        self.assertEqual(res.status_code, 200)
         video_content = b'\xff\x00\x00' * 100 * 100
         file = SimpleUploadedFile("video1.mp4", video_content, content_type="video/mp4")
         content = {
             "video": file
-        }              
+        }
         res = self.client.post("/video/", content)
         url = res.json()["data"]["url"]
         res = self.client.delete(f"/video/{url}")
-        self.assertEqual(res.status_code, 200)        
+        self.assertEqual(res.status_code, 200)

@@ -66,8 +66,8 @@ class ReviewTests(TestCase):
             membership_level=0,
             invite_code="testInviteCode",
             vip_expire_time=datetime.datetime.max.timestamp(),
-        )      
-        test_admin.save()  
+        )
+        test_admin.save()
 
     def login(self, username):
         response = self.client.post("/user/login", {
@@ -222,29 +222,29 @@ class ReviewTests(TestCase):
         task_id = self.publisher_login_create_task()
         self.client.post(f"/task/distribute/{task_id}")
         self.client.post("/user/logout")
-        self.login("testPublisher")      
+        self.login("testPublisher")
         user_id = 2
         content = {
-            "reason": "report reason" 
+            "reason": "report reason"
         }
         res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         user_id = 1000
         res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 404)
-        self.assertJSONEqual(res.content, 
+        self.assertJSONEqual(res.content,
                              {"code": 35, "message": "user is not demand of this task", "data": {}})
         user_id = 1000
         res = self.client.post(f"/review/report/1000/{user_id}", content, content_type=default_content_type)
-        self.assertEqual(res.status_code, 404)     
-        self.assertJSONEqual(res.content, 
+        self.assertEqual(res.status_code, 404)
+        self.assertJSONEqual(res.content,
                              {"code": 33, "message": "task not exists", "data": {}})
 
         self.client.post("/user/logout")
-        self.login("admin")      
+        self.login("admin")
         res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)
-        self.assertEqual(res.status_code, 400)     
-        self.assertJSONEqual(res.content, 
+        self.assertEqual(res.status_code, 400)
+        self.assertJSONEqual(res.content,
                              {"code": 1006, "message": "no permission", "data": {}})
 
     def test_accept_report(self):
@@ -253,21 +253,21 @@ class ReviewTests(TestCase):
         self.client.post("/user/logout")
         user_id = 2
         self.client.post("/user/logout")
-        self.login("admin")              
+        self.login("admin")
         content = {
-            "reason": "report reason" 
-        }        
+            "reason": "report reason"
+        }
         res = self.client.post(f"/review/acceptreport/{task_id}/{user_id}", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 404)
         self.assertJSONEqual(res.content,
-                             {'code': 35, 'data': {}, 'message': 'report record not found'})        
-        self.login("testPublisher")      
-        res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)   
+                             {'code': 35, 'data': {}, 'message': 'report record not found'})
+        self.login("testPublisher")
+        res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content,
                              {'code': 0, 'data': {}, 'message': 'Succeed'})
         self.client.post("/user/logout")
-        self.login("admin")              
+        self.login("admin")
         res = self.client.post(f"/review/acceptreport/{task_id}/{user_id}", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content,
@@ -279,23 +279,22 @@ class ReviewTests(TestCase):
         self.client.post("/user/logout")
         user_id = 2
         self.client.post("/user/logout")
-        self.login("admin")              
+        self.login("admin")
         res = self.client.post(f"/review/rejectreport/{task_id}/{user_id}")
         self.assertEqual(res.status_code, 404)
         self.assertJSONEqual(res.content,
-                             {'code': 35, 'data': {}, 'message': 'report record not found'})        
-        self.login("testPublisher")      
+                             {'code': 35, 'data': {}, 'message': 'report record not found'})
+        self.login("testPublisher")
         content = {
             "reason": "report reason"
         }
-        res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)        
+        res = self.client.post(f"/review/report/{task_id}/{user_id}", content, content_type=default_content_type)
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content,
                              {'code': 0, 'data': {}, 'message': 'Succeed'})
         self.client.post("/user/logout")
-        self.login("admin")              
+        self.login("admin")
         res = self.client.post(f"/review/rejectreport/{task_id}/{user_id}")
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content,
-                             {'code': 0, 'data': {}, 'message': 'Succeed'})        
-
+                             {'code': 0, 'data': {}, 'message': 'Succeed'})
