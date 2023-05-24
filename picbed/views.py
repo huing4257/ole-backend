@@ -39,7 +39,8 @@ def get_img(req: HttpRequest, img_url):
     return HttpResponse(img_content, content_type=img_type)
 
 
-def delete_img(req, img_url):
+@CheckLogin
+def delete_img(req, user: User, img_url):
     img = Image.objects.filter(img_file=img_url).first()
     if not img:
         return request_failed(18, "picture not found", 404)
@@ -49,8 +50,7 @@ def delete_img(req, img_url):
     return request_success()
 
 
-@CheckLogin
-def img_handler(req: HttpRequest, user: User, img_url):
+def img_handler(req: HttpRequest, img_url):
     """
     处理图片的获取和删除
     """

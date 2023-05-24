@@ -61,10 +61,14 @@ class PicbedTests(TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.json()['code'], 18)
 
+    """
+    deprecated
+    
     def test_get_image_not_logged_in(self):
         res = self.client.get(f"/picbed/{self.img_path}")
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['message'], "not_logged_in")
+    """
 
     def test_del_image_success(self):
         self.client.post("/user/login", {"user_name": "testPublisher", "password": "testPassword"},
